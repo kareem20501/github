@@ -22,6 +22,23 @@
 
     * { margin:0; padding:0; box-sizing:border-box; }
 
+    /* ── شريط التمرير المخصص ── */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #74c69d 0%, #40916c 40%, #8b5e3c 100%);
+      border-radius: 20px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, #95d5b2 0%, #52b788 40%, #a0724a 100%);
+      border-radius: 20px;
+      background-clip: padding-box;
+    }
+    /* Firefox */
+    * { scrollbar-width: thin; scrollbar-color: #52b788 transparent; }
+
     body {
       font-family: 'Cairo', sans-serif;
       min-height: 100vh;
@@ -29,8 +46,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
       position: relative;
+      padding: 2rem 0;
     }
 
     /* ── خلفية نباتية ── */
@@ -52,7 +71,11 @@
     .leaf-5 { top:40%; right:-20px; width:120px; transform:rotate(5deg); opacity:0.25; }
 
     /* ── Card ── */
-    .card-wrap { position:relative; z-index:10; width:100%; max-width:460px; padding:1.5rem; }
+    .card-wrap {
+      position: relative; z-index: 10;
+      width: 85%; max-width: 1100px;
+      padding: 1.5rem;
+    }
 
     .card {
       background: rgba(20, 46, 30, 0.72);
@@ -60,10 +83,26 @@
       -webkit-backdrop-filter: blur(18px);
       border: 1px solid rgba(116,198,157,0.2);
       border-radius: 28px;
-      padding: 2.5rem 2.2rem 2rem;
+      padding: 2.5rem 2.5rem 2rem;
       box-shadow:
         0 30px 60px rgba(0,0,0,0.45),
         inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    /* تخطيط أفقي للحقول */
+    .fields-row {
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .fields-row .field {
+      flex: 1;
+      min-width: 180px;
+      margin-bottom: 0;
+    }
+    .fields-row .btn-wrap {
+      flex-shrink: 0;
     }
 
     /* شريط زخرفي علوي */
@@ -133,8 +172,9 @@
 
     /* زر */
     .btn {
-      width: 100%;
-      padding: 0.9rem;
+      width: auto;
+      white-space: nowrap;
+      padding: 0.78rem 1.8rem;
       margin-top: 0.5rem;
       border: none;
       border-radius: 14px;
@@ -255,19 +295,23 @@
       <h2>تسجيل البيانات</h2>
       <p class="subtitle">أدخل المعلومات وسيتم حفظها في Google Sheet</p>
 
-      <div class="field">
-        <label>الاسم</label>
-        <input type="text" id="nameInput" placeholder="أدخل الاسم الكامل...">
-      </div>
+      <div class="fields-row">
+        <div class="field">
+          <label>الاسم</label>
+          <input type="text" id="nameInput" placeholder="أدخل الاسم الكامل...">
+        </div>
 
-      <div class="field">
-        <label>الرقم</label>
-        <input type="number" id="numberInput" placeholder="أدخل الرقم...">
-      </div>
+        <div class="field">
+          <label>الرقم</label>
+          <input type="number" id="numberInput" placeholder="أدخل الرقم...">
+        </div>
 
-      <button class="btn" id="submitBtn" onclick="submitData()">
-        🌱 حفظ في Google Sheet
-      </button>
+        <div class="btn-wrap">
+          <button class="btn" id="submitBtn" onclick="submitData()">
+            🌱 حفظ في Google Sheet
+          </button>
+        </div>
+      </div>
 
       <div id="status"></div>
 
