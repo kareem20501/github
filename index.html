@@ -3,91 +3,289 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تجربة Apps Script</title>
+  <title>تسجيل البيانات</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --green-dark:  #2d6a4f;
+      --green-mid:   #40916c;
+      --green-light: #74c69d;
+      --brown-dark:  #6b3a2a;
+      --brown-mid:   #8b5e3c;
+      --beige:       #d4a96a;
+      --beige-light: #f0dfc0;
+      --bg:          #1e3d2f;
+      --surface:     rgba(255,255,255,0.07);
+      --text:        #f5f0e8;
+      --muted:       #a8c5b0;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
     body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      font-family: 'Cairo', sans-serif;
       min-height: 100vh;
-      margin: 0;
-      background: #f0f2f5;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
     }
+
+    /* ── خلفية نباتية ── */
+    .bg-layer {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 100% 0%,   #2d6a4f 0%, transparent 55%),
+        radial-gradient(ellipse 60% 50% at 0%   100%, #6b3a2a 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 50%  50%,  #1a3325 0%, transparent 70%);
+      background-color: #1a2e22;
+    }
+
+    /* أوراق SVG زخرفية */
+    .leaf { position:fixed; z-index:1; pointer-events:none; opacity:0.55; }
+    .leaf-1 { top:-40px; right:-30px; width:320px; transform:rotate(-20deg); }
+    .leaf-2 { top: 60px; right: 80px; width:180px; transform:rotate(10deg); opacity:0.35; }
+    .leaf-3 { bottom:-60px; left:-40px; width:280px; transform:rotate(30deg) scaleX(-1); }
+    .leaf-4 { bottom: 80px; left: 90px; width:150px; transform:rotate(-15deg) scaleX(-1); opacity:0.3; }
+    .leaf-5 { top:40%; right:-20px; width:120px; transform:rotate(5deg); opacity:0.25; }
+
+    /* ── Card ── */
+    .card-wrap { position:relative; z-index:10; width:100%; max-width:460px; padding:1.5rem; }
+
     .card {
-      background: white;
-      padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
+      background: rgba(20, 46, 30, 0.72);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(116,198,157,0.2);
+      border-radius: 28px;
+      padding: 2.5rem 2.2rem 2rem;
+      box-shadow:
+        0 30px 60px rgba(0,0,0,0.45),
+        inset 0 1px 0 rgba(255,255,255,0.08);
     }
+
+    /* شريط زخرفي علوي */
+    .card-bar {
+      height: 4px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--green-light), var(--beige), var(--brown-mid));
+      margin-bottom: 2rem;
+    }
+
+    /* أيقونة */
+    .icon-wrap {
+      width: 62px; height: 62px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--green-dark), var(--brown-mid));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem;
+      margin: 0 auto 1.2rem;
+      box-shadow: 0 8px 24px rgba(45,106,79,0.5);
+    }
+
     h2 {
-      margin: 0 0 1.5rem;
-      color: #333;
       text-align: center;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.3px;
     }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    /* حقول */
+    .field { margin-bottom: 1.1rem; }
     label {
       display: block;
-      margin-bottom: 0.4rem;
-      color: #555;
-      font-size: 0.9rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--green-light);
+      margin-bottom: 0.45rem;
+      letter-spacing: 0.3px;
     }
+
     input {
       width: 100%;
-      padding: 0.7rem 1rem;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      font-size: 1rem;
-      margin-bottom: 1rem;
-      box-sizing: border-box;
-      font-family: Arial, sans-serif;
-    }
-    input:focus {
+      padding: 0.78rem 1.1rem;
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(116,198,157,0.2);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.95rem;
       outline: none;
-      border-color: #6c63ff;
+      transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
     }
-    button {
+    input::placeholder { color: rgba(168,197,176,0.45); }
+    input:focus {
+      border-color: var(--green-light);
+      background: rgba(255,255,255,0.1);
+      box-shadow: 0 0 0 4px rgba(116,198,157,0.12);
+    }
+
+    /* زر */
+    .btn {
       width: 100%;
-      padding: 0.8rem;
-      background: #6c63ff;
-      color: white;
+      padding: 0.9rem;
+      margin-top: 0.5rem;
       border: none;
-      border-radius: 10px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--green-mid) 0%, var(--green-dark) 60%, var(--brown-dark) 100%);
+      color: var(--beige-light);
+      font-family: 'Cairo', sans-serif;
       font-size: 1rem;
+      font-weight: 700;
       cursor: pointer;
-      font-family: Arial, sans-serif;
+      letter-spacing: 0.3px;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 6px 20px rgba(45,106,79,0.45);
+      position: relative;
+      overflow: hidden;
     }
-    button:hover { background: #5a52d5; }
-    button:disabled { background: #aaa; cursor: not-allowed; }
+    .btn::after {
+      content:'';
+      position:absolute; inset:0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+      border-radius:14px;
+    }
+    .btn:hover:not(:disabled) {
+      opacity: 0.92;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px rgba(45,106,79,0.55);
+    }
+    .btn:active:not(:disabled) { transform: translateY(0); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* حالة الإرسال */
     #status {
       margin-top: 1rem;
       text-align: center;
-      font-size: 0.9rem;
-      min-height: 1.5rem;
+      font-size: 0.85rem;
+      min-height: 1.4rem;
+      font-weight: 600;
+      border-radius: 10px;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s;
     }
-    .success { color: #22c55e; }
-    .error   { color: #ef4444; }
-    .loading { color: #6c63ff; }
+    .success {
+      background: rgba(116,198,157,0.15);
+      color: var(--green-light);
+      border: 1px solid rgba(116,198,157,0.3);
+    }
+    .error {
+      background: rgba(180,80,60,0.15);
+      color: #f4a47a;
+      border: 1px solid rgba(180,80,60,0.3);
+    }
+    .loading {
+      background: rgba(212,169,106,0.1);
+      color: var(--beige);
+      border: 1px solid rgba(212,169,106,0.25);
+    }
+
+    /* فاصل زخرفي */
+    .divider {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin: 1.5rem 0 1.2rem;
+    }
+    .divider-line { flex:1; height:1px; background:rgba(116,198,157,0.15); }
+    .divider-icon { font-size:1rem; opacity:0.5; }
+
+    /* عداد السجلات */
+    .counter {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 1rem;
+    }
+    .counter span { color: var(--beige); font-weight: 700; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>📋 تسجيل بيانات</h2>
 
-    <label>الاسم</label>
-    <input type="text" id="nameInput" placeholder="أدخل الاسم...">
+  <!-- خلفية -->
+  <div class="bg-layer"></div>
 
-    <label>الرقم</label>
-    <input type="number" id="numberInput" placeholder="أدخل الرقم...">
+  <!-- أوراق SVG -->
+  <svg class="leaf leaf-1" viewBox="0 0 200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M100 10 C160 40 190 120 180 200 C170 260 120 290 100 290 C80 290 30 260 20 200 C10 120 40 40 100 10Z" fill="#52b788"/>
+    <path d="M100 10 L100 290" stroke="#2d6a4f" stroke-width="2.5"/>
+    <path d="M100 80 C130 90 150 110 145 130" stroke="#2d6a4f" stroke-width="1.5" fill="none"/>
+    <path d="M100 80 C70 90 50 110 55 130" stroke="#2d6a4f" stroke-width="1.5" fill="none"/>
+    <path d="M100 140 C135 152 155 175 148 198" stroke="#2d6a4f" stroke-width="1.5" fill="none"/>
+    <path d="M100 140 C65 152 45 175 52 198" stroke="#2d6a4f" stroke-width="1.5" fill="none"/>
+  </svg>
 
-    <button id="submitBtn" onclick="submitData()">إرسال إلى Google Sheet</button>
+  <svg class="leaf leaf-2" viewBox="0 0 200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M100 10 C160 40 190 120 180 200 C170 260 120 290 100 290 C80 290 30 260 20 200 C10 120 40 40 100 10Z" fill="#95d5b2"/>
+    <path d="M100 10 L100 290" stroke="#52b788" stroke-width="2"/>
+  </svg>
 
-    <div id="status"></div>
+  <svg class="leaf leaf-3" viewBox="0 0 200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M100 10 C160 40 190 120 180 200 C170 260 120 290 100 290 C80 290 30 260 20 200 C10 120 40 40 100 10Z" fill="#8b5e3c"/>
+    <path d="M100 10 L100 290" stroke="#6b3a2a" stroke-width="2.5"/>
+    <path d="M100 80 C130 90 150 110 145 130" stroke="#6b3a2a" stroke-width="1.5" fill="none"/>
+    <path d="M100 80 C70 90 50 110 55 130" stroke="#6b3a2a" stroke-width="1.5" fill="none"/>
+  </svg>
+
+  <svg class="leaf leaf-4" viewBox="0 0 200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M100 10 C160 40 190 120 180 200 C170 260 120 290 100 290 C80 290 30 260 20 200 C10 120 40 40 100 10Z" fill="#d4a96a"/>
+    <path d="M100 10 L100 290" stroke="#b07d3a" stroke-width="2"/>
+  </svg>
+
+  <svg class="leaf leaf-5" viewBox="0 0 200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M100 10 C160 40 190 120 180 200 C170 260 120 290 100 290 C80 290 30 260 20 200 C10 120 40 40 100 10Z" fill="#74c69d"/>
+    <path d="M100 10 L100 290" stroke="#40916c" stroke-width="2"/>
+  </svg>
+
+  <!-- البطاقة -->
+  <div class="card-wrap">
+    <div class="card">
+      <div class="card-bar"></div>
+
+      <div class="icon-wrap">🌿</div>
+      <h2>تسجيل البيانات</h2>
+      <p class="subtitle">أدخل المعلومات وسيتم حفظها في Google Sheet</p>
+
+      <div class="field">
+        <label>الاسم</label>
+        <input type="text" id="nameInput" placeholder="أدخل الاسم الكامل...">
+      </div>
+
+      <div class="field">
+        <label>الرقم</label>
+        <input type="number" id="numberInput" placeholder="أدخل الرقم...">
+      </div>
+
+      <button class="btn" id="submitBtn" onclick="submitData()">
+        🌱 حفظ في Google Sheet
+      </button>
+
+      <div id="status"></div>
+
+      <div class="divider">
+        <div class="divider-line"></div>
+        <div class="divider-icon">🍃</div>
+        <div class="divider-line"></div>
+      </div>
+
+      <div class="counter">
+        تم تسجيل <span id="countNum">0</span> سجل في هذه الجلسة
+      </div>
+    </div>
   </div>
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbyD_k-JZX_Xui4O7e47BDLzTlSXAH_SXiN_IhBeU3uv-hDmlEMqOAswXX-HE5N8N59Lrw/exec";
+    let sessionCount = 0;
 
     async function submitData() {
       const name   = document.getElementById("nameInput").value.trim();
@@ -103,7 +301,7 @@
 
       btn.disabled = true;
       status.className = "loading";
-      status.textContent = "⏳ جارٍ الإرسال...";
+      status.textContent = "⏳ جارٍ الحفظ...";
 
       try {
         await fetch(API_URL, {
@@ -113,10 +311,14 @@
           body: JSON.stringify({ name, number })
         });
 
+        sessionCount++;
+        document.getElementById("countNum").textContent = sessionCount;
         status.className = "success";
-        status.textContent = "✅ تم الحفظ في Google Sheet!";
+        status.textContent = "✅ تم الحفظ بنجاح في Google Sheet!";
         document.getElementById("nameInput").value = "";
         document.getElementById("numberInput").value = "";
+        document.getElementById("nameInput").focus();
+
       } catch (err) {
         status.className = "error";
         status.textContent = "❌ حدث خطأ، تحقق من الاتصال";
@@ -124,6 +326,11 @@
         btn.disabled = false;
       }
     }
+
+    // إرسال بـ Enter
+    document.addEventListener("keydown", e => {
+      if (e.key === "Enter") submitData();
+    });
   </script>
 </body>
 </html>
