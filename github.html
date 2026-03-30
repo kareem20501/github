@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تجربة Apps Script</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f0f2f5;
+    }
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    h2 {
+      margin: 0 0 1.5rem;
+      color: #333;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.4rem;
+      color: #555;
+      font-size: 0.9rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+    input:focus {
+      outline: none;
+      border-color: #6c63ff;
+    }
+    button {
+      width: 100%;
+      padding: 0.8rem;
+      background: #6c63ff;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-family: Arial, sans-serif;
+    }
+    button:hover { background: #5a52d5; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+    #status {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 0.9rem;
+      min-height: 1.5rem;
+    }
+    .success { color: #22c55e; }
+    .error   { color: #ef4444; }
+    .loading { color: #6c63ff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>📋 تسجيل بيانات</h2>
+
+    <label>الاسم</label>
+    <input type="text" id="nameInput" placeholder="أدخل الاسم...">
+
+    <label>الرقم</label>
+    <input type="number" id="numberInput" placeholder="أدخل الرقم...">
+
+    <button id="submitBtn" onclick="submitData()">إرسال إلى Google Sheet</button>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyD_k-JZX_Xui4O7e47BDLzTlSXAH_SXiN_IhBeU3uv-hDmlEMqOAswXX-HE5N8N59Lrw/exec";
+
+    async function submitData() {
+      const name   = document.getElementById("nameInput").value.trim();
+      const number = document.getElementById("numberInput").value.trim();
+      const status = document.getElementById("status");
+      const btn    = document.getElementById("submitBtn");
+
+      if (!name || !number) {
+        status.className = "error";
+        status.textContent = "⚠️ يرجى إدخال الاسم والرقم";
+        return;
+      }
+
+      btn.disabled = true;
+      status.className = "loading";
+      status.textContent = "⏳ جارٍ الإرسال...";
+
+      try {
+        await fetch(API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, number })
+        });
+
+        status.className = "success";
+        status.textContent = "✅ تم الحفظ في Google Sheet!";
+        document.getElementById("nameInput").value = "";
+        document.getElementById("numberInput").value = "";
+      } catch (err) {
+        status.className = "error";
+        status.textContent = "❌ حدث خطأ، تحقق من الاتصال";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
