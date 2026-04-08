@@ -3,585 +3,302 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Language Tracker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>Language Tracker — Kareem</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
 <style>
-/* ─────────────── RESET & ROOT ─────────────── */
+/* ── RESET & ROOT ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --teal:#00d4c8; --teal-dim:#009e94; --teal-dark:#003d3a;
-  --teal-glow:rgba(0,212,200,0.25); --teal-glow2:rgba(0,212,200,0.08);
-  --bg:#060d0f; --bg2:#0a1518; --bg3:#0d1e22;
-  --text:#e8f4f3; --text-dim:#6a9e9b; --text-mid:#a8cccb;
-  --border:rgba(0,212,200,0.18); --border-hi:rgba(0,212,200,0.45);
-  --card-bg:rgba(0,212,200,0.04);
-  --bronze:#cd7f32; --silver:#a8b8c8; --gold:#e8c84a;
-  --platinum:#c8d4e0; --diamond:#7ee8fa; --crown:#f97316;
-  --ace:#f43f5e; --conqueror:#b48bfc;
+  --g1:#2d6a4f; --g2:#40916c; --g3:#74c69d; --g4:#d8f3dc;
+  --br1:#6b3a2a; --br2:#8b5e3c; --be:#d4a96a; --be2:#f0dfc0;
+  --bg:#111c16; --bg2:#172010; --bg3:#1e2d1a;
+  --surface:rgba(45,106,79,0.08); --surface2:rgba(45,106,79,0.14);
+  --border:rgba(116,198,157,0.15); --border2:rgba(116,198,157,0.3);
+  --text:#e8f0e6; --muted:#7aaa8a; --dim:#4a7a5a;
+  --bronze:#cd7f32; --silver:#a0b0c0; --gold:#d4a84a;
+  --plat:#b8c8d8; --diamond:#80d8f0; --crown:#f08030;
+  --ace:#e84060; --conqueror:#9870e8;
 }
 html,body{height:100%;overflow:hidden}
-body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
-button{cursor:pointer;font-family:'Exo 2',sans-serif}
-a{text-decoration:none;color:inherit}
-input{font-family:'Exo 2',sans-serif}
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-thumb{background:var(--teal-dim);border-radius:4px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text)}
+button{cursor:pointer;font-family:'Inter',sans-serif}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--g2);border-radius:4px}
 
-/* ─────────────── PAGE SYSTEM ─────────────── */
-.page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;
-  transition:opacity .5s,transform .5s;z-index:1}
-.page.hidden{opacity:0;pointer-events:none;transform:translateX(-40px)}
+/* ── PAGE SYSTEM ── */
+.page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;transition:opacity .4s,transform .4s;z-index:1}
+.page.hidden{opacity:0;pointer-events:none;transform:translateX(-30px)}
 
-/* ─────────────── SHARED: TICKER ─────────────── */
-.ticker{overflow:hidden;white-space:nowrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(0,0,0,0.5);padding:8px 0}
-.ticker-track{display:inline-block;animation:tickerScroll 18s linear infinite}
-.ticker-track span{font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;color:var(--teal-dim);padding:0 28px;text-transform:uppercase}
-@keyframes tickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-
-/* ─────────────── SHARED: NAV ─────────────── */
+/* ── NAV ── */
 nav{
   position:sticky;top:0;z-index:100;
   display:flex;align-items:center;justify-content:space-between;
-  padding:0 40px;height:54px;
-  background:rgba(6,13,15,0.92);
-  backdrop-filter:blur(20px);
+  padding:0 36px;height:52px;
+  background:rgba(17,28,22,0.95);backdrop-filter:blur(16px);
   border-bottom:1px solid var(--border);
 }
-.nav-logo{font-family:'Cinzel',serif;font-size:15px;font-weight:700;
-  color:var(--teal);letter-spacing:3px}
-.nav-links{display:flex;gap:28px;align-items:center}
-.nav-links a{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;
-  letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);transition:color .2s}
-.nav-links a:hover{color:var(--teal)}
-.nav-links a.active{color:var(--teal)}
-.nav-btn{
-  padding:7px 18px;
-  background:transparent;border:1px solid var(--border-hi);
-  border-radius:4px;color:var(--teal);
-  font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;
-  letter-spacing:2px;text-transform:uppercase;
-  transition:all .2s;
-}
-.nav-btn:hover{background:var(--teal-glow);box-shadow:0 0 16px var(--teal-glow)}
+.nav-logo{font-family:'Cinzel',serif;font-size:14px;color:var(--g3);letter-spacing:2px}
+.nav-right{display:flex;gap:20px;align-items:center}
+.nav-link{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);background:none;border:none;padding:6px 14px;border-radius:6px;transition:all .2s}
+.nav-link:hover,.nav-link.active{color:var(--g3);background:var(--surface)}
+.nav-btn{padding:6px 16px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--g3);font-size:12px;letter-spacing:1px;text-transform:uppercase;transition:all .2s}
+.nav-btn:hover{background:var(--surface2)}
 
-/* ══════════════════════════════════════════════
-   LOG PAGE
-══════════════════════════════════════════════ */
-#page-log{background:var(--bg)}
-
+/* ══════════════ LOG PAGE ══════════════ */
 .log-hero{
-  position:relative;overflow:hidden;
-  min-height:260px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;padding:60px 40px 50px;
+  padding:52px 36px 36px;text-align:center;
+  background:radial-gradient(ellipse 70% 60% at 50% 110%,rgba(64,145,108,0.12),transparent 65%);
 }
-.log-hero-bg{
-  position:absolute;inset:0;
-  background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,212,200,0.12),transparent 70%);
-}
-.log-hero-glow{
-  position:absolute;bottom:-60px;left:50%;transform:translateX(-50%);
-  width:600px;height:120px;
-  background:rgba(0,212,200,0.15);
-  border-radius:50%;filter:blur(40px);pointer-events:none;
-}
-.log-tag{font-family:'Cinzel',serif;font-size:11px;letter-spacing:4px;
-  color:var(--teal);margin-bottom:14px;text-transform:uppercase}
-.log-title{font-family:'Cinzel',serif;font-size:clamp(36px,7vw,64px);font-weight:900;
-  line-height:.95;text-transform:uppercase;margin-bottom:18px;
-  text-shadow:0 0 40px rgba(0,212,200,0.3)}
-.log-title span{color:var(--teal)}
-.log-sub{font-size:13px;color:var(--text-mid);letter-spacing:.5px;max-width:460px;line-height:1.7}
+.log-tag{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.log-title{font-family:'Cinzel',serif;font-size:clamp(32px,6vw,58px);font-weight:700;line-height:.95;text-transform:uppercase;margin-bottom:14px}
+.log-title em{font-style:normal;color:var(--g3)}
+.log-sub{font-size:13px;color:var(--muted);max-width:400px;margin:0 auto;line-height:1.7}
 
-.log-body{max-width:720px;margin:0 auto;padding:40px 32px 80px}
-.log-section-label{
-  font-family:'Cinzel',serif;font-size:10px;font-weight:700;
-  letter-spacing:3px;text-transform:uppercase;color:var(--teal-dim);
-  margin-bottom:16px;margin-top:32px;
+.log-body{max-width:680px;margin:0 auto;padding:36px 32px 80px}
+
+.section-label{
+  font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;
+  color:var(--be);margin-bottom:14px;margin-top:28px;
   display:flex;align-items:center;gap:10px;
 }
-.log-section-label:first-of-type{margin-top:0}
-.log-section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.section-label:first-child{margin-top:0}
+.section-label::after{content:'';flex:1;height:1px;background:rgba(212,169,106,0.2)}
 
-.log-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.log-field{display:flex;flex-direction:column;gap:6px}
-.log-field label{
-  font-size:11px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--text-dim);display:flex;align-items:center;justify-content:space-between;
+.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:space-between}
+.goal-tag{font-size:9px;background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:1px 6px;color:var(--dim);letter-spacing:1px}
+.field input{
+  width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:11px 14px;font-size:20px;font-weight:600;color:var(--text);outline:none;
+  transition:border-color .2s,background .2s;-moz-appearance:textfield;
 }
-.goal-tag{
-  font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:500;
-  background:rgba(0,212,200,0.08);border:1px solid var(--border);
-  border-radius:3px;padding:1px 7px;color:var(--teal-dim);letter-spacing:1px;
-}
-.log-input{
-  width:100%;background:rgba(0,212,200,0.04);
-  border:1px solid var(--border);border-radius:8px;
-  padding:12px 16px;
-  font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:600;
-  color:var(--text);outline:none;
-  transition:border-color .2s,background .2s,box-shadow .2s;
-  -moz-appearance:textfield;
-}
-.log-input::-webkit-inner-spin-button{-webkit-appearance:none}
-.log-input::placeholder{color:rgba(106,158,155,0.25);font-size:18px}
-.log-input:focus{
-  border-color:var(--teal);
-  background:rgba(0,212,200,0.07);
-  box-shadow:0 0 0 3px rgba(0,212,200,0.1);
-}
+.field input::-webkit-inner-spin-button{-webkit-appearance:none}
+.field input::placeholder{color:var(--dim);font-size:16px}
+.field input:focus{border-color:var(--g3);background:var(--surface2)}
 
-.log-footer{margin-top:28px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.log-clear{
-  background:none;border:1px solid var(--border);border-radius:7px;
-  padding:11px 16px;color:var(--text-dim);font-size:13px;letter-spacing:1px;
-  transition:all .2s;display:flex;align-items:center;gap:6px;
+.log-footer{margin-top:24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn-clear{background:none;border:1px solid var(--border);border-radius:7px;padding:10px 14px;color:var(--muted);font-size:12px;letter-spacing:1px;transition:all .2s}
+.btn-clear:hover{border-color:var(--border2);color:var(--text)}
+#log-status{flex:1;min-height:40px;padding:9px 13px;border-radius:7px;font-size:12px;letter-spacing:.5px;display:flex;align-items:center;transition:all .3s}
+#log-status.ok{background:rgba(64,145,108,0.12);color:var(--g3);border:1px solid rgba(116,198,157,0.3)}
+#log-status.err{background:rgba(220,50,60,0.1);color:#f87070;border:1px solid rgba(220,50,60,0.25)}
+#log-status.busy{background:rgba(212,169,106,0.08);color:var(--be);border:1px solid rgba(212,169,106,0.2)}
+.btn-save{
+  padding:10px 24px;background:linear-gradient(135deg,var(--g1),var(--br1));
+  border:1px solid var(--border2);border-radius:7px;color:var(--be2);
+  font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+  transition:all .2s;box-shadow:0 4px 16px rgba(45,106,79,0.2);
 }
-.log-clear:hover{border-color:var(--border-hi);color:var(--text)}
-.log-status{
-  flex:1;min-height:42px;padding:10px 14px;border-radius:7px;
-  font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:.5px;
-  display:flex;align-items:center;transition:all .3s;
-}
-.log-status.ok{background:rgba(0,212,200,0.1);color:var(--teal);border:1px solid var(--border-hi)}
-.log-status.err{background:rgba(244,63,94,0.1);color:#f87171;border:1px solid rgba(244,63,94,0.3)}
-.log-status.busy{background:rgba(228,200,74,0.08);color:#fbbf24;border:1px solid rgba(228,200,74,0.2)}
-.log-save{
-  padding:11px 28px;
-  background:linear-gradient(135deg,var(--teal-dark) 0%,rgba(0,100,95,0.9) 100%);
-  border:1px solid var(--border-hi);border-radius:7px;
-  color:var(--teal);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;
-  letter-spacing:2px;text-transform:uppercase;
-  transition:all .2s;display:flex;align-items:center;gap:8px;
-  box-shadow:0 4px 20px rgba(0,212,200,0.15);
-}
-.log-save:hover:not(:disabled){box-shadow:0 0 28px rgba(0,212,200,0.3);border-color:var(--teal);transform:translateY(-1px)}
-.log-save:disabled{opacity:.5;cursor:not-allowed}
-.log-hint{margin-top:16px;text-align:center;
-  font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:2px;
-  color:rgba(106,158,155,0.3);text-transform:uppercase}
-.log-counter{margin-top:8px;text-align:center;font-size:12px;color:var(--text-dim)}
-.log-counter span{color:var(--teal)}
+.btn-save:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 22px rgba(45,106,79,0.35)}
+.btn-save:disabled{opacity:.45;cursor:not-allowed}
+.log-hint{margin-top:12px;text-align:center;font-size:10px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+.log-counter{margin-top:6px;text-align:center;font-size:11px;color:var(--dim)}
+.log-counter span{color:var(--be)}
 
-/* ══════════════════════════════════════════════
-   DASHBOARD PAGE
-══════════════════════════════════════════════ */
-#page-dash{background:var(--bg)}
-
-/* ── HERO ── */
+/* ══════════════ DASHBOARD PAGE ══════════════ */
 .dash-hero{
-  position:relative;overflow:hidden;
-  min-height:320px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;padding:60px 40px 0;
+  padding:44px 36px 32px;text-align:center;
+  background:radial-gradient(ellipse 70% 50% at 50% 120%,rgba(64,145,108,0.14),transparent 60%);
 }
-.dash-hero-bg{
-  position:absolute;inset:0;
-  background:
-    radial-gradient(ellipse 100% 80% at 50% 120%,rgba(0,212,200,0.18),transparent 65%),
-    radial-gradient(ellipse 50% 40% at 20% -10%,rgba(0,80,78,0.3),transparent 55%),
-    radial-gradient(ellipse 40% 30% at 80% 0%,rgba(0,60,60,0.2),transparent 50%);
-}
-.dash-hero-tag{font-family:'Cinzel',serif;font-size:11px;letter-spacing:4px;
-  color:var(--teal);margin-bottom:16px;text-transform:uppercase;position:relative}
-.dash-hero-title{font-family:'Cinzel',serif;font-size:clamp(40px,7vw,72px);font-weight:900;
-  text-transform:uppercase;line-height:.9;margin-bottom:0;position:relative;
-  text-shadow:0 0 60px rgba(0,212,200,0.25)}
-.dash-hero-title em{font-style:italic;color:var(--teal)}
-.dash-hero-glow{
-  position:absolute;bottom:-80px;left:50%;transform:translateX(-50%);
-  width:700px;height:160px;
-  background:rgba(0,212,200,0.12);
-  border-radius:50%;filter:blur(50px);pointer-events:none;
-}
+.dash-tag{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.dash-title{font-family:'Cinzel',serif;font-size:clamp(28px,5vw,52px);font-weight:700;text-transform:uppercase;line-height:.95}
+.dash-title em{font-style:normal;color:var(--g3)}
 
-/* ── RANK HERO ── */
-.rank-hero{
-  max-width:900px;margin:32px auto 0;padding:0 32px;
-  display:flex;align-items:center;gap:28px;flex-wrap:wrap;
-  position:relative;z-index:2;
+/* ── RANK BLOCK ── */
+.rank-block{
+  max-width:860px;margin:28px auto 0;padding:0 32px;
+  display:flex;align-items:center;gap:24px;flex-wrap:wrap;
 }
-.rank-emblem{
-  width:70px;height:70px;border-radius:14px;
-  border:1px solid var(--border);background:rgba(0,212,200,0.06);
-  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+.rank-badge{
+  width:64px;height:64px;border-radius:12px;
+  border:1px solid var(--border2);background:var(--surface);
+  display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;
 }
-.rank-emblem svg{width:36px;height:36px}
-.rank-info-block{flex:1}
-.rank-current{
-  font-family:'Cinzel',serif;font-size:28px;font-weight:900;
-  letter-spacing:1px;color:var(--text);line-height:1
-}
-.rank-xp-label{font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:2px;
-  text-transform:uppercase;color:var(--text-dim);margin-top:4px}
-.rank-bar-wrap{min-width:260px;flex:1;max-width:380px}
-.rank-bar-labels{display:flex;justify-content:space-between;
-  font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:1px;
-  color:var(--text-dim);margin-bottom:5px}
-.rank-bar-track{height:5px;background:rgba(0,212,200,0.08);border-radius:100px;overflow:hidden}
-.rank-bar-fill{height:100%;background:linear-gradient(90deg,var(--teal-dim),var(--teal));
-  border-radius:100px;transition:width 1.4s cubic-bezier(.16,1,.3,1);
-  box-shadow:0 0 8px rgba(0,212,200,0.5)}
-.rank-bar-remain{font-family:'Rajdhani',sans-serif;font-size:10px;letter-spacing:1px;
-  color:var(--text-dim);margin-top:5px;text-align:right}
-.rank-bar-remain strong{color:var(--teal)}
+.rank-info{flex:1}
+.rank-name{font-family:'Cinzel',serif;font-size:26px;font-weight:700;line-height:1}
+.rank-xp{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.rank-bar-wrap{min-width:240px;flex:1;max-width:360px}
+.rank-bar-labels{display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;color:var(--dim);margin-bottom:5px}
+.rank-track{height:5px;background:var(--surface2);border-radius:100px;overflow:hidden}
+.rank-fill{height:100%;background:linear-gradient(90deg,var(--g2),var(--g3));border-radius:100px;transition:width 1.2s cubic-bezier(.16,1,.3,1)}
+.rank-remain{font-size:10px;letter-spacing:1px;color:var(--dim);margin-top:5px;text-align:right}
+.rank-remain strong{color:var(--g3)}
 
-/* ── SECTION LABEL ── */
-.dash-label{
-  font-family:'Cinzel',serif;font-size:10px;font-weight:700;
-  letter-spacing:3px;text-transform:uppercase;color:var(--teal-dim);
-  margin-bottom:18px;
-  display:flex;align-items:center;gap:10px;
-}
-.dash-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.dash-body{max-width:960px;margin:0 auto;padding:36px 32px 90px}
 
-/* ── DASH BODY ── */
-.dash-body{max-width:1100px;margin:0 auto;padding:40px 32px 100px}
-
-/* ── TASK STRIP ── */
-.task-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:44px}
-.task-card{
-  background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
-  padding:14px 12px;
-  display:flex;flex-direction:column;gap:7px;
-  transition:border-color .25s;
+/* ── QUESTS ── */
+.quest-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:40px}
+.quest-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:14px 12px;transition:border-color .2s;
 }
-.task-card.done{border-color:rgba(0,212,200,0.4);box-shadow:0 0 16px rgba(0,212,200,0.07)}
-.task-top{display:flex;align-items:center;gap:7px}
-.task-icon{width:24px;height:24px;border-radius:5px;border:1px solid var(--border);
-  background:rgba(0,212,200,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.task-icon svg{width:11px;height:11px;color:var(--teal-dim)}
-.task-card.done .task-icon{border-color:rgba(0,212,200,0.35);background:rgba(0,212,200,0.1)}
-.task-card.done .task-icon svg{color:var(--teal)}
-.task-name{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;
-  text-transform:uppercase;color:var(--text-mid);flex:1}
-.task-check{width:14px;height:14px;flex-shrink:0}
-.task-check svg{width:14px;height:14px}
-.task-nums{display:flex;justify-content:space-between;
-  font-family:'Rajdhani',sans-serif;font-size:10px;color:var(--text-dim);letter-spacing:1px}
-.task-bar{height:2px;background:rgba(0,212,200,0.08);border-radius:100px;overflow:hidden}
-.task-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--teal-dim),var(--teal));
-  transition:width 1.4s cubic-bezier(.16,1,.3,1)}
-.task-fill.done-fill{background:var(--teal);box-shadow:0 0 6px rgba(0,212,200,0.5)}
+.quest-card.done{border-color:rgba(116,198,157,0.35);background:rgba(116,198,157,0.05)}
+.quest-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.quest-icon{font-size:16px}
+.quest-check{font-size:14px}
+.quest-name{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.quest-card.done .quest-name{color:var(--g3)}
+.quest-nums{font-size:10px;color:var(--dim);letter-spacing:.5px;margin-bottom:6px}
+.quest-bar{height:2px;background:rgba(116,198,157,0.1);border-radius:100px;overflow:hidden}
+.quest-fill{height:100%;background:linear-gradient(90deg,var(--g2),var(--g3));border-radius:100px;transition:width 1s}
+.quest-card.done .quest-fill{box-shadow:0 0 6px rgba(116,198,157,0.4)}
 
-/* ── CHARACTER CAROUSEL ── */
-.carousel-section{margin-bottom:0}
-.carousel-wrapper{position:relative;overflow:hidden}
-.carousel-track{
-  display:flex;gap:16px;padding:8px 4px 20px;
-  overflow-x:auto;scroll-behavior:smooth;
-  scrollbar-width:none;
-}
-.carousel-track::-webkit-scrollbar{display:none}
+/* ── SKILL CARDS ── */
+.skill-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:40px}
 .skill-card{
-  flex-shrink:0;width:190px;
-  background:var(--card-bg);border:1px solid var(--border);
-  border-radius:16px;overflow:hidden;cursor:pointer;
-  transition:all .35s;position:relative;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:16px 14px;transition:all .2s;cursor:default;
 }
-.skill-card:hover,.skill-card.selected{
-  border-color:var(--teal);
-  transform:translateY(-12px) scale(1.04);
-  box-shadow:0 20px 50px rgba(0,212,200,0.2),0 0 30px rgba(0,212,200,0.1);
-  z-index:2;
-}
-.skill-card.selected{transform:translateY(-16px) scale(1.07)}
-.skill-card-art{
-  height:220px;position:relative;overflow:hidden;
-}
-.skill-card-canvas{width:100%;height:100%;display:block}
-.skill-card-level{
-  position:absolute;top:10px;right:10px;
-  font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:1px;
-  padding:3px 8px;border-radius:3px;
-  background:rgba(0,0,0,0.7);color:var(--teal);border:1px solid var(--border-hi);
-}
-.skill-card-info{padding:12px 14px 14px}
-.skill-card-name{font-family:'Cinzel',serif;font-size:13px;font-weight:700;
-  color:var(--text);letter-spacing:.5px;margin-bottom:3px}
-.skill-card-role{font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:500;
-  letter-spacing:2px;text-transform:uppercase;color:var(--teal-dim);margin-bottom:10px}
-.xp-label{display:flex;justify-content:space-between;
-  font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:1px;
-  text-transform:uppercase;color:var(--text-dim);margin-bottom:4px}
-.xp-track{height:3px;background:rgba(0,212,200,0.08);border-radius:100px;overflow:hidden}
-.xp-bar{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--teal-dim),var(--teal));
-  transition:width 1s cubic-bezier(.16,1,.3,1)}
-
-/* ── CHARACTER SELECT SECTION ── */
-.char-select{
-  position:relative;overflow:hidden;
-  background:linear-gradient(180deg,var(--bg) 0%,#060f12 40%,#04080a 100%);
-  border:1px solid var(--border);border-radius:20px;
-  padding:60px;
-  display:grid;grid-template-columns:340px 1fr;gap:60px;align-items:start;
-  margin-top:0;
-}
-.char-select-bg{
-  position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(ellipse 60% 80% at 65% 50%,rgba(0,212,200,0.06),transparent 60%);
-}
-.char-left{}
-.char-section-title{font-family:'Cinzel',serif;font-size:38px;font-weight:900;
-  text-transform:uppercase;line-height:.95;margin-bottom:20px;
-  text-shadow:0 0 30px rgba(0,212,200,0.15)}
-.char-desc{font-size:14px;line-height:1.8;color:var(--text-mid);margin-bottom:28px}
-.char-desc em{color:var(--teal);font-style:normal}
-.char-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:28px}
-.char-stat{background:rgba(0,212,200,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
-.char-stat-label{font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:3px}
-.char-stat-val{font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:var(--teal)}
-.char-upgrade-btn{
-  padding:12px 28px;
-  background:linear-gradient(135deg,var(--teal-dark),rgba(0,100,90,0.8));
-  border:1px solid var(--border-hi);border-radius:8px;
-  color:var(--teal);font-family:'Cinzel',serif;font-size:12px;font-weight:700;
-  letter-spacing:2px;text-transform:uppercase;
-  transition:all .25s;
-  box-shadow:0 4px 20px rgba(0,212,200,0.1);
-  width:100%;
-}
-.char-upgrade-btn:hover{box-shadow:0 0 28px rgba(0,212,200,0.3);transform:translateY(-1px)}
-.read-more{display:inline-flex;align-items:center;gap:8px;margin-top:16px;
-  font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;
-  color:var(--teal-dim);transition:color .2s;background:none;border:none;padding:0}
-.read-more:hover{color:var(--teal)}
-.read-more-line{width:32px;height:1px;background:currentColor}
-
-.char-right{position:relative;display:flex;align-items:center;justify-content:center;min-height:460px}
-.char-portrait-wrap{position:relative;width:320px}
-.char-portrait-canvas{width:100%;height:480px;display:block}
-.char-portrait-name{
-  text-align:center;margin-top:16px;
-  font-family:'Cinzel',serif;font-size:20px;font-weight:700;
-  letter-spacing:3px;text-transform:uppercase;
-  color:var(--text);
-}
-.char-portrait-name::before{content:'— ';color:var(--teal-dim)}
-.char-portrait-name::after{content:' —';color:var(--teal-dim)}
-
-/* Annotation lines */
-.annotations{position:absolute;inset:0;pointer-events:none}
-.ann-line{position:absolute}
-.ann-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);
-  box-shadow:0 0 8px var(--teal);position:absolute}
-.ann-text{position:absolute}
-.ann-title{font-family:'Cinzel',serif;font-size:12px;font-weight:700;
-  color:var(--text);letter-spacing:1px}
-.ann-desc{font-family:'Rajdhani',sans-serif;font-size:11px;color:var(--text-dim);
-  line-height:1.5;max-width:140px}
-.ann-hr{width:100%;height:1px;background:var(--border);margin:4px 0}
+.skill-card:hover{border-color:var(--border2);transform:translateY(-3px)}
+.sk-top{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.sk-icon{font-size:20px}
+.sk-name{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);flex:1}
+.sk-rank{font-size:9px;letter-spacing:1px;border-radius:4px;padding:2px 7px;font-weight:600;text-transform:uppercase;border:1px solid}
+.sk-total{font-size:22px;font-weight:700;color:var(--text);margin-bottom:3px}
+.sk-unit{font-size:10px;color:var(--dim);letter-spacing:.5px;margin-bottom:10px}
+.sk-bar-label{display:flex;justify-content:space-between;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+.sk-track{height:3px;background:var(--surface2);border-radius:100px;overflow:hidden}
+.sk-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--g1),var(--g3));transition:width 1s}
+.sk-next{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-top:5px}
+.sk-next strong{color:var(--be)}
 
 /* ── RANK ROAD ── */
-.rank-road{display:flex;gap:4px;overflow-x:auto;padding-bottom:6px;margin-bottom:48px}
+.rank-road{display:flex;gap:4px;overflow-x:auto;padding-bottom:6px;margin-bottom:40px}
 .rank-road::-webkit-scrollbar{height:3px}
-.tier-col{display:flex;flex-direction:column;min-width:105px;flex:1}
-.tier-head{padding:8px 6px 6px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;
-  letter-spacing:1.5px;text-transform:uppercase;text-align:center;
-  border-radius:6px 6px 0 0;border-bottom:2px solid transparent}
-.tier-subs{display:flex;flex-direction:column-reverse;gap:2px;padding:3px}
-.tier-sub{padding:5px 6px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:10px;
-  font-weight:500;letter-spacing:1px;text-align:center;color:var(--text-dim);
-  background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s}
-.tier-sub.current{background:rgba(0,212,200,0.12);border-color:rgba(0,212,200,0.45);
-  color:var(--teal);box-shadow:0 0 10px rgba(0,212,200,0.2);animation:tsPulse 2.5s ease infinite}
-.tier-sub.passed{background:rgba(0,212,200,0.05);border-color:rgba(0,212,200,0.15);color:rgba(0,212,200,0.5)}
-@keyframes tsPulse{0%,100%{box-shadow:0 0 8px rgba(0,212,200,0.2)}50%{box-shadow:0 0 18px rgba(0,212,200,0.45)}}
+.tier-col{display:flex;flex-direction:column;min-width:95px;flex:1}
+.tier-head{padding:7px 5px 5px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-align:center;border-radius:6px 6px 0 0;border-bottom:2px solid transparent}
+.tier-subs{display:flex;flex-direction:column-reverse;gap:2px;padding:2px}
+.tier-sub{padding:4px 5px;border-radius:4px;font-size:9px;font-weight:500;letter-spacing:1px;text-align:center;color:var(--dim);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s}
+.tier-sub.current{background:var(--surface2);border-color:var(--border2);color:var(--g3);animation:pulse 2.5s ease infinite}
+.tier-sub.passed{opacity:.5}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(116,198,157,0)}50%{box-shadow:0 0 10px rgba(116,198,157,0.25)}}
 
 /* ── INFO STRIP ── */
-.info-strip{display:flex;flex-wrap:wrap;gap:20px;padding:18px 24px;
-  background:var(--card-bg);border:1px solid var(--border);border-radius:12px;margin-bottom:48px;
-  font-family:'Rajdhani',sans-serif}
+.info-strip{display:flex;flex-wrap:wrap;gap:16px;padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:40px}
 .info-item{display:flex;flex-direction:column;gap:2px}
-.info-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)}
-.info-val{font-size:14px;font-weight:700;color:var(--teal);font-family:'Cinzel',serif}
+.info-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.info-val{font-size:13px;font-weight:700;color:var(--g3);font-family:'Cinzel',serif}
 
-/* ── UPGRADE FLASH ── */
-@keyframes upgradeFlash{
-  0%{box-shadow:0 0 0 0 rgba(0,212,200,0.8)}
-  50%{box-shadow:0 0 60px 30px rgba(0,212,200,0.3)}
-  100%{box-shadow:0 0 0 0 rgba(0,212,200,0)}
-}
-.skill-card.upgrading{animation:upgradeFlash .6s ease}
-
-@media(max-width:800px){
-  .char-select{grid-template-columns:1fr;padding:32px 24px}
-  .char-right{min-height:340px}
-  .char-portrait-canvas{height:360px}
-  .task-strip{grid-template-columns:repeat(3,1fr)}
-  nav{padding:0 20px}
-  .dash-body{padding:32px 20px 80px}
-  .log-body{padding:32px 20px 80px}
-  .log-fields{grid-template-columns:1fr}
+@media(max-width:750px){
+  nav{padding:0 18px}
+  .dash-body,.log-body{padding:24px 18px 80px}
+  .quest-grid,.skill-grid{grid-template-columns:repeat(2,1fr)}
+  .fields-grid{grid-template-columns:1fr}
+  .rank-block{padding:0 18px}
+  .log-footer{flex-direction:column}
+  .btn-save,.btn-clear{width:100%}
 }
 </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════
-     PAGE: LOG
-═══════════════════════════════════════════ -->
+<!-- ══════════ LOG PAGE ══════════ -->
 <div id="page-log" class="page">
   <nav>
     <div class="nav-logo">KAREEM ッ</div>
-    <div class="nav-links">
-      <a href="#" class="active">Log</a>
+    <div class="nav-right">
+      <button class="nav-link active">Log</button>
       <button class="nav-btn" onclick="goTo('dash')">Dashboard →</button>
     </div>
   </nav>
 
   <div class="log-hero">
-    <div class="log-hero-bg"></div>
-    <div class="log-hero-glow"></div>
     <div class="log-tag">Now Recording</div>
-    <h1 class="log-title">DAILY<br><span>ENTRY</span></h1>
-    <p class="log-sub">Record your skills — every word, every minute advances your rank</p>
-  </div>
-
-  <div class="ticker">
-    <div class="ticker-track" id="log-ticker">
-      <span>DAILY LOG</span><span>TRACK YOUR PROGRESS</span><span>LEVEL UP YOUR SKILLS</span><span>DAILY LOG</span><span>TRACK YOUR PROGRESS</span><span>LEVEL UP YOUR SKILLS</span><span>DAILY LOG</span><span>TRACK YOUR PROGRESS</span><span>LEVEL UP YOUR SKILLS</span><span>DAILY LOG</span><span>TRACK YOUR PROGRESS</span><span>LEVEL UP YOUR SKILLS</span>
-    </div>
+    <h1 class="log-title">DAILY<br><em>ENTRY</em></h1>
+    <p class="log-sub">Every word, every minute — recorded and counted towards your rank</p>
   </div>
 
   <div class="log-body">
-    <div class="log-section-label">Vocabulary</div>
-    <div class="log-fields">
-      <div class="log-field">
+    <div class="section-label">Vocabulary</div>
+    <div class="fields-grid">
+      <div class="field">
         <label>New Words <span class="goal-tag">≥ 30</span></label>
-        <input type="number" id="l-nw" class="log-input" placeholder="0" min="0">
+        <input type="number" id="l-nw" placeholder="0" min="0">
       </div>
-      <div class="log-field">
+      <div class="field">
         <label>Review Words <span class="goal-tag">≥ 50</span></label>
-        <input type="number" id="l-rw" class="log-input" placeholder="0" min="0">
+        <input type="number" id="l-rw" placeholder="0" min="0">
       </div>
     </div>
 
-    <div class="log-section-label">Listening & Speaking</div>
-    <div class="log-fields">
-      <div class="log-field">
+    <div class="section-label">Listening & Speaking</div>
+    <div class="fields-grid">
+      <div class="field">
         <label>Speaking <span class="goal-tag">≥ 30 min</span></label>
-        <input type="number" id="l-sp" class="log-input" placeholder="0" min="0">
+        <input type="number" id="l-sp" placeholder="0" min="0">
       </div>
-      <div class="log-field">
+      <div class="field">
         <label>Listening <span class="goal-tag">≥ 60 min</span></label>
-        <input type="number" id="l-li" class="log-input" placeholder="0" min="0">
+        <input type="number" id="l-li" placeholder="0" min="0">
       </div>
     </div>
 
-    <div class="log-section-label">Reading & Typing</div>
-    <div class="log-fields">
-      <div class="log-field">
+    <div class="section-label">Reading & Typing</div>
+    <div class="fields-grid">
+      <div class="field">
         <label>Pages Read <span class="goal-tag">≥ 3</span></label>
-        <input type="number" id="l-pg" class="log-input" placeholder="0" min="0">
+        <input type="number" id="l-pg" placeholder="0" min="0">
       </div>
-      <div class="log-field">
-        <label>Typing Score <span class="goal-tag">WPM</span></label>
-        <input type="number" id="l-ty" class="log-input" placeholder="0" min="0" style="border-color:rgba(0,180,150,0.2)">
+      <div class="field">
+        <label>Typing Score <span class="goal-tag">WPM — no limit</span></label>
+        <input type="number" id="l-ty" placeholder="0" min="0">
       </div>
     </div>
 
     <div class="log-footer">
-      <button class="log-clear" onclick="logClear()">
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1l-9 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Clear
-      </button>
-      <div class="log-status" id="log-status"></div>
-      <button class="log-save" id="log-save-btn" onclick="logSave()">
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v8M3.5 6l3 3 3-3M1 11h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Save Entry
-      </button>
+      <button class="btn-clear" onclick="logClear()">✕ Clear</button>
+      <div id="log-status"></div>
+      <button class="btn-save" id="log-save-btn" onclick="logSave()">⬇ Save Entry</button>
     </div>
     <div class="log-hint">ctrl + enter to save quickly</div>
     <div class="log-counter">Saved <span id="log-count">0</span> entries this session</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     PAGE: DASHBOARD
-═══════════════════════════════════════════ -->
+<!-- ══════════ DASHBOARD PAGE ══════════ -->
 <div id="page-dash" class="page hidden">
   <nav>
     <div class="nav-logo">KAREEM ッ</div>
-    <div class="nav-links">
-      <a href="#" onclick="goTo('log')" style="color:var(--text-dim)">Log</a>
-      <a href="#" class="active">Dashboard</a>
+    <div class="nav-right">
+      <button class="nav-link" onclick="goTo('log')">← Log</button>
+      <button class="nav-link active">Dashboard</button>
     </div>
   </nav>
 
-  <!-- HERO -->
   <div class="dash-hero">
-    <div class="dash-hero-bg"></div>
-    <div class="dash-hero-tag">Language Conqueror System</div>
-    <h1 class="dash-hero-title">CHARACTER<br><em>SELECT</em></h1>
-    <div class="dash-hero-glow"></div>
+    <div class="dash-tag">Language Conqueror System</div>
+    <h1 class="dash-title">YOUR<br><em>PROGRESS</em></h1>
   </div>
 
-  <!-- RANK HERO -->
-  <div class="rank-hero">
-    <div class="rank-emblem" id="rank-emblem">
-      <svg id="rank-svg" viewBox="0 0 36 36" fill="none"></svg>
-    </div>
-    <div class="rank-info-block">
-      <div class="rank-current" id="rank-name">Bronze V</div>
-      <div class="rank-xp-label" id="rank-xp-label">0 XP Total</div>
+  <div class="rank-block">
+    <div class="rank-badge" id="rank-badge">🥉</div>
+    <div class="rank-info">
+      <div class="rank-name" id="rank-name">Bronze V</div>
+      <div class="rank-xp" id="rank-xp">0 XP Total</div>
     </div>
     <div class="rank-bar-wrap">
-      <div class="rank-bar-labels"><span id="rb-from">Bronze V</span><span id="rb-to">Bronze IV</span></div>
-      <div class="rank-bar-track"><div class="rank-bar-fill" id="rank-fill" style="width:0%"></div></div>
-      <div class="rank-bar-remain" id="rank-remain"><strong>—</strong> xp to next rank</div>
-    </div>
-  </div>
-
-  <div class="ticker" style="margin-top:32px">
-    <div class="ticker-track">
-      <span>UNLOCKED NEW CHARACTER</span><span>SKILL UPGRADED</span><span>RANK ACHIEVED</span><span>UNLOCKED NEW CHARACTER</span><span>SKILL UPGRADED</span><span>RANK ACHIEVED</span><span>UNLOCKED NEW CHARACTER</span><span>SKILL UPGRADED</span><span>RANK ACHIEVED</span><span>UNLOCKED NEW CHARACTER</span><span>SKILL UPGRADED</span><span>RANK ACHIEVED</span>
+      <div class="rank-bar-labels">
+        <span id="rb-from">Bronze V</span>
+        <span id="rb-to">Bronze IV</span>
+      </div>
+      <div class="rank-track"><div class="rank-fill" id="rank-fill" style="width:0%"></div></div>
+      <div class="rank-remain" id="rank-remain"><strong>—</strong> xp to next rank</div>
     </div>
   </div>
 
   <div class="dash-body">
-    <!-- TODAY TASKS -->
-    <div class="dash-label">Today's Quests</div>
-    <div class="task-strip" id="task-strip"></div>
 
-    <!-- CHARACTERS TO PLAY -->
-    <div class="dash-label" style="margin-top:12px">Skills — Characters to Play</div>
-    <div class="carousel-section">
-      <div class="carousel-track" id="carousel-track"></div>
-    </div>
+    <!-- TODAY'S QUESTS -->
+    <div class="section-label" style="margin-top:0">Today's Quests</div>
+    <div class="quest-grid" id="quest-grid"></div>
 
-    <!-- TICKER 2 -->
-    <div class="ticker" style="margin:0 0 0">
-      <div class="ticker-track" style="animation-direction:reverse">
-        <span>UNLOCKED NEW CHARACTER</span><span>SELECT YOUR SKILL</span><span>LEVEL UP</span><span>CONQUEROR AWAITS</span><span>UNLOCKED NEW CHARACTER</span><span>SELECT YOUR SKILL</span><span>LEVEL UP</span><span>CONQUEROR AWAITS</span><span>UNLOCKED NEW CHARACTER</span><span>SELECT YOUR SKILL</span><span>LEVEL UP</span><span>CONQUEROR AWAITS</span>
-      </div>
-    </div>
-
-    <!-- CHARACTER SELECT DETAIL -->
-    <div class="char-select" id="char-select" style="margin-top:32px">
-      <div class="char-select-bg"></div>
-      <div class="char-left">
-        <h2 class="char-section-title" id="cs-title">CHARACTER<br>SELECT</h2>
-        <p class="char-desc" id="cs-desc">Select a skill character to view their profile.</p>
-        <div class="char-stats-grid" id="cs-stats"></div>
-        <button class="char-upgrade-btn" id="cs-upgrade-btn" onclick="upgradeSelected()">↑ Upgrade Skill</button>
-        <button class="read-more">
-          <span class="read-more-line"></span>
-          View Full Profile
-        </button>
-      </div>
-      <div class="char-right">
-        <div class="char-portrait-wrap" id="char-portrait-wrap">
-          <canvas class="char-portrait-canvas" id="char-portrait" width="320" height="480"></canvas>
-          <div class="char-portrait-name" id="char-portrait-name">Select a Skill</div>
-          <div class="annotations" id="char-annotations"></div>
-        </div>
-      </div>
-    </div>
+    <!-- SKILL OVERVIEW -->
+    <div class="section-label">Skill Overview</div>
+    <div class="skill-grid" id="skill-grid"></div>
 
     <!-- INFO STRIP -->
-    <div class="dash-label" style="margin-top:48px">Point System</div>
+    <div class="section-label">Point System</div>
     <div class="info-strip">
       <div class="info-item"><div class="info-label">New Word</div><div class="info-val">1 XP</div></div>
       <div class="info-item"><div class="info-label">Review Word</div><div class="info-val">1 XP</div></div>
@@ -589,788 +306,239 @@ nav{
       <div class="info-item"><div class="info-label">Listening min</div><div class="info-val">1 XP</div></div>
       <div class="info-item"><div class="info-label">Page read</div><div class="info-val">1 XP</div></div>
       <div class="info-item"><div class="info-label">Daily ideal</div><div class="info-val">173 XP</div></div>
-      <div class="info-item"><div class="info-label">Conqueror</div><div class="info-val">~20,760</div></div>
-      <div class="info-item"><div class="info-label">Timeline</div><div class="info-val">120 days</div></div>
+      <div class="info-item"><div class="info-label">Conqueror</div><div class="info-val">20,760 XP</div></div>
+      <div class="info-item"><div class="info-label">Est. timeline</div><div class="info-val">~120 days</div></div>
     </div>
 
     <!-- RANK ROAD -->
-    <div class="dash-label">Rank Progression</div>
+    <div class="section-label">Rank Progression</div>
     <div class="rank-road" id="rank-road"></div>
 
   </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════
-//  CONFIG
-// ═══════════════════════════════════════════════════
 var API_URL = "https://script.google.com/macros/s/AKfycbx33HKg34_P9jmP2OrauOFYtmbAQB98k5MJAh5j6PUzK5R3uFGHUu6nNp_aR01HvGi_HQ/exec";
 
-// ═══════════════════════════════════════════════════
-//  RANK SYSTEM
-// ═══════════════════════════════════════════════════
-var RANKS=[
-  {tier:'Bronze',   col:'#cd7f32', subs:['V','IV','III','II','I'], pts:100},
-  {tier:'Silver',   col:'#a8b8c8', subs:['V','IV','III','II','I'], pts:160},
-  {tier:'Gold',     col:'#e8c84a', subs:['V','IV','III','II','I'], pts:250},
-  {tier:'Platinum', col:'#c8d4e0', subs:['V','IV','III','II','I'], pts:400},
-  {tier:'Diamond',  col:'#7ee8fa', subs:['V','IV','III','II','I'], pts:600},
-  {tier:'Crown',    col:'#f97316', subs:['V','IV','III','II','I'], pts:900},
-  {tier:'Ace',      col:'#f43f5e', subs:['','Master','Dominator'], pts:1700},
-  {tier:'Conqueror',col:'#b48bfc', subs:[''],                      pts:3610}
+// ── RANK SYSTEM ──────────────────────────────────────────────
+var RANKS = [
+  {tier:'Bronze',   emoji:'🥉', col:'#cd7f32', subs:['V','IV','III','II','I'], pts:120},
+  {tier:'Silver',   emoji:'🥈', col:'#a0b0c0', subs:['V','IV','III','II','I'], pts:200},
+  {tier:'Gold',     emoji:'🥇', col:'#d4a84a', subs:['V','IV','III','II','I'], pts:320},
+  {tier:'Platinum', emoji:'💠', col:'#b8c8d8', subs:['V','IV','III','II','I'], pts:520},
+  {tier:'Diamond',  emoji:'💎', col:'#80d8f0', subs:['V','IV','III','II','I'], pts:800},
+  {tier:'Crown',    emoji:'👑', col:'#f08030', subs:['V','IV','III','II','I'], pts:1200},
+  {tier:'Ace',      emoji:'🌟', col:'#e84060', subs:['','Master','Dominator'], pts:2000},
+  {tier:'Conqueror',emoji:'⚔️', col:'#9870e8', subs:[''],                      pts:4000}
 ];
-var LEVELS=[]; var cumXP=0;
+
+// Build flat LEVELS array
+var LEVELS = []; var cum = 0;
 RANKS.forEach(function(r){
   r.subs.forEach(function(s){
-    LEVELS.push({label:s?r.tier+' '+s:r.tier,tier:r.tier,col:r.col,startXP:cumXP,pts:r.pts});
-    cumXP+=r.pts;
+    LEVELS.push({label: s ? r.tier+' '+s : r.tier, tier:r.tier, col:r.col, emoji:r.emoji, startXP:cum, pts:r.pts});
+    cum += r.pts;
   });
 });
-function getRankIdx(xp){ for(var i=LEVELS.length-1;i>=0;i--){ if(xp>=LEVELS[i].startXP) return i; } return 0; }
 
-// Rank SVG icons
-var RANK_SVG={
-  Bronze:   '<circle cx="18" cy="18" r="11" stroke="#cd7f32" stroke-width="1.5" fill="none"/><circle cx="18" cy="18" r="5" fill="#cd7f32" opacity=".4"/>',
-  Silver:   '<polygon points="18,6 22,14 31,14 24,20 27,29 18,23 9,29 12,20 5,14 14,14" stroke="#a8b8c8" stroke-width="1.3" fill="none"/><polygon points="18,11 21,17 26,17 22,20 23,26 18,22 13,26 14,20 10,17 15,17" fill="#a8b8c8" opacity=".25"/>',
-  Gold:     '<polygon points="18,4 22,13 32,13 24,19 27,29 18,23 9,29 12,19 4,13 14,13" stroke="#e8c84a" stroke-width="1.3" fill="none"/><circle cx="18" cy="18" r="3.5" fill="#e8c84a"/>',
-  Platinum: '<rect x="6" y="6" width="24" height="24" rx="4" stroke="#c8d4e0" stroke-width="1.3" fill="none"/><rect x="11" y="11" width="14" height="14" rx="2" stroke="#c8d4e0" stroke-width="1" fill="none" opacity=".4"/>',
-  Diamond:  '<polygon points="18,3 30,14 18,31 6,14" stroke="#7ee8fa" stroke-width="1.3" fill="none"/><polygon points="18,10 24,15 18,24 12,15" fill="#7ee8fa" opacity=".2"/>',
-  Crown:    '<path d="M5 26 L9 11 L18 19 L27 8 L31 20" stroke="#f97316" stroke-width="1.5" fill="none" stroke-linejoin="round"/><line x1="5" y1="26" x2="31" y2="26" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>',
-  Ace:      '<circle cx="18" cy="18" r="13" stroke="#f43f5e" stroke-width="1.3" fill="none"/><path d="M13 23 L18 10 L23 23 M14.5 19.5 H21.5" stroke="#f43f5e" stroke-width="1.3" stroke-linecap="round" fill="none"/>',
-  Conqueror:'<path d="M18 3 L22 13 H33 L24 20 L27 30 L18 23 L9 30 L12 20 L3 13 H14 Z" stroke="#b48bfc" stroke-width="1.3" fill="rgba(180,139,252,0.15)"/>'
-};
+function getRankIdx(xp){
+  for(var i = LEVELS.length-1; i >= 0; i--){ if(xp >= LEVELS[i].startXP) return i; }
+  return 0;
+}
 
-// ═══════════════════════════════════════════════════
-//  SKILL CHARACTERS — anime portraits drawn on canvas
-// ═══════════════════════════════════════════════════
-var SKILLS=[
-  {
-    key:'new_words', name:'Kaizen Kotoha', role:'Word Seeker',
-    color:'#00d4c8', color2:'#003d3a',
-    today:0, total:0, goal:30, unit:'words',
-    lv:1, xp:0, xpMax:500,
-    weapon:'Lexicon Blade', weaponDesc:'Absorbs meaning from any script',
-    ability:'Crystal Echo', abilityDesc:'Duplicates newly learned words across memory',
-    stats:{Power:0, Speed:0, Memory:0, Retention:0},
-    desc:'A disciplined scholar of lost alphabets. Kotoha roams ancient libraries absorbing vocabulary from crumbling texts, her blade glowing with each new word mastered.',
-    palette:['#00d4c8','#003d3a','#00a89f','#001f1d','#c8f0ee'],
-    hairCol:'#e8f4f3', skinCol:'#f5d5c0', clothCol:'#003d3a', accentCol:'#00d4c8'
-  },
-  {
-    key:'review_words', name:'Reiya Kioku', role:'Memory Weaver',
-    color:'#7ee8fa', color2:'#0d2a30',
-    today:0, total:0, goal:50, unit:'words',
-    lv:1, xp:0, xpMax:500,
-    weapon:'Echo Staff', weaponDesc:'Replays forgotten memories with clarity',
-    ability:'Infinite Loop', abilityDesc:'Chains review sessions without fatigue',
-    stats:{Power:0, Speed:0, Memory:0, Retention:0},
-    desc:'Gifted with the ability to replay any memory in perfect detail. Reiya\'s staff hums with the residual energy of thousands of reviewed words.',
-    palette:['#7ee8fa','#0d2a30','#4dd4ea','#081820','#d0f4fc'],
-    hairCol:'#7ee8fa', skinCol:'#f0d8c8', clothCol:'#0d2a30', accentCol:'#7ee8fa'
-  },
-  {
-    key:'speaking_min', name:'Sora Koeyo', role:'Voice Commander',
-    color:'#f472b6', color2:'#2d0a1e',
-    today:0, total:0, goal:30, unit:'min',
-    lv:1, xp:0, xpMax:500,
-    weapon:'Resonance Fan', weaponDesc:'Projects voice waves that cut through silence',
-    ability:'Harmonic Strike', abilityDesc:'Perfect pronunciation delivered as a shockwave',
-    stats:{Power:0, Speed:0, Memory:0, Retention:0},
-    desc:'Her voice alone can shatter barriers between languages. Sora trained in the highest mountain temples where the air itself teaches pronunciation.',
-    palette:['#f472b6','#2d0a1e','#e058a0','#1a0610','#fce4f3'],
-    hairCol:'#e8c0d8', skinCol:'#f5d5c5', clothCol:'#2d0a1e', accentCol:'#f472b6'
-  },
-  {
-    key:'listening_min', name:'Kaze Kikumi', role:'Sound Hunter',
-    color:'#d4a96a', color2:'#2a1a04',
-    today:0, total:0, goal:60, unit:'min',
-    lv:1, xp:0, xpMax:500,
-    weapon:'Resonance Bow', weaponDesc:'Arrows that follow sound waves',
-    ability:'Phantom Ear', abilityDesc:'Processes audio at 3x normal speed',
-    stats:{Power:0, Speed:0, Memory:0, Retention:0},
-    desc:'A hunter who tracks meaning through sound alone. Kaze can discern a whispered word from a crowd of thousands, her senses tuned to frequencies others cannot hear.',
-    palette:['#d4a96a','#2a1a04','#b8904a','#190f02','#f0dfc0'],
-    hairCol:'#d4a96a', skinCol:'#f0d0b0', clothCol:'#2a1a04', accentCol:'#d4a96a'
-  },
-  {
-    key:'pages_read', name:'Shiro Fumiya', role:'Page Devourer',
-    color:'#34d399', color2:'#042810',
-    today:0, total:0, goal:3, unit:'pages',
-    lv:1, xp:0, xpMax:500,
-    weapon:'Tome Blade', weaponDesc:'Crafted from compressed ancient manuscripts',
-    ability:'Speed Read', abilityDesc:'Absorbs entire pages in a single glance',
-    stats:{Power:0, Speed:0, Memory:0, Retention:0},
-    desc:'An enigmatic archivist who has read every text ever written. Shiro\'s blade is forged from compressed manuscripts, sharp as wit and heavy with knowledge.',
-    palette:['#34d399','#042810','#20b87a','#021a0a','#d0f4e4'],
-    hairCol:'#c8f0e0', skinCol:'#f5e8d8', clothCol:'#042810', accentCol:'#34d399'
-  }
+// Per-skill rank thresholds (scaled by daily goal)
+// Goal: nw=30, rw=50, sp=30, li=60, pg=3 → ratios
+var SKILL_RANK_SCALE = {new_words:1, review_words:1.67, speaking_min:1, listening_min:2, pages_read:0.1};
+
+function getSkillRank(key, total){
+  var scale = SKILL_RANK_SCALE[key] || 1;
+  var adj = total / scale; // normalize to same scale as overall
+  var idx = getRankIdx(adj);
+  return LEVELS[idx];
+}
+
+// ── SKILLS CONFIG ─────────────────────────────────────────────
+var SKILLS = [
+  {key:'new_words',    icon:'📘', name:'New Words',    goal:30,  unit:'words'},
+  {key:'review_words', icon:'🔁', name:'Review Words', goal:50,  unit:'words'},
+  {key:'speaking_min', icon:'🗣️', name:'Speaking',     goal:30,  unit:'min'},
+  {key:'listening_min',icon:'🎧', name:'Listening',    goal:60,  unit:'min'},
+  {key:'pages_read',   icon:'📖', name:'Reading',      goal:3,   unit:'pages'}
 ];
 
-var selectedSkillIdx=0;
-var logCount=0;
-var currentPage='log';
+// ── STATE ─────────────────────────────────────────────────────
+var state = {today:{}, totals:{}};
+var logCount = 0;
+var currentPage = 'log';
 
-// ═══════════════════════════════════════════════════
-//  CANVAS ART — anime character rendering
-// ═══════════════════════════════════════════════════
-function drawCharCard(canvas, skill, isSelected){
-  var c=canvas.getContext('2d');
-  var W=canvas.width, H=canvas.height;
-  c.clearRect(0,0,W,H);
-  var lv=skill.lv; var col=skill.color; var col2=skill.color2;
-  var hair=skill.hairCol, skin=skill.skinCol, cloth=skill.clothCol, acc=skill.accentCol;
-
-  // BG gradient
-  var bg=c.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,col2); bg.addColorStop(1,'#030608');
-  c.fillStyle=bg; c.fillRect(0,0,W,H);
-
-  // BG pattern lines
-  c.strokeStyle=col+'15'; c.lineWidth=1;
-  for(var i=0;i<W;i+=20){ c.beginPath(); c.moveTo(i,0); c.lineTo(i,H); c.stroke(); }
-
-  // Glow circle behind character
-  var glow=c.createRadialGradient(W/2,H*.6,20,W/2,H*.6,W*.7);
-  glow.addColorStop(0,col+'30'); glow.addColorStop(1,'transparent');
-  c.fillStyle=glow; c.fillRect(0,0,W,H);
-
-  // Ground shadow
-  var shadow=c.createRadialGradient(W/2,H*.9,5,W/2,H*.9,W*.45);
-  shadow.addColorStop(0,col+'40'); shadow.addColorStop(1,'transparent');
-  c.fillStyle=shadow; c.fillRect(0,0,W,H);
-
-  // ── Draw character based on skill index ──
-  var sIdx=SKILLS.indexOf(skill);
-  drawAnimeCharacter(c,W,H,sIdx,lv,hair,skin,cloth,acc,col);
-
-  // Level badge overlay
-  if(isSelected){
-    c.strokeStyle=col+'88'; c.lineWidth=2;
-    c.strokeRect(1,1,W-2,H-2);
-  }
-}
-
-function drawAnimeCharacter(c,W,H,sIdx,lv,hair,skin,cloth,acc,col){
-  // Each character has a unique silhouette
-  var cx=W/2, cy=H;
-  var poses=[
-    function(){ drawPose_sword(c,cx,cy,hair,skin,cloth,acc,col,lv); },
-    function(){ drawPose_staff(c,cx,cy,hair,skin,cloth,acc,col,lv); },
-    function(){ drawPose_fan(c,cx,cy,hair,skin,cloth,acc,col,lv); },
-    function(){ drawPose_bow(c,cx,cy,hair,skin,cloth,acc,col,lv); },
-    function(){ drawPose_tome(c,cx,cy,hair,skin,cloth,acc,col,lv); }
-  ];
-  if(poses[sIdx]) poses[sIdx]();
-}
-
-// ── POSE 1: Sword warrior ──
-function drawPose_sword(c,cx,cy,hair,skin,cloth,acc,col,lv){
-  var y=cy;
-  // Body / coat
-  c.fillStyle=cloth;
-  c.beginPath(); c.ellipse(cx,y-120,28,70,0,0,Math.PI*2); c.fill();
-  // Coat details
-  c.fillStyle=acc+'40';
-  c.beginPath(); c.rect(cx-10,y-170,5,80); c.fill();
-  c.fillStyle=col+'30';
-  c.beginPath(); c.rect(cx+5,y-170,5,80); c.fill();
-  // Legs
-  c.fillStyle=cloth;
-  c.fillRect(cx-18,y-60,14,60); c.fillRect(cx+4,y-60,14,60);
-  // Boots
-  c.fillStyle='#111';
-  c.beginPath(); c.ellipse(cx-11,y,11,8,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+11,y,11,8,0,0,Math.PI*2); c.fill();
-  // Arms
-  c.strokeStyle=cloth; c.lineWidth=12; c.lineCap='round';
-  c.beginPath(); c.moveTo(cx-24,y-160); c.lineTo(cx-40,y-120); c.stroke();
-  c.beginPath(); c.moveTo(cx+24,y-160); c.lineTo(cx+50,y-100); c.stroke();
-  // Neck
-  c.fillStyle=skin;
-  c.beginPath(); c.ellipse(cx,y-188,9,12,0,0,Math.PI*2); c.fill();
-  // Head
-  c.fillStyle=skin;
-  c.beginPath(); c.ellipse(cx,y-218,28,32,0,0,Math.PI*2); c.fill();
-  // Jaw shadow
-  c.fillStyle=skin+'cc';
-  c.beginPath(); c.ellipse(cx+4,y-200,20,16,.1,0,Math.PI*2); c.fill();
-  // Hair
-  c.fillStyle=hair;
-  c.beginPath(); c.ellipse(cx,y-230,30,22,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx-8,y-220,10,25,.3,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+10,y-215,8,20,-.3,0,Math.PI*2); c.fill();
-  c.beginPath(); c.moveTo(cx-28,y-225); c.bezierCurveTo(cx-40,y-200,cx-35,y-170,cx-25,y-160); c.lineWidth=12; c.strokeStyle=hair; c.stroke();
-  // Eyes
-  c.fillStyle='#1a0a20';
-  c.beginPath(); c.ellipse(cx-10,y-218,6,4,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+10,y-218,6,4,0,0,Math.PI*2); c.fill();
-  c.fillStyle=col;
-  c.beginPath(); c.ellipse(cx-10,y-218,3.5,3.5,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+10,y-218,3.5,3.5,0,0,Math.PI*2); c.fill();
-  c.fillStyle='#fff';
-  c.beginPath(); c.ellipse(cx-8,y-221,1.5,1.5,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+12,y-221,1.5,1.5,0,0,Math.PI*2); c.fill();
-  // Eyelashes
-  c.strokeStyle='#1a0a20'; c.lineWidth=1.5;
-  c.beginPath(); c.moveTo(cx-16,y-222); c.lineTo(cx-4,y-222); c.stroke();
-  c.beginPath(); c.moveTo(cx+4,y-222); c.lineTo(cx+16,y-222); c.stroke();
-  // Nose
-  c.strokeStyle=skin+'90'; c.lineWidth=1.5;
-  c.beginPath(); c.arc(cx+2,y-208,3,.8,Math.PI*.8); c.stroke();
-  // Mouth
-  c.strokeStyle='#c87890'; c.lineWidth=2;
-  c.beginPath(); c.arc(cx,y-202,5,.2,Math.PI-.2); c.stroke();
-  // Collar / detail
-  c.fillStyle=acc+'80';
-  c.beginPath(); c.moveTo(cx-10,y-178); c.lineTo(cx,y-165); c.lineTo(cx+10,y-178); c.fill();
-  // SWORD (right hand)
-  c.save(); c.translate(cx+50,y-100); c.rotate(-.6);
-  c.fillStyle=col+'cc';
-  c.beginPath(); c.rect(-2,-90,4,90); c.fill();
-  c.fillStyle=col;
-  c.beginPath(); c.moveTo(0,-90); c.lineTo(-4,-100); c.lineTo(4,-100); c.fill();
-  c.fillStyle=col+'60'; c.fillRect(-10,-10,20,6);
-  c.restore();
-  // Glow on sword
-  c.strokeStyle=col+'50'; c.lineWidth=1;
-  c.beginPath(); c.moveTo(cx+50,y-100); c.lineTo(cx+84,y-158); c.stroke();
-  // Level up aura rings
-  if(lv>=3){
-    c.strokeStyle=col+'30'; c.lineWidth=1.5;
-    for(var r=0;r<lv-2;r++){
-      c.beginPath(); c.ellipse(cx,y-160,50+r*20,60+r*20,0,0,Math.PI*2); c.stroke();
-    }
-  }
-}
-
-// ── POSE 2: Staff mage ──
-function drawPose_staff(c,cx,cy,hair,skin,cloth,acc,col,lv){
-  var y=cy;
-  // Robe
-  c.fillStyle=cloth;
-  c.beginPath(); c.moveTo(cx-30,y); c.lineTo(cx-24,y-140); c.lineTo(cx+24,y-140); c.lineTo(cx+30,y); c.closePath(); c.fill();
-  // Robe accent
-  c.fillStyle=acc+'25';
-  c.beginPath(); c.moveTo(cx,y); c.lineTo(cx-5,y-140); c.lineTo(cx+5,y-140); c.closePath(); c.fill();
-  // Arms
-  c.strokeStyle=cloth; c.lineWidth=11; c.lineCap='round';
-  c.beginPath(); c.moveTo(cx-20,y-130); c.lineTo(cx-35,y-90); c.stroke();
-  c.beginPath(); c.moveTo(cx+20,y-130); c.lineTo(cx+38,y-80); c.stroke();
-  // Neck
-  c.fillStyle=skin; c.beginPath(); c.ellipse(cx,y-152,8,11,0,0,Math.PI*2); c.fill();
-  // Head
-  c.fillStyle=skin; c.beginPath(); c.ellipse(cx,y-182,26,30,0,0,Math.PI*2); c.fill();
-  // Hair (long)
-  c.fillStyle=hair; c.beginPath(); c.ellipse(cx,y-196,28,20,0,0,Math.PI*2); c.fill();
-  c.strokeStyle=hair; c.lineWidth=10;
-  c.beginPath(); c.moveTo(cx-26,y-192); c.bezierCurveTo(cx-40,y-170,cx-38,y-120,cx-30,y-100); c.stroke();
-  c.beginPath(); c.moveTo(cx+26,y-192); c.bezierCurveTo(cx+40,y-170,cx+38,y-120,cx+30,y-100); c.stroke();
-  // Eyes
-  c.fillStyle='#1a0a20';
-  c.beginPath(); c.ellipse(cx-9,y-182,5,4,-.1,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+9,y-182,5,4,.1,0,Math.PI*2); c.fill();
-  c.fillStyle=col;
-  c.beginPath(); c.ellipse(cx-9,y-182,3,3,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+9,y-182,3,3,0,0,Math.PI*2); c.fill();
-  c.fillStyle='#fff'; c.beginPath(); c.ellipse(cx-7,y-184,1.5,1.5,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+11,y-184,1.5,1.5,0,0,Math.PI*2); c.fill();
-  c.strokeStyle='#1a0a20'; c.lineWidth=1.5;
-  c.beginPath(); c.moveTo(cx-14,y-186); c.lineTo(cx-4,y-186); c.stroke();
-  c.beginPath(); c.moveTo(cx+4,y-186); c.lineTo(cx+14,y-186); c.stroke();
-  c.strokeStyle='#c890a0'; c.lineWidth=2;
-  c.beginPath(); c.arc(cx,y-170,4,.2,Math.PI-.2); c.stroke();
-  // STAFF
-  c.strokeStyle=col+'dd'; c.lineWidth=4; c.lineCap='round';
-  c.beginPath(); c.moveTo(cx+38,y-80); c.lineTo(cx+52,y-260); c.stroke();
-  // Staff orb
-  var orb=c.createRadialGradient(cx+55,y-268,2,cx+55,y-268,18);
-  orb.addColorStop(0,col); orb.addColorStop(.5,col+'88'); orb.addColorStop(1,'transparent');
-  c.fillStyle=orb; c.beginPath(); c.arc(cx+55,y-268,18,0,Math.PI*2); c.fill();
-  // Orb sparkles
-  c.fillStyle=col; c.lineWidth=1;
-  [[cx+60,y-280],[cx+48,y-258],[cx+66,y-260]].forEach(function(p){
-    c.beginPath(); c.arc(p[0],p[1],2,0,Math.PI*2); c.fill();
-  });
-  if(lv>=2){ c.strokeStyle=col+'40'; c.lineWidth=1; c.beginPath(); c.arc(cx+55,y-268,28,0,Math.PI*2); c.stroke(); }
-}
-
-// ── POSE 3: Fan dancer ──
-function drawPose_fan(c,cx,cy,hair,skin,cloth,acc,col,lv){
-  var y=cy;
-  c.fillStyle=cloth;
-  c.beginPath(); c.ellipse(cx-5,y-100,26,65,.1,0,Math.PI*2); c.fill();
-  c.fillStyle=acc+'30';
-  c.beginPath(); c.moveTo(cx-5,y-165); c.lineTo(cx-20,y-60); c.lineTo(cx+10,y-60); c.closePath(); c.fill();
-  // Skirt
-  c.fillStyle=cloth+'cc';
-  c.beginPath(); c.ellipse(cx-5,y-35,34,25,.1,0,Math.PI*2); c.fill();
-  // Legs
-  c.strokeStyle=skin; c.lineWidth=10; c.lineCap='round';
-  c.beginPath(); c.moveTo(cx-10,y-15); c.lineTo(cx-15,y); c.stroke();
-  c.beginPath(); c.moveTo(cx+2,y-15); c.lineTo(cx+8,y); c.stroke();
-  // Arms
-  c.strokeStyle=skin; c.lineWidth=10; c.lineCap='round';
-  c.beginPath(); c.moveTo(cx-22,y-145); c.lineTo(cx-50,y-110); c.stroke();
-  c.beginPath(); c.moveTo(cx+14,y-145); c.lineTo(cx+55,y-130); c.stroke();
-  c.fillStyle=skin; c.beginPath(); c.ellipse(cx-5,y-160,9,12,.1,0,Math.PI*2); c.fill();
-  // Head
-  c.fillStyle=skin; c.beginPath(); c.ellipse(cx-3,y-193,25,28,-.05,0,Math.PI*2); c.fill();
-  // Hair up-do
-  c.fillStyle=hair; c.beginPath(); c.ellipse(cx-3,y-204,24,18,0,0,Math.PI*2); c.fill();
-  c.fillStyle=hair;
-  c.beginPath(); c.ellipse(cx+2,y-218,10,12,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+2,y-228,7,7,0,0,Math.PI*2); c.fill();
-  c.strokeStyle=hair; c.lineWidth=8;
-  c.beginPath(); c.moveTo(cx-25,y-200); c.bezierCurveTo(cx-35,y-180,cx-30,y-155,cx-22,y-148); c.stroke();
-  // Hair ornament
-  c.fillStyle=acc; c.beginPath(); c.arc(cx+8,y-224,5,0,Math.PI*2); c.fill();
-  c.strokeStyle=acc+'80'; c.lineWidth=1.5;
-  c.beginPath(); c.moveTo(cx+8,y-219); c.lineTo(cx+12,y-208); c.stroke();
-  // Eyes
-  c.fillStyle='#200a20';
-  c.beginPath(); c.ellipse(cx-13,y-195,5,3.5,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+5,y-195,5,3.5,0,0,Math.PI*2); c.fill();
-  c.fillStyle=col;
-  c.beginPath(); c.ellipse(cx-13,y-195,3,3,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+5,y-195,3,3,0,0,Math.PI*2); c.fill();
-  c.fillStyle='#fff'; c.beginPath(); c.arc(cx-11,y-197,1.5,0,Math.PI*2); c.fill();
-  c.beginPath(); c.arc(cx+7,y-197,1.5,0,Math.PI*2); c.fill();
-  c.strokeStyle='#200a20'; c.lineWidth=1.5;
-  c.beginPath(); c.moveTo(cx-18,y-199); c.lineTo(cx-8,y-199); c.stroke();
-  c.beginPath(); c.moveTo(cx,y-199); c.lineTo(cx+10,y-199); c.stroke();
-  c.strokeStyle='#e090b0'; c.lineWidth=2;
-  c.beginPath(); c.arc(cx-4,y-184,4,.2,Math.PI-.2); c.stroke();
-  // FAN
-  c.save(); c.translate(cx+55,y-130); c.rotate(-.4);
-  for(var i=0;i<7;i++){
-    c.save(); c.rotate((i-3)*.18);
-    c.fillStyle=i%2===0?col+'cc':acc+'99';
-    c.beginPath(); c.moveTo(0,0); c.arc(0,0,38,-Math.PI*.1,Math.PI*.1); c.closePath(); c.fill();
-    c.restore();
-  }
-  c.strokeStyle=col+'99'; c.lineWidth=1.5; c.beginPath(); c.arc(0,0,40,-.6,.6); c.stroke();
-  c.restore();
-}
-
-// ── POSE 4: Archer ──
-function drawPose_bow(c,cx,cy,hair,skin,cloth,acc,col,lv){
-  var y=cy;
-  c.fillStyle=cloth;
-  c.beginPath(); c.ellipse(cx+5,y-110,25,62,-.1,0,Math.PI*2); c.fill();
-  c.fillStyle=acc+'35';
-  c.beginPath(); c.rect(cx-2,y-172,10,70); c.fill();
-  c.fillRect(cx-12,y-125,28,8);
-  c.fillStyle=cloth; c.fillRect(cx-15,y-55,12,55); c.fillRect(cx+3,y-55,12,55);
-  c.fillStyle='#0a0808'; c.beginPath(); c.ellipse(cx-9,y,10,7,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+9,y,10,7,0,0,Math.PI*2); c.fill();
-  c.strokeStyle=skin; c.lineWidth=11; c.lineCap='round';
-  c.beginPath(); c.moveTo(cx+20,y-160); c.lineTo(cx+55,y-125); c.stroke();
-  c.beginPath(); c.moveTo(cx-15,y-155); c.lineTo(cx-45,y-175); c.stroke();
-  c.fillStyle=skin; c.beginPath(); c.ellipse(cx+5,y-175,9,11,-.1,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+5,y-204,25,29,-.05,0,Math.PI*2); c.fill();
-  c.fillStyle=hair; c.beginPath(); c.ellipse(cx+5,y-215,23,17,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+10,y-227,9,11,0,0,Math.PI*2); c.fill();
-  c.strokeStyle=hair; c.lineWidth=9;
-  c.beginPath(); c.moveTo(cx+27,y-210); c.bezierCurveTo(cx+38,y-185,cx+36,y-150,cx+28,y-140); c.stroke();
-  c.beginPath(); c.moveTo(cx-18,y-208); c.bezierCurveTo(cx-26,y-180,cx-24,y-160,cx-16,y-148); c.stroke();
-  c.fillStyle='#1a0808';
-  c.beginPath(); c.ellipse(cx-4,y-205,5,3.5,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+14,y-205,5,3.5,0,0,Math.PI*2); c.fill();
-  c.fillStyle=col;
-  c.beginPath(); c.ellipse(cx-4,y-205,3,3,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+14,y-205,3,3,0,0,Math.PI*2); c.fill();
-  c.fillStyle='#fff'; c.beginPath(); c.arc(cx-2,y-207,1.5,0,Math.PI*2); c.fill();
-  c.beginPath(); c.arc(cx+16,y-207,1.5,0,Math.PI*2); c.fill();
-  c.strokeStyle='#1a0808'; c.lineWidth=1.5;
-  c.beginPath(); c.moveTo(cx-9,y-209); c.lineTo(cx+1,y-209); c.stroke();
-  c.beginPath(); c.moveTo(cx+9,y-209); c.lineTo(cx+19,y-209); c.stroke();
-  c.strokeStyle='#c89090'; c.lineWidth=2;
-  c.beginPath(); c.arc(cx+5,y-194,4,.2,Math.PI-.2); c.stroke();
-  // BOW
-  c.save(); c.translate(cx-45,y-175);
-  c.strokeStyle=col+'cc'; c.lineWidth=3;
-  c.beginPath(); c.arc(0,0,40,-.8,.8); c.stroke();
-  c.strokeStyle='#c8a878'; c.lineWidth=2;
-  c.beginPath(); c.moveTo(-30,28); c.lineTo(30,-28); c.stroke();
-  // Arrow
-  c.strokeStyle=col+'aa'; c.lineWidth=1.5;
-  c.beginPath(); c.moveTo(-25,23); c.lineTo(35,-33); c.stroke();
-  c.fillStyle=col; c.beginPath(); c.moveTo(35,-33); c.lineTo(26,-28); c.lineTo(30,-38); c.closePath(); c.fill();
-  // Arrow glow
-  c.strokeStyle=col+'30'; c.lineWidth=4;
-  c.beginPath(); c.moveTo(-25,23); c.lineTo(35,-33); c.stroke();
-  c.restore();
-}
-
-// ── POSE 5: Scholar ──
-function drawPose_tome(c,cx,cy,hair,skin,cloth,acc,col,lv){
-  var y=cy;
-  c.fillStyle=cloth;
-  c.beginPath(); c.ellipse(cx,y-105,27,64,0,0,Math.PI*2); c.fill();
-  c.fillStyle=acc+'30'; c.beginPath(); c.rect(cx-8,y-168,5,68); c.fill();
-  c.fillRect(cx+3,y-145,10,8);
-  c.fillStyle=cloth; c.fillRect(cx-16,y-52,13,52); c.fillRect(cx+3,y-52,13,52);
-  c.fillStyle='#0a0a10'; c.beginPath(); c.ellipse(cx-8,y,10,7,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+8,y,10,7,0,0,Math.PI*2); c.fill();
-  c.strokeStyle=cloth; c.lineWidth=11; c.lineCap='round';
-  c.beginPath(); c.moveTo(cx-23,y-155); c.lineTo(cx-42,y-115); c.stroke();
-  c.beginPath(); c.moveTo(cx+23,y-155); c.lineTo(cx+48,y-128); c.stroke();
-  c.fillStyle=skin; c.beginPath(); c.ellipse(cx,y-172,9,12,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx,y-203,26,30,0,0,Math.PI*2); c.fill();
-  // Hair (messy scholar)
-  c.fillStyle=hair; c.beginPath(); c.ellipse(cx,y-215,28,20,0,0,Math.PI*2); c.fill();
-  c.fillStyle=hair;
-  c.beginPath(); c.ellipse(cx-8,y-208,9,14,.3,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+12,y-212,8,12,-.2,0,Math.PI*2); c.fill();
-  c.strokeStyle=hair; c.lineWidth=9;
-  c.beginPath(); c.moveTo(cx-25,y-208); c.bezierCurveTo(cx-38,y-180,cx-35,y-145,cx-26,y-138); c.stroke();
-  c.fillStyle='#1a1a20';
-  c.beginPath(); c.ellipse(cx-9,y-203,5,4,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+9,y-203,5,4,0,0,Math.PI*2); c.fill();
-  c.fillStyle=col;
-  c.beginPath(); c.ellipse(cx-9,y-203,3,3,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.ellipse(cx+9,y-203,3,3,0,0,Math.PI*2); c.fill();
-  c.fillStyle='#fff'; c.beginPath(); c.arc(cx-7,y-205,1.5,0,Math.PI*2); c.fill();
-  c.beginPath(); c.arc(cx+11,y-205,1.5,0,Math.PI*2); c.fill();
-  c.strokeStyle='#1a1a20'; c.lineWidth=1.5;
-  c.beginPath(); c.moveTo(cx-14,y-207); c.lineTo(cx-4,y-207); c.stroke();
-  c.beginPath(); c.moveTo(cx+4,y-207); c.lineTo(cx+14,y-207); c.stroke();
-  c.strokeStyle='#d09080'; c.lineWidth=2;
-  c.beginPath(); c.arc(cx,y-190,4,.2,Math.PI-.2); c.stroke();
-  // TOME
-  c.save(); c.translate(cx+48,y-128);
-  var tg=c.createLinearGradient(0,-30,0,40);
-  tg.addColorStop(0,col+'cc'); tg.addColorStop(1,col+'55');
-  c.fillStyle=tg;
-  c.beginPath(); c.roundRect(-18,-30,36,60,4); c.fill();
-  c.fillStyle='rgba(0,0,0,0.3)'; c.fillRect(-14,-25,5,50);
-  // Book rune
-  c.strokeStyle=col+'ff'; c.lineWidth=1.5;
-  for(var i=0;i<4;i++){ c.beginPath(); c.rect(-10,-20+i*14,20,2); c.stroke(); }
-  // Glow pages
-  c.fillStyle=col+'20'; c.beginPath(); c.roundRect(-18,-30,36,60,4); c.fill();
-  c.restore();
-  // Floating rune particles
-  if(lv>=2){
-    [[cx-35,cy-250],[cx+40,cy-240],[cx-20,cy-260]].forEach(function(p,i){
-      c.fillStyle=col+(i===0?'cc':'88');
-      c.font='bold 11px serif'; c.fillText(['Ж','Щ','Ф'][i],p[0],p[1]);
-    });
-  }
-}
-
-// ═══════════════════════════════════════════════════
-//  PORTRAIT CANVAS (large character select)
-// ═══════════════════════════════════════════════════
-function drawPortrait(skill){
-  var canvas=document.getElementById('char-portrait');
-  if(!canvas) return;
-  canvas.width=320; canvas.height=480;
-  var c=canvas.getContext('2d');
-  var W=320, H=480;
-  c.clearRect(0,0,W,H);
-  var col=skill.color, col2=skill.color2;
-  var bg=c.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,col2+'ee'); bg.addColorStop(.5,'#060d0f'); bg.addColorStop(1,'#030608');
-  c.fillStyle=bg; c.fillRect(0,0,W,H);
-  // Grid
-  c.strokeStyle=col+'12'; c.lineWidth=1;
-  for(var i=0;i<W;i+=24){ c.beginPath(); c.moveTo(i,0); c.lineTo(i,H); c.stroke(); }
-  for(var j=0;j<H;j+=24){ c.beginPath(); c.moveTo(0,j); c.lineTo(W,j); c.stroke(); }
-  // Glow
-  var glow=c.createRadialGradient(W/2,H*.7,30,W/2,H*.7,W*.8);
-  glow.addColorStop(0,col+'35'); glow.addColorStop(1,'transparent');
-  c.fillStyle=glow; c.fillRect(0,0,W,H);
-  var sIdx=SKILLS.indexOf(skill);
-  drawAnimeCharacter(c,W,H,sIdx,skill.lv,skill.hairCol,skill.skinCol,skill.clothCol,skill.accentCol,col);
-  // Level glow ring
-  if(skill.lv>=3){
-    c.strokeStyle=col+'30'; c.lineWidth=2;
-    for(var r2=0;r2<skill.lv-2;r2++){
-      c.beginPath(); c.ellipse(W/2,H*.7,60+r2*25,70+r2*25,0,0,Math.PI*2); c.stroke();
-    }
-  }
-  // Border
-  c.strokeStyle=col+'55'; c.lineWidth=1.5; c.strokeRect(1,1,W-2,H-2);
-}
-
-// ═══════════════════════════════════════════════════
-//  STATE + STORAGE
-// ═══════════════════════════════════════════════════
 function loadState(){
   try{
-    var td=JSON.parse(localStorage.getItem('lt_today')||'{}').data||{};
-    var tot=JSON.parse(localStorage.getItem('lt_totals')||'{}');
-    SKILLS.forEach(function(s){
-      s.today=Number(td[s.key])||0;
-      s.total=Number(tot[s.key])||0;
-    });
-    // Load skill levels
-    var lvls=JSON.parse(localStorage.getItem('lt_skill_lvls')||'{}');
-    SKILLS.forEach(function(s){ if(lvls[s.key]) s.lv=lvls[s.key]; });
-    updateSkillStats();
+    var raw = localStorage.getItem('lt_today');
+    if(raw){ var p = JSON.parse(raw); state.today = p.data || {}; }
+    var raw2 = localStorage.getItem('lt_totals');
+    if(raw2){ state.totals = JSON.parse(raw2) || {}; }
   }catch(e){}
 }
 
-function updateSkillStats(){
+function saveState(){
+  localStorage.setItem('lt_today', JSON.stringify({data:state.today, ts:new Date().toISOString()}));
+  localStorage.setItem('lt_totals', JSON.stringify(state.totals));
+}
+
+function getTotalXP(){
+  return SKILLS.reduce(function(sum, s){ return sum + (state.totals[s.key]||0); }, 0);
+}
+
+// ── RENDER DASHBOARD ──────────────────────────────────────────
+function renderDash(){
+  loadState();
+  renderRankHero();
+  renderQuests();
+  renderSkills();
+  renderRankRoad();
+}
+
+function renderRankHero(){
+  var xp = getTotalXP();
+  var idx = getRankIdx(xp);
+  var cur = LEVELS[idx], nxt = LEVELS[idx+1];
+  var pct = nxt ? Math.min(Math.round((xp - cur.startXP) / (nxt.startXP - cur.startXP) * 100), 100) : 100;
+  document.getElementById('rank-badge').textContent = cur.emoji;
+  document.getElementById('rank-name').textContent = cur.label;
+  document.getElementById('rank-xp').textContent = xp.toLocaleString() + ' XP Total';
+  document.getElementById('rb-from').textContent = cur.label;
+  document.getElementById('rb-to').textContent = nxt ? nxt.label : 'MAX';
+  setTimeout(function(){ document.getElementById('rank-fill').style.width = pct + '%'; }, 80);
+  var remain = nxt ? (nxt.startXP - xp).toLocaleString() : 0;
+  document.getElementById('rank-remain').innerHTML = nxt
+    ? '<strong>' + remain + '</strong> xp to next rank'
+    : '<strong>⚔️ Conqueror — Maximum Rank</strong>';
+}
+
+function renderQuests(){
+  var g = document.getElementById('quest-grid'); g.innerHTML = '';
   SKILLS.forEach(function(s){
-    var lv=s.lv;
-    s.stats.Power    = Math.min(100, Math.round(s.total/20*lv));
-    s.stats.Speed    = Math.min(100, Math.round(s.today/s.goal*100));
-    s.stats.Memory   = Math.min(100, Math.round(s.total/(s.goal*10)*100));
-    s.stats.Retention= Math.min(100, (lv-1)*25);
-    s.xp = s.total % s.xpMax;
+    var today = state.today[s.key] || 0;
+    var done = today >= s.goal;
+    var pct = Math.min(Math.round(today / s.goal * 100), 100);
+    var d = document.createElement('div');
+    d.className = 'quest-card' + (done ? ' done' : '');
+    d.innerHTML =
+      '<div class="quest-top"><span class="quest-icon">'+s.icon+'</span><span class="quest-check">'+(done?'✅':'○')+'</span></div>'+
+      '<div class="quest-name">'+s.name+'</div>'+
+      '<div class="quest-nums">'+today+' / '+s.goal+' '+s.unit+'</div>'+
+      '<div class="quest-bar"><div class="quest-fill" style="width:'+pct+'%"></div></div>';
+    g.appendChild(d);
   });
 }
 
-function getTotalXP(){ return SKILLS.reduce(function(a,s){return a+s.total;},0); }
-
-// ═══════════════════════════════════════════════════
-//  RENDER DASHBOARD
-// ═══════════════════════════════════════════════════
-function renderTasks(){
-  var g=document.getElementById('task-strip'); if(!g) return;
-  g.innerHTML='';
+function renderSkills(){
+  var g = document.getElementById('skill-grid'); g.innerHTML = '';
   SKILLS.forEach(function(s){
-    var done=s.today>=s.goal;
-    var pct=Math.min(Math.round(s.today/s.goal*100),100);
-    var div=document.createElement('div'); div.className='task-card'+(done?' done':'');
-    div.innerHTML=
-      '<div class="task-top">'+
-        '<div class="task-icon">'+skillIconSVG(s.key,done)+'</div>'+
-        '<span class="task-name">'+s.name.split(' ')[0]+'</span>'+
-        '<span class="task-check">'+checkSVG(done)+'</span>'+
+    var total = state.totals[s.key] || 0;
+    var rank = getSkillRank(s.key, total);
+    var nextLvl = LEVELS[Math.min(getRankIdx(total/SKILL_RANK_SCALE[s.key])+1, LEVELS.length-1)];
+    var cur = LEVELS[getRankIdx(total/SKILL_RANK_SCALE[s.key])];
+    var pct = nextLvl ? Math.min(Math.round((total/SKILL_RANK_SCALE[s.key] - cur.startXP)/(nextLvl.startXP - cur.startXP)*100),100) : 100;
+    var remain = nextLvl ? ((nextLvl.startXP - Math.round(total/SKILL_RANK_SCALE[s.key]))).toLocaleString() : 0;
+    var d = document.createElement('div'); d.className = 'skill-card';
+    d.innerHTML =
+      '<div class="sk-top">'+
+        '<span class="sk-icon">'+s.icon+'</span>'+
+        '<span class="sk-name">'+s.name+'</span>'+
+        '<span class="sk-rank" style="color:'+rank.col+';border-color:'+rank.col+'40">'+rank.emoji+'</span>'+
       '</div>'+
-      '<div class="task-nums"><span>'+s.today+'/'+s.goal+'</span><span>'+pct+'%</span></div>'+
-      '<div class="task-bar"><div class="task-fill'+(done?' done-fill':'')+'" style="width:'+pct+'%"></div></div>';
-    g.appendChild(div);
-  });
-}
-
-function renderCarousel(){
-  var track=document.getElementById('carousel-track'); if(!track) return;
-  track.innerHTML='';
-  SKILLS.forEach(function(s,i){
-    var card=document.createElement('div');
-    card.className='skill-card'+(i===selectedSkillIdx?' selected':'');
-    card.id='skill-card-'+i;
-    var canv=document.createElement('canvas');
-    canv.className='skill-card-canvas'; canv.width=190; canv.height=220;
-    var artDiv=document.createElement('div'); artDiv.className='skill-card-art';
-    artDiv.appendChild(canv);
-    var lvDiv=document.createElement('div'); lvDiv.className='skill-card-level';
-    lvDiv.textContent='LV.'+s.lv; artDiv.appendChild(lvDiv);
-    var pct=Math.min(Math.round(s.xp/s.xpMax*100),100);
-    card.innerHTML='';
-    card.appendChild(artDiv);
-    card.insertAdjacentHTML('beforeend',
-      '<div class="skill-card-info">'+
-        '<div class="skill-card-name">'+s.name+'</div>'+
-        '<div class="skill-card-role">'+s.role+'</div>'+
-        '<div class="xp-label"><span>XP</span><span>'+pct+'%</span></div>'+
-        '<div class="xp-track"><div class="xp-bar" style="width:'+pct+'%;background:'+s.color+'"></div></div>'+
-      '</div>'
-    );
-    track.appendChild(card);
-    drawCharCard(canv, s, i===selectedSkillIdx);
-    (function(idx){ card.addEventListener('click',function(){ selectSkill(idx); }); })(i);
-  });
-}
-
-function selectSkill(idx){
-  selectedSkillIdx=idx;
-  var skill=SKILLS[idx];
-  // Update card selection
-  document.querySelectorAll('.skill-card').forEach(function(c,i){
-    c.classList.toggle('selected',i===idx);
-    var canvas=c.querySelector('canvas');
-    if(canvas) drawCharCard(canvas,SKILLS[i],i===idx);
-  });
-  // Update character select
-  document.getElementById('cs-title').innerHTML=skill.name.toUpperCase().replace(' ','<br>');
-  document.getElementById('cs-desc').innerHTML=skill.desc+' <em>Total: '+skill.total.toLocaleString()+' '+skill.unit+'.</em>';
-  document.getElementById('char-portrait-name').textContent=skill.name.toUpperCase();
-  var statsHtml='';
-  Object.keys(skill.stats).forEach(function(k){
-    statsHtml+='<div class="char-stat"><div class="char-stat-label">'+k+'</div><div class="char-stat-val">'+skill.stats[k]+'</div></div>';
-  });
-  document.getElementById('cs-stats').innerHTML=statsHtml;
-  drawPortrait(skill);
-  renderAnnotations(skill);
-  // Scroll into view
-  var selCard=document.getElementById('skill-card-'+idx);
-  if(selCard) selCard.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-}
-
-function renderAnnotations(skill){
-  var ann=document.getElementById('char-annotations'); if(!ann) return;
-  ann.innerHTML='';
-  // Two annotations: weapon + ability
-  var annotations=[
-    {x:'calc(100% + 14px)', y:'110px', label:skill.weapon, desc:skill.weaponDesc},
-    {x:'calc(100% + 14px)', y:'220px', label:skill.ability, desc:skill.abilityDesc},
-    {x:'calc(100% + 14px)', y:'330px', label:'Power: '+skill.stats.Power, desc:'Total retained: '+skill.total.toLocaleString()}
-  ];
-  annotations.forEach(function(a){
-    var wrap=document.createElement('div');
-    wrap.style.cssText='position:absolute;left:'+a.x+';top:'+a.y+';white-space:nowrap;';
-    wrap.innerHTML=
-      '<div style="width:2px;height:1px;background:var(--teal-dim);display:inline-block;vertical-align:middle;margin-right:8px"></div>'+
-      '<span class="ann-title">'+a.label+'</span><br>'+
-      '<span class="ann-desc" style="display:block;margin-top:3px">'+a.desc+'</span>'+
-      '<div class="ann-hr" style="margin-top:6px;width:140px"></div>';
-    ann.appendChild(wrap);
+      '<div class="sk-total">'+total.toLocaleString()+'</div>'+
+      '<div class="sk-unit">'+s.unit+' total</div>'+
+      '<div class="sk-bar-label"><span>'+rank.label+'</span><span>'+pct+'%</span></div>'+
+      '<div class="sk-track"><div class="sk-fill" style="width:'+pct+'%;background:linear-gradient(90deg,'+rank.col+'99,'+rank.col+')"></div></div>'+
+      (nextLvl ? '<div class="sk-next"><strong>'+remain+'</strong> pts → '+nextLvl.label+'</div>' : '<div class="sk-next">✨ Max Rank</div>');
+    g.appendChild(d);
   });
 }
 
 function renderRankRoad(){
-  var g=document.getElementById('rank-road'); if(!g) return;
-  g.innerHTML='';
-  var xp=getTotalXP(); var ci=getRankIdx(xp);
+  var g = document.getElementById('rank-road'); g.innerHTML = '';
+  var xp = getTotalXP(); var ci = getRankIdx(xp);
   RANKS.forEach(function(r){
-    var col=document.createElement('div'); col.className='tier-col';
-    var h=document.createElement('div'); h.className='tier-head';
-    h.style.cssText='color:'+r.col+';border-bottom-color:'+r.col+'44;background:'+r.col+'11';
-    h.textContent=r.tier; col.appendChild(h);
-    var subs=document.createElement('div'); subs.className='tier-subs';
+    var col = document.createElement('div'); col.className = 'tier-col';
+    var h = document.createElement('div'); h.className = 'tier-head';
+    h.style.cssText = 'color:'+r.col+';border-bottom-color:'+r.col+'44;background:'+r.col+'12';
+    h.textContent = r.emoji + ' ' + r.tier; col.appendChild(h);
+    var subs = document.createElement('div'); subs.className = 'tier-subs';
     r.subs.forEach(function(s){
-      var label=s?r.tier+' '+s:r.tier;
-      var lIdx=LEVELS.findIndex(function(l){return l.label===label;});
-      var sub=document.createElement('div');
-      sub.className='tier-sub'+(lIdx===ci?' current':lIdx<ci?' passed':'');
-      sub.textContent=label;
-      if(lIdx===ci){ sub.style.borderColor=r.col+'70'; sub.style.color=r.col; }
-      if(lIdx<ci){ sub.style.color=r.col+'60'; }
+      var label = s ? r.tier+' '+s : r.tier;
+      var lIdx = LEVELS.findIndex(function(l){ return l.label === label; });
+      var sub = document.createElement('div');
+      sub.className = 'tier-sub' + (lIdx===ci?' current':lIdx<ci?' passed':'');
+      sub.textContent = label;
+      if(lIdx===ci){ sub.style.color=r.col; sub.style.borderColor=r.col+'55'; }
+      if(lIdx<ci){ sub.style.color=r.col+'66'; }
       subs.appendChild(sub);
     });
     col.appendChild(subs); g.appendChild(col);
   });
 }
 
-function renderRankHero(){
-  var xp=getTotalXP();
-  var idx=getRankIdx(xp);
-  var lvl=LEVELS[idx]; var next=LEVELS[idx+1];
-  var pct=next?Math.min(Math.round((xp-lvl.startXP)/(next.startXP-lvl.startXP)*100),100):100;
-  var svg=document.getElementById('rank-svg'); if(!svg) return;
-  svg.innerHTML=RANK_SVG[lvl.tier]||'';
-  document.getElementById('rank-name').textContent=lvl.label;
-  document.getElementById('rank-xp-label').textContent=xp.toLocaleString()+' XP Total';
-  document.getElementById('rb-from').textContent=lvl.label;
-  document.getElementById('rb-to').textContent=next?next.label:'MAX';
-  setTimeout(function(){ document.getElementById('rank-fill').style.width=pct+'%'; },100);
-  var remain=next?(next.startXP-xp):0;
-  document.getElementById('rank-remain').innerHTML=next?'<strong>'+remain.toLocaleString()+'</strong> xp to next rank':'<strong>Conqueror — Maximum Rank</strong>';
-}
-
-function renderDash(){
-  loadState();
-  renderRankHero();
-  renderTasks();
-  renderCarousel();
-  selectSkill(selectedSkillIdx);
-  renderRankRoad();
-}
-
-// ═══════════════════════════════════════════════════
-//  UPGRADE
-// ═══════════════════════════════════════════════════
-function upgradeSelected(){
-  var s=SKILLS[selectedSkillIdx];
-  if(s.lv>=5){ alert('Max level reached for '+s.name+'!'); return; }
-  s.lv++;
-  // Save levels
-  var lvls={}; SKILLS.forEach(function(sk){ lvls[sk.key]=sk.lv; });
-  localStorage.setItem('lt_skill_lvls',JSON.stringify(lvls));
-  updateSkillStats();
-  // Flash
-  var card=document.getElementById('skill-card-'+selectedSkillIdx);
-  if(card){ card.classList.add('upgrading'); setTimeout(function(){ card.classList.remove('upgrading'); },700); }
-  renderCarousel(); selectSkill(selectedSkillIdx);
-}
-
-// ═══════════════════════════════════════════════════
-//  ICON SVGs
-// ═══════════════════════════════════════════════════
-function skillIconSVG(key,active){
-  var col=active?'var(--teal)':'var(--teal-dim)';
-  var icons={
-    new_words:'<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="color:'+col+'"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M3 4h5M3 5.8h3.5M3 7.5h4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>',
-    review_words:'<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="color:'+col+'"><path d="M1.5 5.5a4 4 0 108 0 4 4 0 00-8 0z" stroke="currentColor" stroke-width="1.1"/><path d="M8 3.5l1.5-1.5M8 3.5V2M8 3.5H6.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>',
-    speaking_min:'<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="color:'+col+'"><circle cx="5.5" cy="4" r="2.5" stroke="currentColor" stroke-width="1.1"/><path d="M2 10c0-1.9 1.6-3.5 3.5-3.5S9 8.1 9 10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>',
-    listening_min:'<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="color:'+col+'"><path d="M2 5.5a3.5 3.5 0 007 0V4a3.5 3.5 0 00-7 0v1.5z" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 9v1.5M4 10.5h3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>',
-    pages_read:'<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="color:'+col+'"><rect x="1.5" y="1" width="8" height="9" rx="1.2" stroke="currentColor" stroke-width="1.1"/><path d="M3.5 4h4M3.5 5.8h3M3.5 7.5h3.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>'
-  };
-  return icons[key]||'';
-}
-function checkSVG(done){
-  return done?
-    '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7.5l3.5 3.5L12 3" stroke="var(--teal)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>':
-    '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="var(--text-dim)" stroke-width="1.1"/></svg>';
-}
-
-// ═══════════════════════════════════════════════════
-//  PAGE NAVIGATION
-// ═══════════════════════════════════════════════════
+// ── PAGE NAV ─────────────────────────────────────────────────
 function goTo(page){
   if(page===currentPage) return;
-  currentPage=page;
-  document.getElementById('page-log').classList.toggle('hidden',page!=='log');
-  document.getElementById('page-dash').classList.toggle('hidden',page!=='dash');
+  currentPage = page;
+  document.getElementById('page-log').classList.toggle('hidden', page!=='log');
+  document.getElementById('page-dash').classList.toggle('hidden', page!=='dash');
   if(page==='dash') renderDash();
 }
 
-// ═══════════════════════════════════════════════════
-//  LOG PAGE
-// ═══════════════════════════════════════════════════
+// ── LOG SAVE ──────────────────────────────────────────────────
 function gv(id){ var v=document.getElementById(id).value; return (v===''||v===null)?0:Math.max(0,parseInt(v,10)||0); }
 
-function setLogStatus(msg,type){
-  var el=document.getElementById('log-status');
-  el.textContent=msg; el.className='log-status '+(type||'');
+function setStatus(msg, type){
+  var el = document.getElementById('log-status');
+  el.textContent = msg; el.className = 'log-status ' + (type||'');
+  // remove border if empty
+  if(!msg) el.style.border = 'none'; else el.style.border = '';
 }
 
 async function logSave(){
-  var any=['l-nw','l-rw','l-sp','l-li','l-pg','l-ty'].some(function(id){ return gv(id)>0; });
-  if(!any){ setLogStatus('Fill at least one field.','err'); return; }
-  var btn=document.getElementById('log-save-btn'); btn.disabled=true;
-  setLogStatus('Saving…','busy');
-  var today={new_words:gv('l-nw'),review_words:gv('l-rw'),speaking_min:gv('l-sp'),listening_min:gv('l-li'),pages_read:gv('l-pg')};
-  var stored=JSON.parse(localStorage.getItem('lt_totals')||'{}');
-  Object.keys(today).forEach(function(k){ stored[k]=(stored[k]||0)+today[k]; });
-  stored.lt_last_update=new Date().toISOString();
-  localStorage.setItem('lt_totals',JSON.stringify(stored));
-  localStorage.setItem('lt_today',JSON.stringify({data:today,ts:new Date().toISOString()}));
-  var params=new URLSearchParams({new_words:today.new_words,review_words:today.review_words,speaking_min:today.speaking_min,listening_min:today.listening_min,pages_read:today.pages_read,typing_score:gv('l-ty')});
+  var vals = {new_words:gv('l-nw'),review_words:gv('l-rw'),speaking_min:gv('l-sp'),listening_min:gv('l-li'),pages_read:gv('l-pg')};
+  var ty = gv('l-ty');
+  var any = Object.values(vals).some(function(v){ return v>0; }) || ty>0;
+  if(!any){ setStatus('Fill at least one field.','err'); return; }
+
+  var btn = document.getElementById('log-save-btn'); btn.disabled = true;
+  setStatus('Saving…','busy');
+
+  // Update local state
+  SKILLS.forEach(function(s){
+    state.today[s.key]  = (state.today[s.key]  || 0) + (vals[s.key]||0);
+    state.totals[s.key] = (state.totals[s.key] || 0) + (vals[s.key]||0);
+  });
+  saveState();
+
+  // Send to Apps Script
+  var params = new URLSearchParams(Object.assign({typing_score:ty}, vals));
   try{
-    await fetch(API_URL+'?'+params.toString(),{method:'GET',mode:'no-cors'});
-    logCount++; document.getElementById('log-count').textContent=logCount;
-    setLogStatus('Saved — heading to dashboard…','ok');
+    await fetch(API_URL + '?' + params.toString(), {method:'GET', mode:'no-cors'});
+    logCount++;
+    document.getElementById('log-count').textContent = logCount;
+    setStatus('✅ Saved — opening dashboard…','ok');
     logClear(false);
-    setTimeout(function(){ goTo('dash'); },1200);
+    setTimeout(function(){ goTo('dash'); }, 1100);
   }catch(e){
-    setLogStatus('Error — check connection.','err');
-    btn.disabled=false;
-  }finally{ btn.disabled=false; }
+    setStatus('❌ Error — check connection.','err');
+  }finally{ btn.disabled = false; }
 }
 
 function logClear(resetStatus){
   ['l-nw','l-rw','l-sp','l-li','l-pg','l-ty'].forEach(function(id){ document.getElementById(id).value=''; });
-  if(resetStatus!==false) setLogStatus('','');
+  if(resetStatus !== false) setStatus('','');
   document.getElementById('l-nw').focus();
 }
 
-document.addEventListener('keydown',function(e){ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)) logSave(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)) logSave(); });
 
-// ═══════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded',function(){
-  loadState();
-});
-document.addEventListener('visibilitychange',function(){
-  if(!document.hidden && currentPage==='dash'){ renderDash(); }
-});
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function(){ loadState(); });
 </script>
 </body>
 </html>
