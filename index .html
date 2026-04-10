@@ -12,513 +12,464 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* Palette */
-  --cream:#F2F3F4;
-  --beige:#DED1C6;
-  --mauve:#A77693;
-  --mauve-hi:#c490ae;
-  --navy:#174871;
-  --navy-deep:#0F2D4D;
-
-  /* Surfaces */
-  --bg:#0a1e2e;
-  --surface:rgba(23,72,113,0.45);
-  --surface2:rgba(23,72,113,0.75);
-  --surface3:rgba(15,45,77,0.9);
-
-  /* Borders */
-  --border:rgba(167,118,147,0.22);
-  --border2:rgba(167,118,147,0.5);
-  --border3:rgba(242,243,244,0.15);
-
-  /* Text */
-  --text:#FFFFFF;
-  --text2:#F2F3F4;
-  --text3:#DED1C6;
-  --dim:rgba(222,209,198,0.55);
-  --very-dim:rgba(222,209,198,0.32);
-
-  /* Gradients */
+  --cream:#F2F3F4; --beige:#DED1C6; --mauve:#A77693; --mauve-hi:#c490ae;
+  --navy:#174871;  --navy-deep:#0F2D4D;
+  --bg:#0a1e2e; --surface:rgba(23,72,113,0.45); --surface2:rgba(23,72,113,0.75);
+  --border:rgba(167,118,147,0.22); --border2:rgba(167,118,147,0.5); --border3:rgba(242,243,244,0.15);
+  --text:#FFFFFF; --text2:#F2F3F4; --text3:#DED1C6; --dim:rgba(222,209,198,0.55); --very-dim:rgba(222,209,198,0.32);
   --grad-mauve:linear-gradient(135deg,#A77693,#174871);
-  --grad-navy:linear-gradient(135deg,#174871,#0F2D4D);
-  --grad-warm:linear-gradient(135deg,#DED1C6,#A77693);
-  --grad-hero:linear-gradient(160deg,#0F2D4D 0%,#174871 55%,#A77693 100%);
   --grad-bar:linear-gradient(90deg,#A77693,#c490ae,#F2F3F4);
-
-  /* Fonts */
-  --f-body:'Inter',sans-serif;
-  --f-brand:'Orbitron',sans-serif;
-  --f-title:'Cinzel',serif;
+  --grad-hero:linear-gradient(160deg,#0F2D4D 0%,#174871 55%,#A77693 100%);
+  --f-body:'Inter',sans-serif; --f-brand:'Orbitron',sans-serif; --f-title:'Cinzel',serif;
 }
 html,body{height:100%;overflow:hidden}
 body{font-family:var(--f-body);background:var(--bg);color:var(--text);font-size:15px}
 button{cursor:pointer;font-family:var(--f-body)}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:rgba(167,118,147,0.4);border-radius:4px}
-::-webkit-scrollbar-track{background:transparent}
-</style>
-
-<!-- ═══════════════════════════════════════════════════════════
-     PAGE SYSTEM
-════════════════════════════════════════════════════════════ -->
-<style>
-.page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;
-  transition:opacity .38s ease,transform .38s ease;z-index:1}
+.page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;transition:opacity .38s,transform .38s;z-index:1}
 .page.hidden{opacity:0;pointer-events:none;transform:translateX(24px)}
-</style>
-
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: NAV
-════════════════════════════════════════════════════════════ -->
-<style>
-/* NAV CSS */
-nav{
-  position:sticky;top:0;z-index:100;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 36px;height:56px;
-  background:rgba(10,30,46,0.97);
-  backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--border);
-}
-.nav-logo{
-  font-family:var(--f-brand);font-size:18px;font-weight:900;
-  letter-spacing:4px;text-transform:uppercase;
-  background:linear-gradient(90deg,#F2F3F4 0%,#c490ae 50%,#A77693 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  background-clip:text;
-  filter:drop-shadow(0 0 8px rgba(167,118,147,0.5));
-}
-.nav-right{display:flex;gap:6px;align-items:center}
-.nav-link{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--dim);background:none;border:none;
-  padding:6px 12px;border-radius:7px;transition:all .2s}
-.nav-link:hover,.nav-link.active{color:#ffffff;background:rgba(167,118,147,0.15)}
-.nav-btn{padding:6px 16px;border:1px solid var(--border2);border-radius:7px;
-  background:transparent;color:var(--mauve-hi);
-  font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
-  transition:all .2s}
-.nav-btn:hover{background:rgba(167,118,147,0.12)}
-/* Refresh icon */
-.btn-icon-nav{background:none;border:1px solid var(--border);border-radius:7px;
-  color:var(--dim);padding:6px 9px;display:flex;align-items:center;transition:all .2s}
-.btn-icon-nav:hover{border-color:var(--border2);color:#ffffff}
-.btn-icon-nav.spinning svg{animation:globalSpin .7s linear infinite}
 @keyframes globalSpin{to{transform:rotate(360deg)}}
-/* Loading overlay */
-.loading-overlay{display:none;position:fixed;inset:0;z-index:200;
-  background:rgba(10,30,46,0.9);backdrop-filter:blur(10px);
-  flex-direction:column;align-items:center;justify-content:center;gap:16px}
-.loading-overlay.show{display:flex}
-.spin-ring{width:40px;height:40px;border-radius:50%;
-  border:2px solid rgba(167,118,147,0.2);border-top-color:var(--mauve-hi);
-  animation:globalSpin .8s linear infinite}
-.spin-label{font-size:11px;font-weight:600;letter-spacing:2.5px;
-  text-transform:uppercase;color:var(--dim)}
 </style>
 
 <!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: SHARED ELEMENTS (labels, info btn, modal)
+     JS: CONFIG & RANK SYSTEM
+════════════════════════════════════════════════════════════ -->
+<script>
+var API_URL  = "https://script.google.com/macros/s/AKfycbwgnKrzVlLswLfiKlkvLepAIPwB_NOgul0NhjPL1BiAl0yQVw5L1smiZrrWDo6NrAOWnQ/exec";
+var CACHE_KEY= "lt_rows_v4";
+
+// ── Skills ────────────────────────────────────────────────────
+var SKILLS=[
+  {key:"new_words",    name:"New Words",    goal:30, unit:"words",  xpW:3},
+  {key:"review_words", name:"Review Words", goal:50, unit:"words",  xpW:1},
+  {key:"speaking_min", name:"Speaking",     goal:30, unit:"min",    xpW:3},
+  {key:"listening_min",name:"Listening",    goal:60, unit:"min",    xpW:1},
+  {key:"pages_read",   name:"Reading",      goal:3,  unit:"pages",  xpW:15},
+  {key:"typing_score", name:"Touch Typing", goal:1,  unit:"session",xpW:0}
+];
+
+// ── Overall XP levels (Conqueror at 47,700 XP = 150 days × 318 XP/day) ──
+var OVERALL_LEVELS=(function(){
+  var tiers=[
+    {tier:"Bronze",   col:"#cd7f32",subs:["V","IV","III","II","I"],pts:500},
+    {tier:"Silver",   col:"#c0c8d8",subs:["V","IV","III","II","I"],pts:800},
+    {tier:"Gold",     col:"#e8c840",subs:["V","IV","III","II","I"],pts:1200},
+    {tier:"Platinum", col:"#d0e0f0",subs:["V","IV","III","II","I"],pts:1800},
+    {tier:"Diamond",  col:"#80d8ff",subs:["V","IV","III","II","I"],pts:2400},
+    {tier:"Crown",    col:"#ff9040",subs:["V","IV","III","II","I"],pts:1800},
+    {tier:"Ace",      col:"#ff6080",subs:[""],                     pts:1700},
+    {tier:"Ace",      col:"#ff6080",subs:["Master"],               pts:1700},
+    {tier:"Ace",      col:"#ff6080",subs:["Dominator"],            pts:1800},
+    {tier:"Conqueror",col:"#b090ff",subs:[""],                     pts:0}
+  ];
+  var out=[],cx=0;
+  var allSubs=[
+    {label:"Bronze V",   tier:"Bronze",   col:"#cd7f32",pts:500},
+    {label:"Bronze IV",  tier:"Bronze",   col:"#cd7f32",pts:500},
+    {label:"Bronze III", tier:"Bronze",   col:"#cd7f32",pts:500},
+    {label:"Bronze II",  tier:"Bronze",   col:"#cd7f32",pts:500},
+    {label:"Bronze I",   tier:"Bronze",   col:"#cd7f32",pts:500},
+    {label:"Silver V",   tier:"Silver",   col:"#c0c8d8",pts:800},
+    {label:"Silver IV",  tier:"Silver",   col:"#c0c8d8",pts:800},
+    {label:"Silver III", tier:"Silver",   col:"#c0c8d8",pts:800},
+    {label:"Silver II",  tier:"Silver",   col:"#c0c8d8",pts:800},
+    {label:"Silver I",   tier:"Silver",   col:"#c0c8d8",pts:800},
+    {label:"Gold V",     tier:"Gold",     col:"#e8c840",pts:1200},
+    {label:"Gold IV",    tier:"Gold",     col:"#e8c840",pts:1200},
+    {label:"Gold III",   tier:"Gold",     col:"#e8c840",pts:1200},
+    {label:"Gold II",    tier:"Gold",     col:"#e8c840",pts:1200},
+    {label:"Gold I",     tier:"Gold",     col:"#e8c840",pts:1200},
+    {label:"Platinum V", tier:"Platinum", col:"#d0e0f0",pts:1800},
+    {label:"Platinum IV",tier:"Platinum", col:"#d0e0f0",pts:1800},
+    {label:"Platinum III",tier:"Platinum",col:"#d0e0f0",pts:1800},
+    {label:"Platinum II",tier:"Platinum", col:"#d0e0f0",pts:1800},
+    {label:"Platinum I", tier:"Platinum", col:"#d0e0f0",pts:1800},
+    {label:"Diamond V",  tier:"Diamond",  col:"#80d8ff",pts:2400},
+    {label:"Diamond IV", tier:"Diamond",  col:"#80d8ff",pts:2400},
+    {label:"Diamond III",tier:"Diamond",  col:"#80d8ff",pts:2400},
+    {label:"Diamond II", tier:"Diamond",  col:"#80d8ff",pts:2400},
+    {label:"Diamond I",  tier:"Diamond",  col:"#80d8ff",pts:2400},
+    {label:"Crown V",    tier:"Crown",    col:"#ff9040",pts:1800},
+    {label:"Crown IV",   tier:"Crown",    col:"#ff9040",pts:1800},
+    {label:"Crown III",  tier:"Crown",    col:"#ff9040",pts:1800},
+    {label:"Crown II",   tier:"Crown",    col:"#ff9040",pts:1800},
+    {label:"Crown I",    tier:"Crown",    col:"#ff9040",pts:1800},
+    {label:"Ace",        tier:"Ace",      col:"#ff6080",pts:1700},
+    {label:"Ace Master", tier:"Ace",      col:"#ff6080",pts:1700},
+    {label:"Ace Dominator",tier:"Ace",    col:"#ff6080",pts:1800},
+    {label:"Conqueror",  tier:"Conqueror",col:"#b090ff",pts:0}
+  ];
+  allSubs.forEach(function(s){s.startXP=cx;cx+=s.pts;});
+  return allSubs;
+})();
+
+// ── Skill internal levels (normalized days: total/daily_goal)
+//    All skills reach Conqueror at 150 normalized days ──
+var SKILL_LEVELS=(function(){
+  var rows=[
+    {label:"Bronze V",    tier:"Bronze",   col:"#cd7f32",d:0},
+    {label:"Bronze IV",   tier:"Bronze",   col:"#cd7f32",d:2},
+    {label:"Bronze III",  tier:"Bronze",   col:"#cd7f32",d:4},
+    {label:"Bronze II",   tier:"Bronze",   col:"#cd7f32",d:6},
+    {label:"Bronze I",    tier:"Bronze",   col:"#cd7f32",d:8},
+    {label:"Silver V",    tier:"Silver",   col:"#c0c8d8",d:10},
+    {label:"Silver IV",   tier:"Silver",   col:"#c0c8d8",d:13},
+    {label:"Silver III",  tier:"Silver",   col:"#c0c8d8",d:16},
+    {label:"Silver II",   tier:"Silver",   col:"#c0c8d8",d:19},
+    {label:"Silver I",    tier:"Silver",   col:"#c0c8d8",d:22},
+    {label:"Gold V",      tier:"Gold",     col:"#e8c840",d:26},
+    {label:"Gold IV",     tier:"Gold",     col:"#e8c840",d:31},
+    {label:"Gold III",    tier:"Gold",     col:"#e8c840",d:36},
+    {label:"Gold II",     tier:"Gold",     col:"#e8c840",d:41},
+    {label:"Gold I",      tier:"Gold",     col:"#e8c840",d:46},
+    {label:"Platinum V",  tier:"Platinum", col:"#d0e0f0",d:53},
+    {label:"Platinum IV", tier:"Platinum", col:"#d0e0f0",d:60},
+    {label:"Platinum III",tier:"Platinum", col:"#d0e0f0",d:67},
+    {label:"Platinum II", tier:"Platinum", col:"#d0e0f0",d:74},
+    {label:"Platinum I",  tier:"Platinum", col:"#d0e0f0",d:81},
+    {label:"Diamond V",   tier:"Diamond",  col:"#80d8ff",d:90},
+    {label:"Diamond IV",  tier:"Diamond",  col:"#80d8ff",d:98},
+    {label:"Diamond III", tier:"Diamond",  col:"#80d8ff",d:106},
+    {label:"Diamond II",  tier:"Diamond",  col:"#80d8ff",d:114},
+    {label:"Diamond I",   tier:"Diamond",  col:"#80d8ff",d:122},
+    {label:"Crown V",     tier:"Crown",    col:"#ff9040",d:130},
+    {label:"Crown IV",    tier:"Crown",    col:"#ff9040",d:134},
+    {label:"Crown III",   tier:"Crown",    col:"#ff9040",d:138},
+    {label:"Crown II",    tier:"Crown",    col:"#ff9040",d:141},
+    {label:"Crown I",     tier:"Crown",    col:"#ff9040",d:144},
+    {label:"Ace",         tier:"Ace",      col:"#ff6080",d:147},
+    {label:"Ace Master",  tier:"Ace",      col:"#ff6080",d:148.5},
+    {label:"Ace Dominator",tier:"Ace",     col:"#ff6080",d:149.5},
+    {label:"Conqueror",   tier:"Conqueror",col:"#b090ff",d:150}
+  ];
+  return rows;
+})();
+
+function getOverallRankIdx(xp){
+  for(var i=OVERALL_LEVELS.length-1;i>=0;i--){if(xp>=OVERALL_LEVELS[i].startXP)return i;}return 0;
+}
+function getSkillRankIdx(normalizedDays){
+  for(var i=SKILL_LEVELS.length-1;i>=0;i--){if(normalizedDays>=SKILL_LEVELS[i].d)return i;}return 0;
+}
+
+// Rank tiers for road rendering
+var RANK_TIERS=[
+  {tier:"Bronze",   col:"#cd7f32",subs:["V","IV","III","II","I"]},
+  {tier:"Silver",   col:"#c0c8d8",subs:["V","IV","III","II","I"]},
+  {tier:"Gold",     col:"#e8c840",subs:["V","IV","III","II","I"]},
+  {tier:"Platinum", col:"#d0e0f0",subs:["V","IV","III","II","I"]},
+  {tier:"Diamond",  col:"#80d8ff",subs:["V","IV","III","II","I"]},
+  {tier:"Crown",    col:"#ff9040",subs:["V","IV","III","II","I"]},
+  {tier:"Ace",      col:"#ff6080",subs:["","Master","Dominator"]},
+  {tier:"Conqueror",col:"#b090ff",subs:[""]}
+];
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JS: SVG BADGE LIBRARY
+════════════════════════════════════════════════════════════ -->
+<script>
+// Generates a rank badge SVG string based on tier + sub + size
+// Faithfully represents the style of each tier
+function rankBadgeSVG(tier, sub, size){
+  size = size||28;
+  var cfg={
+    Bronze:   {c1:"#cd7f32",c2:"#7d3c0a",c3:"#e8a857",bg:"#3d1500",text:"#e8c070"},
+    Silver:   {c1:"#c0c0d8",c2:"#606090",c3:"#e8e8f5",bg:"#1a1a3a",text:"#e8e8ff"},
+    Gold:     {c1:"#ffd700",c2:"#a07800",c3:"#fff176",bg:"#2d1800",text:"#fffde7"},
+    Platinum: {c1:"#4fc3f7",c2:"#0277bd",c3:"#b3e5fc",bg:"#041830",text:"#e0f7ff"},
+    Diamond:  {c1:"#9575cd",c2:"#6a1b9a",c3:"#e1bee7",bg:"#100020",text:"#f3e5f5"},
+    Crown:    {c1:"#e91e63",c2:"#880e4f",c3:"#fce4ec",bg:"#1a002a",text:"#fce4ec"},
+    Ace:      {c1:"#ff5722",c2:"#bf360c",c3:"#ffca28",bg:"#1a0500",text:"#ffe0c0"},
+    Conqueror:{c1:"#ffc200",c2:"#a07800",c3:"#fffde7",bg:"#0d0b00",text:"#fffde7"}
+  };
+  var g = cfg[tier]||cfg.Bronze;
+  var s = size, h = size; // viewBox will be square for simplicity
+  var label = sub ? (tier==="Ace"&&sub===""? "ACE" : sub) : (tier==="Conqueror"?"⚔":"");
+  var id = "b_"+tier.toLowerCase().replace(/ /g,"")+(sub||"").replace(/ /g,"");
+
+  // Shield path (normalised to 0-100 viewport)
+  var defs='<defs>'+
+    '<radialGradient id="'+id+'_s" cx="40%" cy="35%" r="65%">'+
+      '<stop offset="0%" stop-color="'+g.c3+'"/>'+
+      '<stop offset="45%" stop-color="'+g.c1+'"/>'+
+      '<stop offset="100%" stop-color="'+g.bg+'"/>'+
+    '</radialGradient>'+
+    '<radialGradient id="'+id+'_g" cx="50%" cy="50%" r="50%">'+
+      '<stop offset="0%" stop-color="'+g.c1+'44"/>'+
+      '<stop offset="100%" stop-color="'+g.c1+'00"/>'+
+    '</radialGradient>'+
+    (tier==="Ace"||tier==="Conqueror"?'<linearGradient id="'+id+'_f" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%" stop-color="'+g.c2+'"/><stop offset="50%" stop-color="'+g.c1+'"/><stop offset="100%" stop-color="'+g.c3+'"/></linearGradient>':'')
+  +'</defs>';
+
+  var inner = "";
+
+  if(tier==="Ace"){
+    // Card style
+    inner+=
+      '<ellipse cx="50" cy="55" rx="48" ry="52" fill="'+g.c1+'22"/>'+
+      '<rect x="12" y="10" width="76" height="90" rx="8" fill="'+g.c3+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
+      '<text x="50" y="64" text-anchor="middle" font-family="Cinzel,serif" font-size="28" font-weight="900" fill="'+g.c2+'">A</text>'+
+      '<text x="20" y="28" font-size="10" fill="'+g.c2+'" font-weight="700">♠</text>'+
+      '<text x="80" y="28" font-size="10" fill="'+g.c2+'" font-weight="700" text-anchor="end">♠</text>'+
+      (sub==="Master"?'<path d="M32 10 L32 2 L38 6 L44 0 L50 6 L56 0 L62 6 L68 2 L68 10 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="0.8"/>':'')+
+      (sub==="Dominator"?'<path d="M28 10 L28 0 L35 5 L42 -2 L50 5 L58 -2 L65 5 L72 0 L72 10 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>':'')+
+      '<path d="M25 100 Q33 88 30 78 Q38 90 36 100" fill="url(#'+id+'_f'+')" opacity="0.85"/>'+
+      '<path d="M45 100 Q55 82 50 68 Q60 84 57 100" fill="url(#'+id+'_f'+')" opacity="0.95"/>'+
+      '<path d="M65 100 Q73 88 70 78 Q78 90 76 100" fill="url(#'+id+'_f'+')" opacity="0.85"/>'+
+      (sub?"<text x='50' y='80' text-anchor='middle' font-family='Cinzel,serif' font-size='8' font-weight='700' fill='"+g.c2+"' letter-spacing='1'>"+sub.toUpperCase()+"</text>":'');
+  } else if(tier==="Conqueror"){
+    // Large ornate shield
+    inner+=
+      '<ellipse cx="50" cy="60" rx="48" ry="54" fill="url(#'+id+'_g)"/>'+
+      '<path d="M50 5 L88 22 L88 58 Q88 88 50 100 Q12 88 12 58 L12 22 Z" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
+      '<path d="M50 9 L84 25 L84 57 Q84 85 50 96 Q16 85 16 57 L16 25 Z" fill="url(#'+id+'_s)"/>'+
+      // Crown on top
+      '<path d="M30 22 L30 12 L37 17 L43 8 L50 16 L57 8 L63 17 L70 12 L70 22 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>'+
+      '<rect x="28" y="22" width="44" height="7" rx="1.5" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/>'+
+      // Center star
+      '<path d="M50 40 L53 48 L62 48 L55 53 L58 62 L50 57 L42 62 L45 53 L38 48 L47 48 Z" fill="'+g.c2+'88" stroke="'+g.c1+'" stroke-width="1"/>'+
+      '<circle cx="50" cy="52" r="7" fill="'+g.c2+'55" stroke="'+g.c1+'" stroke-width="1.2"/>'+
+      '<text x="50" y="56" text-anchor="middle" font-family="Cinzel,serif" font-size="7" font-weight="900" fill="'+g.text+'">C</text>'+
+      // Flames
+      '<path d="M20 100 Q27 88 24 78 Q31 90 29 100" fill="url(#'+id+'_f'+')" opacity="0.8"/>'+
+      '<path d="M50 100 Q59 84 53 68 Q63 86 60 100" fill="url(#'+id+'_f'+')" opacity="0.95"/>'+
+      '<path d="M80 100 Q87 88 84 78 Q91 90 89 100" fill="url(#'+id+'_f'+')" opacity="0.8"/>';
+  } else {
+    // Standard shield style
+    var subText = sub||"";
+    // Sub-number visual indicator (dots at bottom)
+    var subNum = ["V","IV","III","II","I"].indexOf(sub);
+    var tierIdx = ["Bronze","Silver","Gold","Platinum","Diamond","Crown"].indexOf(tier);
+
+    // Inner emblem per tier
+    var emblem="";
+    if(tier==="Bronze"){
+      emblem='<line x1="50" y1="30" x2="50" y2="80" stroke="'+g.bg+'66" stroke-width="1.2"/>'+
+             '<line x1="25" y1="55" x2="75" y2="55" stroke="'+g.bg+'66" stroke-width="1.2"/>'+
+             '<circle cx="50" cy="55" r="10" fill="none" stroke="'+g.c2+'" stroke-width="1"/>'+
+             '<text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
+    } else if(tier==="Silver"){
+      emblem='<line x1="50" y1="28" x2="50" y2="82" stroke="'+g.c2+'55" stroke-width="1"/>'+
+             '<line x1="18" y1="55" x2="82" y2="55" stroke="'+g.c2+'55" stroke-width="1"/>'+
+             '<line x1="30" y1="35" x2="70" y2="75" stroke="'+g.c2+'40" stroke-width="0.8"/>'+
+             '<line x1="70" y1="35" x2="30" y2="75" stroke="'+g.c2+'40" stroke-width="0.8"/>'+
+             '<circle cx="50" cy="55" r="11" fill="none" stroke="'+g.c2+'" stroke-width="1.2"/>'+
+             '<text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
+    } else if(tier==="Gold"){
+      // Sun rays
+      emblem='<g transform="translate(50,55)" stroke="'+g.c2+'55" stroke-width="0.8">'+
+               '<line x1="0" y1="-24" x2="0" y2="24"/>'+
+               '<line x1="-24" y1="0" x2="24" y2="0"/>'+
+               '<line x1="-17" y1="-17" x2="17" y2="17"/>'+
+               '<line x1="17" y1="-17" x2="-17" y2="17"/>'+
+               '<line x1="-8" y1="-23" x2="8" y2="23"/>'+
+               '<line x1="23" y1="-8" x2="-23" y2="8"/>'+
+             '</g>'+
+             '<circle cx="50" cy="55" r="12" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/>'+
+             '<text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="10" font-weight="700" fill="'+g.bg+'">'+subText+'</text>';
+    } else if(tier==="Platinum"){
+      // Hex/crystal
+      emblem='<path d="M50 32 L64 40 L64 56 L50 64 L36 56 L36 40 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/>'+
+             '<path d="M50 38 L59 43 L59 53 L50 58 L41 53 L41 43 Z" fill="'+g.c2+'44" stroke="'+g.c3+'" stroke-width="0.8"/>'+
+             '<text x="50" y="54" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
+    } else if(tier==="Diamond"){
+      // Diamond gem
+      emblem='<path d="M50 30 L66 46 L50 82 L34 46 Z" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/>'+
+             '<path d="M50 30 L66 46 L50 56 L34 46 Z" fill="'+g.c1+'66" stroke="'+g.c3+'" stroke-width="0.8"/>'+
+             '<line x1="34" y1="46" x2="66" y2="46" stroke="'+g.c1+'" stroke-width="0.8"/>'+
+             '<circle cx="50" cy="30" r="2" fill="'+g.c3+'"/>'+
+             '<text x="50" y="76" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
+    } else if(tier==="Crown"){
+      // Crown emblem
+      emblem='<path d="M30 65 L30 50 L37 57 L43 45 L50 55 L57 45 L63 57 L70 50 L70 65 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>'+
+             '<rect x="28" y="65" width="44" height="7" rx="1" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/>'+
+             '<circle cx="41" cy="58" r="2.5" fill="'+g.c3+'"/>'+
+             '<circle cx="50" cy="56" r="3" fill="'+g.bg+'"/>'+
+             '<circle cx="59" cy="58" r="2.5" fill="'+g.c3+'"/>'+
+             '<text x="50" y="83" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
+    }
+
+    inner+=
+      '<ellipse cx="50" cy="60" rx="47" ry="52" fill="url(#'+id+'_g)"/>'+
+      '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="'+g.bg+'" stroke="'+g.bg+'" stroke-width="1"/>'+
+      '<path d="M50 10 L83 27 L83 59 Q83 87 50 99 Q17 87 17 59 L17 27 Z" fill="url(#'+id+'_s)"/>'+
+      // Rim
+      '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/>'+
+      emblem+
+      // Corner dots
+      '<circle cx="23" cy="30" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
+      '<circle cx="77" cy="30" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
+      '<circle cx="23" cy="88" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
+      '<circle cx="77" cy="88" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
+      // Label bar
+      '<rect x="18" y="104" width="64" height="12" rx="3" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="0.7"/>'+
+      '<text x="50" y="113" text-anchor="middle" font-family="Cinzel,serif" font-size="6.5" font-weight="700" fill="'+g.c1+'" letter-spacing="1.5">'+(tier==="Ace"?"ACE":tier.toUpperCase())+'</text>';
+  }
+
+  return '<svg width="'+s+'" height="'+h+'" viewBox="0 0 100 118" xmlns="http://www.w3.org/2000/svg">'+defs+inner+'</svg>';
+}
+
+// Skill icon SVG
+function skillSVG(key,size){
+  size=size||20;
+  var a='stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+  var d={
+    new_words:'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+    review_words:'M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15',
+    speaking_min:'M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8',
+    listening_min:'M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z',
+    pages_read:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2zM8 8h8M8 12h6',
+    typing_score:'M2 7a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zM6 11h.01M10 11h.01M14 11h.01M18 11h.01M6 15h.01M10 15h4M18 15h.01'
+  };
+  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="'+d[key]+'"/></svg>';
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JS: DATE & DATA UTILITIES
+════════════════════════════════════════════════════════════ -->
+<script>
+function getCairoNow(){var n=new Date();return new Date(n.getTime()+n.getTimezoneOffset()*60000+7200000);}
+function cairoToday(){var c=getCairoNow();return c.getFullYear()+"-"+pad2(c.getMonth()+1)+"-"+pad2(c.getDate());}
+function pad2(n){return String(n).padStart(2,"0");}
+function normDate(s){if(!s)return"";var p=s.split("-");if(p.length!==3)return s;return p[0]+"-"+pad2(p[1])+"-"+pad2(p[2]);}
+function dateKey(d){return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());}
+function weekStartDate(){var c=getCairoNow(),dy=c.getDay();c.setDate(c.getDate()-(dy===0?6:dy-1));c.setHours(0,0,0,0);return c;}
+function fmtMin(v){if(!v)return"0m";if(v<60)return v+"m";return v+"m ("+Math.round(v/60*10)/10+"h)";}
+
+var cachedData=[];
+function loadCache(){try{var r=localStorage.getItem(CACHE_KEY);if(r)cachedData=JSON.parse(r);}catch(e){}}
+function saveCache(rows){try{localStorage.setItem(CACHE_KEY,JSON.stringify(rows));}catch(e){}cachedData=rows;}
+
+function computeTotals(rows){
+  var todS=cairoToday(),wkMs=weekStartDate().getTime(),moMs=new Date(getCairoNow().getFullYear(),getCairoNow().getMonth(),1).getTime();
+  var t={};SKILLS.forEach(function(s){t[s.key]={today:0,week:0,month:0,all:0,byDay:{}};});
+  rows.forEach(function(r){
+    var sk=r.skill,v=Number(r.amount)||0;if(!sk||!t[sk]||!v)return;
+    var ds=normDate(r.date);if(!ds)return;
+    var ms=new Date(ds+"T12:00:00").getTime();
+    t[sk].all+=v;if(ms>=moMs)t[sk].month+=v;if(ms>=wkMs)t[sk].week+=v;if(ds===todS)t[sk].today+=v;
+    t[sk].byDay[ds]=(t[sk].byDay[ds]||0)+v;
+  });
+  return t;
+}
+
+function calcStreak(byDay,goal,todS){
+  if(!goal)return 0;var s=0,c=getCairoNow();
+  if(!byDay[todS]||byDay[todS]<goal)c.setDate(c.getDate()-1);
+  for(var i=0;i<9999;i++){var k=dateKey(c);if(byDay[k]&&byDay[k]>=goal){s++;c.setDate(c.getDate()-1);}else break;}
+  return s;
+}
+
+function getTotalXP(totals){
+  return SKILLS.reduce(function(sum,s){return sum+(s.xpW>0?(totals[s.key]?totals[s.key].all:0)*s.xpW:0);},0);
+}
+
+var UNIT_HINTS={new_words:"words",review_words:"words",speaking_min:"minutes",listening_min:"minutes",pages_read:"pages",typing_score:"minutes of practice"};
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     COMPONENT: NAV (CSS + HTML template)
 ════════════════════════════════════════════════════════════ -->
 <style>
-/* Section label */
-.sec-label{
-  font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;
-  color:var(--beige);margin-bottom:14px;margin-top:28px;
-  display:flex;align-items:center;gap:10px;
-}
+nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;height:56px;background:rgba(10,30,46,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.nav-logo{font-family:var(--f-brand);font-size:18px;font-weight:900;letter-spacing:4px;text-transform:uppercase;
+  background:linear-gradient(90deg,#F2F3F4,#c490ae,#A77693);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;filter:drop-shadow(0 0 8px rgba(167,118,147,0.5))}
+.nav-right{display:flex;gap:6px;align-items:center}
+.nav-link{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);
+  background:none;border:none;padding:6px 12px;border-radius:7px;transition:all .2s}
+.nav-link:hover,.nav-link.active{color:#fff;background:rgba(167,118,147,0.15)}
+.nav-btn{padding:6px 16px;border:1px solid var(--border2);border-radius:7px;background:transparent;
+  color:var(--mauve-hi);font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;transition:all .2s}
+.nav-btn:hover{background:rgba(167,118,147,0.12)}
+.btn-icon-nav{background:none;border:1px solid var(--border);border-radius:7px;color:var(--dim);
+  padding:6px 9px;display:flex;align-items:center;transition:all .2s}
+.btn-icon-nav:hover{border-color:var(--border2);color:#fff}
+.btn-icon-nav.spinning svg{animation:globalSpin .7s linear infinite}
+.loading-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,30,46,0.9);
+  backdrop-filter:blur(10px);flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.loading-overlay.show{display:flex}
+.spin-ring{width:40px;height:40px;border-radius:50%;border:2px solid rgba(167,118,147,0.2);
+  border-top-color:var(--mauve-hi);animation:globalSpin .8s linear infinite}
+.spin-label{font-size:11px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim)}
+</style>
+
+<!-- ═══════════════════════════════════════════════════════════
+     COMPONENT: SHARED ELEMENTS
+════════════════════════════════════════════════════════════ -->
+<style>
+.sec-label{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--beige);
+  margin-bottom:14px;margin-top:28px;display:flex;align-items:center;gap:8px}
 .sec-label:first-child{margin-top:0}
 .sec-label::after{content:'';flex:1;height:1px;background:rgba(222,209,198,0.18)}
-
-/* Info button */
-.info-btn{
-  background:none;border:1px solid rgba(222,209,198,0.3);
-  border-radius:50%;width:19px;height:19px;
-  color:var(--beige);font-size:10px;font-weight:700;
-  display:inline-flex;align-items:center;justify-content:center;
-  flex-shrink:0;transition:all .2s;line-height:1;
-}
+.info-btn{background:none;border:1px solid rgba(222,209,198,0.3);border-radius:50%;width:19px;height:19px;
+  color:var(--beige);font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .2s;line-height:1}
 .info-btn:hover{background:rgba(222,209,198,0.1);border-color:var(--beige);color:#fff}
-
-/* INFO MODAL */
-.modal-overlay{position:fixed;inset:0;z-index:300;
-  background:rgba(10,30,46,0.82);backdrop-filter:blur(8px);
-  display:none;align-items:center;justify-content:center}
-.modal-overlay.show{display:flex}
-.modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;
-  padding:24px 28px;max-width:310px;width:90%;position:relative;
-  box-shadow:0 20px 60px rgba(0,0,0,0.5)}
-.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;
-  color:var(--dim);font-size:18px;line-height:1;transition:color .2s}
-.modal-close:hover{color:#fff}
-.modal-title{font-family:var(--f-title);font-size:15px;font-weight:700;
-  color:var(--mauve-hi);letter-spacing:1px;margin-bottom:16px}
-.modal-row{display:flex;align-items:center;justify-content:space-between;
-  padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
-.modal-row:last-of-type{border:none}
-.modal-row-label{color:var(--text3);display:flex;align-items:center;gap:7px}
-.modal-xp{color:#fff;font-weight:800;font-size:14px;font-family:var(--f-title)}
-.modal-note{margin-top:14px;font-size:11px;color:var(--dim);line-height:1.8;
-  border-top:1px solid var(--border);padding-top:12px}
 </style>
 
 <!-- ═══════════════════════════════════════════════════════════
      COMPONENT: LOG PAGE
+     (CSS + HTML + JS together)
 ════════════════════════════════════════════════════════════ -->
 <style>
-/* LOG CSS */
-.log-hero{padding:50px 36px 32px;text-align:center;
+/* LOG PAGE CSS */
+.log-hero{padding:44px 32px 28px;text-align:center;
   background:radial-gradient(ellipse 60% 50% at 50% 115%,rgba(167,118,147,0.16),transparent 65%)}
-.log-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;
-  color:var(--dim);margin-bottom:12px}
-.log-title{font-family:var(--f-title);font-size:clamp(32px,5.5vw,58px);font-weight:700;
+.log-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.log-title{font-family:var(--f-title);font-size:clamp(28px,5vw,52px);font-weight:700;
   text-transform:uppercase;line-height:.92;margin-bottom:12px;color:#fff}
 .log-title em{font-style:normal;color:var(--mauve-hi)}
 .log-sub{font-size:14px;color:var(--text3);max-width:380px;margin:0 auto;line-height:1.8}
-
-.log-body{max-width:560px;margin:0 auto;padding:30px 28px 90px}
-
-/* Date row */
+.log-body{max-width:560px;margin:0 auto;padding:28px 24px 80px}
 .date-row{display:flex;gap:8px;align-items:center}
-.date-row input[type="date"]{
-  flex:1;background:var(--surface);border:1px solid var(--border);border-radius:9px;
-  padding:11px 16px;font-size:15px;font-weight:500;color:#fff;
-  outline:none;transition:border-color .2s,background .2s;color-scheme:dark}
+.date-row input[type="date"]{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:9px;
+  padding:11px 16px;font-size:15px;font-weight:500;color:#fff;outline:none;transition:all .2s;color-scheme:dark}
 .date-row input[type="date"]:focus{border-color:var(--mauve-hi);background:var(--surface2)}
-.today-btn{background:none;border:1px solid var(--border);border-radius:9px;
-  padding:11px 14px;color:var(--text3);font-size:12px;font-weight:600;letter-spacing:1px;
-  text-transform:uppercase;transition:all .2s;white-space:nowrap}
+.today-btn{background:none;border:1px solid var(--border);border-radius:9px;padding:11px 14px;
+  color:var(--text3);font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+  transition:all .2s;white-space:nowrap}
 .today-btn:hover{border-color:var(--border2);color:#fff}
-
-/* Entry row */
 .entry-row{display:flex;gap:10px;align-items:flex-end}
 .lfield{display:flex;flex-direction:column;gap:6px}
 .lfield label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
-.skill-select{
-  background:var(--surface);border:1px solid var(--border);border-radius:9px;
-  padding:11px 32px 11px 16px;font-size:15px;font-weight:500;color:#fff;
-  outline:none;transition:border-color .2s;cursor:pointer;
-  appearance:none;-webkit-appearance:none;
+.skill-select{background:var(--surface);border:1px solid var(--border);border-radius:9px;
+  padding:11px 30px 11px 16px;font-size:15px;font-weight:500;color:#fff;outline:none;
+  transition:border-color .2s;cursor:pointer;appearance:none;-webkit-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23A77693' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 12px center;
-  min-width:195px}
+  background-repeat:no-repeat;background-position:right 12px center;min-width:195px}
 .skill-select:focus{border-color:var(--mauve-hi);background:var(--surface2)}
 .skill-select option{background:#0F2D4D;color:#fff}
-.amount-input{width:120px;background:var(--surface);border:1px solid var(--border);
-  border-radius:9px;padding:11px 14px;font-size:22px;font-weight:700;color:#fff;
-  outline:none;transition:border-color .2s;-moz-appearance:textfield}
+.amount-input{width:120px;background:var(--surface);border:1px solid var(--border);border-radius:9px;
+  padding:11px 12px;font-size:22px;font-weight:700;color:#fff;outline:none;
+  transition:border-color .2s;-moz-appearance:textfield}
 .amount-input::-webkit-inner-spin-button{-webkit-appearance:none}
 .amount-input::placeholder{color:rgba(222,209,198,0.2);font-size:18px}
 .amount-input:focus{border-color:var(--mauve-hi);background:var(--surface2)}
-.unit-hint{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;
-  margin-top:4px;text-align:center}
-
-/* Log footer */
+.unit-hint{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px;text-align:center}
 .log-footer{margin-top:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.btn-clear{background:none;border:1px solid var(--border);border-radius:8px;
-  padding:10px 15px;color:var(--dim);font-size:13px;letter-spacing:1px;transition:all .2s}
+.btn-clear{background:none;border:1px solid var(--border);border-radius:8px;padding:10px 15px;
+  color:var(--dim);font-size:13px;letter-spacing:1px;transition:all .2s}
 .btn-clear:hover{border-color:var(--border2);color:#fff}
-#log-status{flex:1;min-height:42px;padding:10px 14px;border-radius:8px;
-  font-size:13px;font-weight:500;letter-spacing:.5px;
-  display:flex;align-items:center;transition:all .3s}
+#log-status{flex:1;min-height:42px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;
+  letter-spacing:.5px;display:flex;align-items:center;transition:all .3s}
 #log-status.ok{background:rgba(167,118,147,0.15);color:var(--mauve-hi);border:1px solid var(--border2)}
 #log-status.err{background:rgba(200,60,60,0.12);color:#ff9090;border:1px solid rgba(200,60,60,0.3)}
 #log-status.busy{background:rgba(222,209,198,0.08);color:var(--beige);border:1px solid rgba(222,209,198,0.22)}
-.btn-save{padding:10px 26px;background:var(--grad-mauve);
-  border:1px solid var(--border2);border-radius:8px;color:#fff;
-  font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+.btn-save{padding:10px 26px;background:var(--grad-mauve);border:1px solid var(--border2);border-radius:8px;
+  color:#fff;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
   transition:all .2s;box-shadow:0 4px 18px rgba(167,118,147,0.25)}
 .btn-save:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 26px rgba(167,118,147,0.4)}
 .btn-save:disabled{opacity:.4;cursor:not-allowed}
-.log-hint{margin-top:11px;text-align:center;font-size:11px;font-weight:500;
-  letter-spacing:2px;color:var(--very-dim);text-transform:uppercase}
-.log-counter{margin-top:5px;text-align:center;font-size:12px;color:var(--dim)}
-.log-counter span{color:var(--mauve-hi);font-weight:700}
+.log-copyright{margin-top:16px;text-align:center;font-size:11px;color:var(--very-dim);line-height:1.8}
+.log-copyright .brand{color:var(--mauve-hi);font-weight:600}
 </style>
 
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: DASHBOARD — HERO + RANK BLOCK
-════════════════════════════════════════════════════════════ -->
-<style>
-/* DASHBOARD HERO */
-.dash-hero{padding:44px 36px 28px;text-align:center;
-  background:radial-gradient(ellipse 65% 50% at 50% 120%,rgba(167,118,147,0.18),transparent 60%)}
-.dash-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;
-  color:var(--dim);margin-bottom:12px}
-.dash-title{font-family:var(--f-title);font-size:clamp(28px,5vw,54px);font-weight:700;
-  text-transform:uppercase;line-height:.92;color:#fff}
-.dash-title em{font-style:normal;color:var(--mauve-hi)}
-
-/* RANK BLOCK */
-.rank-block{max-width:820px;margin:24px auto 0;padding:0 32px;
-  display:flex;align-items:center;gap:22px;flex-wrap:wrap}
-.rank-badge{width:60px;height:60px;border-radius:14px;
-  border:1px solid var(--border2);background:var(--surface);
-  display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.rank-info{flex:1}
-.rank-name{font-family:var(--f-title);font-size:24px;font-weight:700;line-height:1;color:#fff}
-.rank-xp{font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
-  color:var(--dim);margin-top:4px}
-.rank-bar-wrap{min-width:210px;flex:1;max-width:330px}
-.rank-bar-labels{display:flex;justify-content:space-between;
-  font-size:11px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-bottom:5px}
-.rank-track{height:6px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
-.rank-fill{height:100%;background:var(--grad-bar);border-radius:100px;
-  transition:width 1.2s cubic-bezier(.16,1,.3,1);
-  box-shadow:0 0 10px rgba(167,118,147,0.5)}
-.rank-remain{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--text3);
-  margin-top:5px;text-align:right}
-.rank-remain strong{color:#fff}
-
-.dash-body{max-width:940px;margin:0 auto;padding:28px 32px 90px}
-</style>
-
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: DASHBOARD — TODAY'S QUESTS
-════════════════════════════════════════════════════════════ -->
-<style>
-/* QUESTS */
-.quest-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:30px}
-.quest-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
-  padding:13px 11px;transition:border-color .2s}
-.quest-card.done{border-color:var(--border2);background:rgba(167,118,147,0.1)}
-.q-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.q-icon{display:flex;align-items:center;color:rgba(222,209,198,0.4)}
-.quest-card.done .q-icon{color:var(--mauve-hi)}
-.q-check{font-size:13px}
-.q-name{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
-  color:rgba(222,209,198,0.5);margin-bottom:4px}
-.quest-card.done .q-name{color:var(--mauve-hi)}
-.q-nums{font-size:12px;font-weight:500;color:var(--text3);margin-bottom:6px;line-height:1.4}
-.q-bar{height:3px;background:rgba(167,118,147,0.1);border-radius:100px;overflow:hidden}
-.q-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width .9s;
-  box-shadow:0 0 6px rgba(167,118,147,0.4)}
-</style>
-
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: DASHBOARD — SKILL OVERVIEW CARDS
-════════════════════════════════════════════════════════════ -->
-<style>
-/* SKILL GRID */
-.skill-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:30px}
-.skill-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
-  padding:15px 14px;transition:all .22s;cursor:pointer;position:relative}
-.skill-card:hover{border-color:var(--border2);transform:translateY(-3px);
-  box-shadow:0 10px 28px rgba(167,118,147,0.14)}
-.skill-card::after{content:'›';position:absolute;top:13px;right:13px;
-  font-size:16px;color:rgba(167,118,147,0.3);transition:color .2s}
-.skill-card:hover::after{color:var(--mauve-hi)}
-.sk-top{display:flex;align-items:center;gap:8px;margin-bottom:11px}
-.sk-svg{display:flex;align-items:center;color:rgba(222,209,198,0.45);flex-shrink:0;transition:color .2s}
-.skill-card:hover .sk-svg{color:var(--mauve-hi)}
-.sk-name{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
-  color:rgba(222,209,198,0.7);flex:1;line-height:1.3}
-.sk-rank-badge{display:flex;align-items:center;flex-shrink:0}
-.sk-total{font-size:22px;font-weight:800;color:#fff;margin-bottom:1px;line-height:1}
-.sk-unit{font-size:10px;font-weight:500;color:var(--dim);letter-spacing:.5px;margin-bottom:9px}
-/* Typing special */
-.sk-streak-big{font-size:28px;font-weight:800;color:#fff;line-height:1;margin-bottom:3px}
-.sk-streak-label{font-size:10px;color:var(--dim);letter-spacing:.5px;margin-bottom:8px}
-.sk-done-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;
-  text-transform:uppercase;padding:3px 8px;border-radius:5px;margin-bottom:8px}
-.sk-done-yes{background:rgba(167,118,147,0.2);color:var(--mauve-hi);border:1px solid var(--border2)}
-.sk-done-no{background:rgba(255,255,255,0.04);color:var(--dim);border:1px solid var(--border)}
-/* XP bar */
-.sk-bar-label{display:flex;justify-content:space-between;
-  font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--text3);margin-bottom:4px}
-.sk-track{height:4px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
-.sk-fill{height:100%;border-radius:100px;transition:width 1s;
-  box-shadow:0 0 8px rgba(167,118,147,0.4)}
-.sk-next{font-size:10px;font-weight:500;color:var(--dim);margin-top:6px}
-.sk-next strong{color:var(--beige)}
-</style>
-
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: DASHBOARD — RANK PROGRESSION
-════════════════════════════════════════════════════════════ -->
-<style>
-/* RANK ROAD */
-.rank-road{display:flex;gap:4px;overflow-x:auto;padding-bottom:8px;margin-bottom:28px}
-.rank-road::-webkit-scrollbar{height:3px}
-.tier-col{display:flex;flex-direction:column;min-width:90px;flex:1}
-.tier-head{padding:7px 5px 6px;font-size:9px;font-weight:700;letter-spacing:2px;
-  text-transform:uppercase;text-align:center;border-radius:6px 6px 0 0;
-  border-bottom:2px solid transparent;
-  display:flex;align-items:center;justify-content:center;gap:4px}
-.tier-subs{display:flex;flex-direction:column-reverse;gap:2px;padding:3px}
-.tier-sub{padding:5px 4px;border-radius:5px;font-size:10px;font-weight:600;
-  letter-spacing:.5px;text-align:center;color:rgba(222,209,198,0.4);
-  background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);
-  transition:all .2s}
-.tier-sub.current{
-  border-color:var(--border2);font-weight:700;
-  animation:tierPulse 2.5s ease infinite}
-.tier-sub.passed{opacity:.6}
-@keyframes tierPulse{
-  0%,100%{box-shadow:none}
-  50%{box-shadow:0 0 12px currentColor}}
-</style>
-
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: SKILL DETAIL PAGE
-════════════════════════════════════════════════════════════ -->
-<style>
-/* SD PAGE */
-#page-skill{background:var(--bg)}
-
-/* SD Hero */
-.sd-hero{padding:38px 36px 30px;background:var(--grad-hero);
-  border-bottom:1px solid var(--border)}
-.sd-hero-inner{max-width:700px;margin:0 auto;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-.sd-icon-wrap{width:68px;height:68px;border-radius:18px;
-  background:rgba(255,255,255,0.07);border:1px solid var(--border2);
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;color:var(--mauve-hi)}
-.sd-title-block{flex:1}
-.sd-skill-name{font-family:var(--f-title);font-size:30px;font-weight:700;
-  line-height:1;color:#fff;margin-bottom:8px}
-.sd-rank-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
-.sd-rank-label{font-size:13px;font-weight:600;letter-spacing:1px}
-.sd-total-row{font-size:14px;color:var(--text3);margin-top:4px}
-.sd-total-row strong{color:#fff;font-size:20px;font-weight:800}
-
-.sd-body{max-width:700px;margin:0 auto;padding:30px 28px 90px}
-
-/* Streak section */
-.streak-section{margin-bottom:24px;padding:20px 22px;
-  background:var(--surface);border:1px solid var(--border);border-radius:14px}
-.streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.streak-label-big{font-size:13px;font-weight:700;letter-spacing:2.5px;
-  text-transform:uppercase;color:var(--text3)}
-.streak-count{display:flex;align-items:baseline;gap:5px}
-.streak-num{font-family:var(--f-title);font-size:28px;font-weight:700;color:#fff}
-.streak-unit{font-size:12px;font-weight:600;letter-spacing:1px;color:var(--dim)}
-.streak-track-wrap{position:relative;height:12px;background:rgba(255,255,255,0.05);
-  border-radius:100px;overflow:visible}
-.streak-fill{height:12px;border-radius:100px;background:var(--grad-bar);
-  transition:width 1.2s cubic-bezier(.16,1,.3,1);position:relative;min-width:6px;
-  box-shadow:0 0 14px rgba(167,118,147,0.6)}
-.streak-flame{position:absolute;right:-10px;top:-14px;font-size:24px;line-height:1;
-  filter:drop-shadow(0 0 8px rgba(255,140,50,0.7))}
-.streak-milestones{display:flex;justify-content:space-between;margin-top:9px;
-  font-size:10px;font-weight:600;letter-spacing:1px;color:var(--dim)}
-
-/* Chart section */
-.chart-section{margin-bottom:24px;padding:20px 22px;
-  background:var(--surface);border:1px solid var(--border);border-radius:14px}
-.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-.chart-title{font-size:12px;font-weight:700;letter-spacing:2.5px;
-  text-transform:uppercase;color:var(--text3)}
-.chart-tabs{display:flex;gap:4px}
-.chart-tab{background:none;border:1px solid var(--border);border-radius:6px;
-  padding:5px 10px;font-size:10px;font-weight:700;letter-spacing:1.5px;
-  text-transform:uppercase;color:var(--dim);transition:all .2s}
-.chart-tab.active{background:rgba(167,118,147,0.18);border-color:var(--border2);color:#fff}
-.chart-tab:hover:not(.active){border-color:var(--border2);color:var(--text3)}
-
-.chart-wrapper{position:relative;height:180px;overflow:hidden}
-.chart-scroll{overflow-x:auto;height:100%;
-  scrollbar-width:thin;scrollbar-color:rgba(167,118,147,0.3) transparent}
-.chart-scroll::-webkit-scrollbar{height:3px}
-.chart-scroll::-webkit-scrollbar-thumb{background:rgba(167,118,147,0.3);border-radius:3px}
-.bar-group{display:inline-flex;gap:5px;align-items:flex-end;
-  height:100%;padding:20px 6px 24px;position:relative;min-width:100%}
-.bar-item{display:flex;flex-direction:column;align-items:center;
-  min-width:26px;height:100%;justify-content:flex-end;position:relative}
-.bar-val{font-size:9px;font-weight:700;color:var(--text3);
-  margin-bottom:3px;white-space:nowrap;text-align:center;line-height:1}
-.bar-col{width:16px;border-radius:4px 4px 0 0;flex-shrink:0;min-height:3px;
-  transition:height .5s cubic-bezier(.16,1,.3,1)}
-.bar-lbl{font-size:8px;font-weight:600;color:var(--dim);letter-spacing:.5px;
-  margin-top:5px;white-space:nowrap}
-.goal-line{position:absolute;left:0;right:0;
-  border-top:1.5px dashed rgba(196,144,174,0.5);pointer-events:none;z-index:2}
-.goal-line-label{position:absolute;right:4px;top:-16px;
-  font-size:8px;font-weight:700;letter-spacing:1px;color:var(--mauve-hi)}
-.chart-empty{display:flex;align-items:center;justify-content:center;height:100%;
-  font-size:13px;font-weight:500;color:var(--dim);letter-spacing:1px}
-
-/* Calendar section */
-.cal-section{padding:20px 22px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
-.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.cal-title{font-family:var(--f-title);font-size:16px;font-weight:700;color:#fff}
-.cal-nav-btns{display:flex;gap:6px}
-.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:7px;
-  padding:5px 12px;color:var(--text3);font-size:16px;line-height:1;transition:all .2s}
-.cal-nav-btn:hover{border-color:var(--border2);color:#fff}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.cal-head{text-align:center;font-size:10px;font-weight:700;letter-spacing:1.5px;
-  text-transform:uppercase;color:var(--dim);padding:0 0 8px}
-.cal-cell{
-  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;border-radius:7px;
-  font-size:11px;font-weight:600;color:rgba(222,209,198,0.4);
-  background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);
-  transition:all .2s;cursor:default;line-height:1.2;gap:1px;padding:2px 1px}
-.cal-cell.empty{background:none;border:none}
-.cal-cell.cal-today{border-color:rgba(167,118,147,0.5);color:var(--beige)}
-/* BRIGHT met day */
-.cal-cell.cal-met{
-  background:rgba(167,118,147,0.5);
-  border-color:var(--mauve-hi);
-  color:#fff;font-weight:800;
-  box-shadow:0 0 10px rgba(167,118,147,0.4)}
-/* Partial day */
-.cal-cell.cal-partial{
-  background:rgba(167,118,147,0.15);
-  border-color:rgba(167,118,147,0.35);
-  color:var(--mauve-hi)}
-.cal-day-num{font-size:11px;font-weight:700;line-height:1}
-.cal-day-val{font-size:8px;font-weight:600;line-height:1;opacity:.85}
-.cal-cell.cal-met .cal-day-val{color:rgba(255,255,255,0.9)}
-.cal-cell.cal-partial .cal-day-val{color:var(--mauve-hi)}
-.cal-legend{display:flex;gap:14px;margin-top:12px;justify-content:flex-end}
-.cal-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:500;color:var(--dim)}
-.cal-legend-dot{width:9px;height:9px;border-radius:3px}
-
-/* Dashboard error */
-.dash-error{text-align:center;padding:56px 28px;color:var(--dim);
-  font-size:14px;line-height:2;display:none}
-.dash-error.show{display:block}
-.dash-error strong{color:var(--beige);display:block;font-size:17px;margin-bottom:8px}
-</style>
-
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: RESPONSIVE
-════════════════════════════════════════════════════════════ -->
-<style>
-@media(max-width:800px){
-  nav{padding:0 16px}
-  .dash-body,.log-body,.sd-body{padding:22px 16px 90px}
-  .rank-block{padding:0 16px}
-  .quest-grid{grid-template-columns:repeat(3,1fr)}
-  .skill-grid{grid-template-columns:repeat(2,1fr)}
-  /* Log: center everything on mobile */
-  .log-body{text-align:center}
-  .date-row{justify-content:center}
-  .entry-row{flex-direction:column;align-items:center}
-  .lfield{width:100%}
-  .skill-select,.amount-input{width:100%}
-  .amount-input{text-align:center}
-  .log-footer{flex-direction:column;align-items:stretch}
-  .btn-save,.btn-clear{width:100%;justify-content:center}
-  .unit-hint{text-align:center}
-  .sd-hero-inner{flex-direction:column;text-align:center}
-}
-@media(max-width:520px){
-  .quest-grid{grid-template-columns:repeat(2,1fr)}
-  .skill-grid{grid-template-columns:1fr 1fr}
-}
-</style>
-</head>
-<body>
-
-<!-- ═══════════════════════════════════════════════════════════
-     PAGE 1: LOG
-════════════════════════════════════════════════════════════ -->
 <div id="page-log" class="page">
-
-  <!-- NAV HTML -->
   <nav>
     <div class="nav-logo">KRESTO</div>
     <div class="nav-right">
@@ -526,22 +477,17 @@ nav{
       <button class="nav-btn" onclick="goTo('dash')">Dashboard →</button>
     </div>
   </nav>
-
-  <!-- LOG HERO HTML -->
   <div class="log-hero">
     <div class="log-tag">Now Recording</div>
     <h1 class="log-title">DAILY<br><em>ENTRY</em></h1>
     <p class="log-sub">Select a skill, pick a date, enter your amount — sent directly to the sheet</p>
   </div>
-
-  <!-- LOG FORM HTML -->
   <div class="log-body">
     <div class="sec-label">Date</div>
     <div class="date-row">
       <input type="date" id="l-date">
       <button class="today-btn" onclick="setToday()">Today</button>
     </div>
-
     <div class="sec-label">Skill &amp; Amount</div>
     <div class="entry-row">
       <div class="lfield" style="flex:1">
@@ -561,22 +507,126 @@ nav{
       </div>
     </div>
     <div class="unit-hint" id="unit-hint">words</div>
-
     <div class="log-footer">
       <button class="btn-clear" onclick="logClear()">✕ Clear</button>
       <div id="log-status"></div>
       <button class="btn-save" id="log-save-btn" onclick="logSave()">⬇ Save Entry</button>
     </div>
-    <div class="log-hint">ctrl + enter to save</div>
-    <div class="log-counter">Saved <span id="log-count">0</span> entries this session</div>
+    <div class="log-copyright">
+      <div class="brand">Made by 𝐾𝐴𝑅𝐸𝐸𝑀ッ</div>
+      <div>© 2026 Kareem Mohamed &nbsp;·&nbsp; All rights reserved.</div>
+    </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     PAGE 2: DASHBOARD
-════════════════════════════════════════════════════════════ -->
-<div id="page-dash" class="page hidden">
+<script>
+/* LOG PAGE JS */
+function setStatus(msg,type){var el=document.getElementById("log-status");el.textContent=msg;el.className="log-status"+(type?" "+type:"");el.style.border=msg?"":"none";}
+function setToday(){document.getElementById("l-date").value=cairoToday();}
+function updateUnit(){document.getElementById("unit-hint").textContent=UNIT_HINTS[document.getElementById("l-skill").value]||"";}
 
+async function logSave(){
+  var date=document.getElementById("l-date").value,skill=document.getElementById("l-skill").value;
+  var amount=parseInt(document.getElementById("l-amount").value)||0;
+  if(!date){setStatus("Please pick a date.","err");return;}
+  if(!skill){setStatus("Please select a skill.","err");return;}
+  if(amount<=0){setStatus("Amount must be > 0.","err");return;}
+  var btn=document.getElementById("log-save-btn");btn.disabled=true;setStatus("Saving…","busy");
+  var params=new URLSearchParams({action:"save",date:date,skill:skill,amount:amount});
+  try{
+    await fetch(API_URL+"?"+params.toString(),{method:"GET",mode:"no-cors"});
+    setStatus("✅  "+skill.replace(/_/g," ")+" — "+amount+" saved","ok");
+    document.getElementById("l-amount").value="";
+    document.getElementById("l-amount").focus();
+  }catch(e){setStatus("❌ Error — check connection.","err");}
+  finally{btn.disabled=false;}
+}
+function logClear(){document.getElementById("l-amount").value="";setStatus("","");document.getElementById("l-amount").focus();}
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))if(currentPage==="log")logSave();});
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     COMPONENT: DASHBOARD PAGE
+     (CSS + HTML + JS together)
+════════════════════════════════════════════════════════════ -->
+<style>
+/* DASHBOARD CSS */
+.dash-hero{padding:38px 32px 22px;text-align:center;background:radial-gradient(ellipse 60% 45% at 50% 120%,rgba(167,118,147,0.18),transparent 60%)}
+.dash-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.dash-title{font-family:var(--f-title);font-size:clamp(24px,4.5vw,48px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff}
+.dash-title em{font-style:normal;color:var(--mauve-hi)}
+/* Rank block */
+.rank-block{max-width:820px;margin:22px auto 0;padding:0 28px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.rank-badge-wrap{width:60px;height:60px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rank-info{flex:1}
+.rank-name{font-family:var(--f-title);font-size:22px;font-weight:700;line-height:1;color:#fff}
+.rank-xp{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:4px}
+.rank-bar-wrap{min-width:210px;flex:1;max-width:330px}
+.rank-bar-labels{display:flex;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-bottom:5px}
+.rank-track{height:6px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.rank-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width 1.2s cubic-bezier(.16,1,.3,1);box-shadow:0 0 10px rgba(167,118,147,0.5)}
+.rank-remain{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-top:5px;text-align:right}
+.rank-remain strong{color:#fff}
+/* Dashboard body */
+.dash-body{max-width:940px;margin:0 auto;padding:26px 28px 90px}
+/* Quest grid */
+.quest-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:28px}
+.quest-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 10px;transition:border-color .2s}
+.quest-card.done{border-color:var(--border2);background:rgba(167,118,147,0.1)}
+.q-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.q-icon{display:flex;align-items:center;color:rgba(222,209,198,0.35)}
+.quest-card.done .q-icon{color:var(--mauve-hi)}
+.q-check{font-size:12px}
+.q-name{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.45);margin-bottom:4px}
+.quest-card.done .q-name{color:var(--mauve-hi)}
+.q-nums{font-size:12px;font-weight:500;color:var(--text3);margin-bottom:6px;line-height:1.4}
+.q-bar{height:3px;background:rgba(167,118,147,0.1);border-radius:100px;overflow:hidden}
+.q-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width .9s}
+.quest-card.done .q-fill{box-shadow:0 0 5px rgba(167,118,147,0.4)}
+/* Skill grid */
+.skill-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:28px}
+.skill-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;
+  padding:14px 13px;transition:all .22s;cursor:pointer;position:relative}
+.skill-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:0 10px 28px rgba(167,118,147,0.14)}
+.skill-card::after{content:'›';position:absolute;top:12px;right:12px;font-size:16px;color:rgba(167,118,147,0.3);transition:color .2s}
+.skill-card:hover::after{color:var(--mauve-hi)}
+.sk-top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sk-svg{display:flex;align-items:center;color:rgba(222,209,198,0.4);flex-shrink:0;transition:color .2s}
+.skill-card:hover .sk-svg{color:var(--mauve-hi)}
+.sk-name{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.65);flex:1;line-height:1.3}
+.sk-badge{display:flex;align-items:center;flex-shrink:0}
+.sk-total{font-size:21px;font-weight:800;color:#fff;margin-bottom:1px;line-height:1}
+.sk-unit{font-size:9px;font-weight:500;color:var(--dim);letter-spacing:.5px;margin-bottom:8px}
+.sk-streak-big{font-size:26px;font-weight:800;color:#fff;line-height:1;margin-bottom:2px}
+.sk-streak-lbl{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-bottom:7px}
+.sk-done-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:5px;margin-bottom:8px}
+.sk-done-yes{background:rgba(167,118,147,0.2);color:var(--mauve-hi);border:1px solid var(--border2)}
+.sk-done-no{background:rgba(255,255,255,0.04);color:var(--dim);border:1px solid var(--border)}
+.sk-bar-lbl{display:flex;justify-content:space-between;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.sk-track{height:4px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.sk-fill{height:100%;border-radius:100px;transition:width 1s;box-shadow:0 0 8px rgba(167,118,147,0.4)}
+.sk-next{font-size:9px;font-weight:500;color:var(--dim);margin-top:5px}
+.sk-next strong{color:var(--beige)}
+/* Rank road */
+.rank-road{display:flex;gap:3px;overflow-x:auto;padding-bottom:8px;margin-bottom:28px}
+.rank-road::-webkit-scrollbar{height:3px}
+.tier-col{display:flex;flex-direction:column;min-width:88px;flex:1}
+.tier-head{padding:6px 4px 5px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-align:center;
+  border-radius:5px 5px 0 0;border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:4px}
+.tier-subs{display:flex;flex-direction:column-reverse;gap:2px;padding:2px}
+.tier-sub{padding:5px 3px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.5px;text-align:center;
+  color:rgba(222,209,198,0.4);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);transition:all .2s}
+.tier-sub.current{border-color:var(--border2);animation:tierPulse 2.5s ease infinite}
+.tier-sub.passed{opacity:.6}
+@keyframes tierPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px currentColor}}
+/* Error */
+.dash-error{text-align:center;padding:50px 28px;color:var(--dim);font-size:14px;line-height:2;display:none}
+.dash-error.show{display:block}
+.dash-error strong{color:var(--beige);display:block;font-size:17px;margin-bottom:8px}
+</style>
+
+<div id="page-dash" class="page hidden">
   <nav>
     <div class="nav-logo">KRESTO</div>
     <div class="nav-right">
@@ -590,19 +640,13 @@ nav{
       </button>
     </div>
   </nav>
-
-  <div class="loading-overlay" id="dash-loading">
-    <div class="spin-ring"></div>
-    <div class="spin-label">Fetching from sheet…</div>
-  </div>
-
+  <div class="loading-overlay" id="dash-loading"><div class="spin-ring"></div><div class="spin-label">Fetching from sheet…</div></div>
   <div class="dash-hero">
     <div class="dash-tag">Language Conqueror System</div>
     <h1 class="dash-title">YOUR<br><em>PROGRESS</em></h1>
   </div>
-
   <div class="rank-block">
-    <div class="rank-badge" id="rank-badge-svg"></div>
+    <div class="rank-badge-wrap" id="rank-badge-svg"></div>
     <div class="rank-info">
       <div class="rank-name" id="rank-name">—</div>
       <div class="rank-xp" id="rank-xp">0 XP Total</div>
@@ -613,74 +657,240 @@ nav{
       <div class="rank-remain" id="rank-remain"><strong>—</strong> xp to next</div>
     </div>
   </div>
-
   <div class="dash-body">
     <div class="dash-error" id="dash-error">
-      <strong>Could not load data</strong>
-      Make sure the Apps Script is deployed as <em>Anyone can access</em>
-      using the <em>/exec</em> URL, then press ↺
+      <strong>Could not load data</strong>Make sure the Apps Script is deployed as <em>Anyone can access</em> using the <em>/exec</em> URL, then press ↺
     </div>
-
     <div id="dash-content" style="display:none">
       <div class="sec-label">Today's Quests</div>
       <div class="quest-grid" id="quest-grid"></div>
-
       <div class="sec-label">
         Skill Overview
-        <button class="info-btn" onclick="openInfo()" title="Point system">i</button>
+        <button class="info-btn" onclick="openInfoModal()" title="Point system">i</button>
       </div>
       <div class="skill-grid" id="skill-grid"></div>
-
-      <div class="sec-label">Rank Progression</div>
+      <div class="sec-label">
+        Rank Progression
+        <button class="info-btn" onclick="openRankModal()" title="Rank XP requirements">i</button>
+      </div>
       <div class="rank-road" id="rank-road"></div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     PAGE 3: SKILL DETAIL
-════════════════════════════════════════════════════════════ -->
-<div id="page-skill" class="page hidden">
+<script>
+/* DASHBOARD JS */
+function renderAll(rows){
+  var totals=computeTotals(rows),xp=getTotalXP(totals),todS=cairoToday();
+  renderRankHero(xp);renderQuests(totals,todS);renderSkillCards(totals,todS);renderRankRoad(xp);
+  document.getElementById("dash-content").style.display="block";
+  document.getElementById("dash-error").classList.remove("show");
+}
 
+function renderRankHero(xp){
+  var i=getOverallRankIdx(xp),cur=OVERALL_LEVELS[i],nxt=OVERALL_LEVELS[i+1];
+  var pct=nxt?Math.min(Math.round((xp-cur.startXP)/(nxt.startXP-cur.startXP)*100),100):100;
+  // Parse tier + sub from label
+  var parts=cur.label.split(" "),tier=parts[0],sub=parts.slice(1).join(" ")||"";
+  document.getElementById("rank-badge-svg").innerHTML=rankBadgeSVG(tier,sub,52);
+  document.getElementById("rank-name").textContent=cur.label;
+  document.getElementById("rank-xp").textContent=xp.toLocaleString()+" XP Total";
+  document.getElementById("rb-from").textContent=cur.label;
+  document.getElementById("rb-to").textContent=nxt?nxt.label:"MAX";
+  setTimeout(function(){document.getElementById("rank-fill").style.width=pct+"%";},80);
+  var rem=nxt?(nxt.startXP-xp).toLocaleString():0;
+  document.getElementById("rank-remain").innerHTML=nxt?"<strong>"+rem+"</strong> xp to next":"<strong>⚔️ Conqueror</strong>";
+}
+
+function renderQuests(totals,todS){
+  var g=document.getElementById("quest-grid");g.innerHTML="";
+  SKILLS.forEach(function(s){
+    var t=totals[s.key]||{today:0,byDay:{}};
+    var done,pct,nums;
+    if(s.key==="typing_score"){
+      done=t.today>0;pct=done?100:0;
+      var stk=calcStreak(t.byDay,1,todS);
+      nums=(done?"Done":"—")+(stk>0?" 🔥"+stk+"d":"");
+    }else{
+      done=t.today>=s.goal;pct=Math.min(Math.round(t.today/s.goal*100),100);
+      nums=s.unit==="min"?fmtMin(t.today)+" / "+fmtMin(s.goal):t.today+" / "+s.goal+" "+s.unit;
+    }
+    var d=document.createElement("div");d.className="quest-card"+(done?" done":"");
+    d.innerHTML="<div class='q-top'><span class='q-icon'>"+skillSVG(s.key,15)+"</span><span class='q-check'>"+(done?"✅":"○")+"</span></div>"+
+      "<div class='q-name'>"+s.name+"</div><div class='q-nums'>"+nums+"</div>"+
+      "<div class='q-bar'><div class='q-fill' style='width:"+pct+"%'></div></div>";
+    g.appendChild(d);
+  });
+}
+
+function renderSkillCards(totals,todS){
+  var g=document.getElementById("skill-grid");g.innerHTML="";
+  SKILLS.forEach(function(s){
+    var t=totals[s.key]||{all:0,today:0,byDay:{}};
+    var d=document.createElement("div");d.className="skill-card";
+    d.onclick=(function(k){return function(){openSkillDetail(k);};})(s.key);
+    if(s.key==="typing_score"){
+      var stk=calcStreak(t.byDay,1,todS),doneT=t.today>0;
+      d.innerHTML="<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,18)+"</span><span class='sk-name'>"+s.name+"</span></div>"+
+        "<div class='sk-streak-big'>"+stk+"</div><div class='sk-streak-lbl'>day streak</div>"+
+        "<div class='sk-done-badge "+(doneT?"sk-done-yes":"sk-done-no")+"'>"+(doneT?"Done Today":"Not Yet")+"</div>"+
+        "<div class='sk-bar-lbl'><span>Consistency</span><span>"+Math.min(stk,30)+" / 30d</span></div>"+
+        "<div class='sk-track'><div class='sk-fill' style='width:"+Math.min(Math.round(stk/30*100),100)+"%;background:var(--mauve-hi)'></div></div>"+
+        "<div class='sk-next'>Practice every day</div>";
+    }else{
+      var norm=t.all/s.goal; // normalized days
+      var si=getSkillRankIdx(norm),sr=SKILL_LEVELS[si],snxt=SKILL_LEVELS[Math.min(si+1,SKILL_LEVELS.length-1)];
+      var pct=(snxt&&snxt!==sr)?Math.min(Math.round((norm-sr.d)/(snxt.d-sr.d)*100),100):100;
+      var rem=(snxt&&snxt!==sr)?Math.max(0,Math.round((snxt.d-norm)*s.goal)).toLocaleString():0;
+      var stk=calcStreak(t.byDay,s.goal,todS),stkT=stk>=3?"🔥"+stk+"d":stk>0?stk+"d":"";
+      var tot=s.unit==="min"?fmtMin(t.all):t.all.toLocaleString();
+      // Parse tier+sub for badge
+      var lparts=sr.label.split(" "),ltier=lparts[0],lsub=lparts.slice(1).join(" ")||"";
+      d.innerHTML="<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,18)+"</span><span class='sk-name'>"+s.name+"</span>"+
+        "<span class='sk-badge'>"+rankBadgeSVG(ltier,lsub,22)+"</span></div>"+
+        "<div class='sk-total'>"+tot+"</div><div class='sk-unit'>"+s.unit+" total "+(stkT?"&nbsp;"+stkT:"")+"</div>"+
+        "<div class='sk-bar-lbl'><span>"+sr.label+"</span><span>"+pct+"%</span></div>"+
+        "<div class='sk-track'><div class='sk-fill' style='width:"+pct+"%;background:linear-gradient(90deg,"+sr.col+"88,"+sr.col+")'></div></div>"+
+        ((snxt&&snxt!==sr)?"<div class='sk-next'><strong>"+rem+"</strong> pts → "+snxt.label+"</div>":
+         "<div class='sk-next'>✨ Max Rank</div>");
+    }
+    g.appendChild(d);
+  });
+}
+
+function renderRankRoad(xp){
+  var g=document.getElementById("rank-road");g.innerHTML="";
+  var ci=getOverallRankIdx(xp);
+  RANK_TIERS.forEach(function(r){
+    var col=document.createElement("div");col.className="tier-col";
+    var h=document.createElement("div");h.className="tier-head";
+    h.style.cssText="color:"+r.col+";border-bottom-color:"+r.col+"66;background:"+r.col+"18";
+    h.innerHTML=rankBadgeSVG(r.tier,"V",13)+"<span>"+r.tier+"</span>";
+    col.appendChild(h);
+    var subs=document.createElement("div");subs.className="tier-subs";
+    r.subs.forEach(function(s){
+      var label=s?r.tier+" "+s:r.tier;
+      var li=OVERALL_LEVELS.findIndex(function(l){return l.label===label;});
+      var sub=document.createElement("div");
+      sub.className="tier-sub"+(li===ci?" current":li<ci?" passed":"");
+      sub.textContent=label;
+      if(li===ci){sub.style.color=r.col;sub.style.borderColor=r.col+"88";sub.style.background=r.col+"22";}
+      if(li<ci){sub.style.color=r.col+"88";}
+      subs.appendChild(sub);
+    });
+    col.appendChild(subs);g.appendChild(col);
+  });
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     COMPONENT: SKILL DETAIL PAGE
+     (CSS + HTML + JS together)
+════════════════════════════════════════════════════════════ -->
+<style>
+/* SKILL DETAIL CSS */
+#page-skill{background:var(--bg)}
+.sd-hero{padding:32px 28px 26px;background:var(--grad-hero);border-bottom:1px solid var(--border)}
+.sd-hero-inner{max-width:700px;margin:0 auto;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+/* Left: large rank badge */
+.sd-rank-badge-big{flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  width:90px;height:90px;border-radius:18px;border:1px solid var(--border2);background:rgba(255,255,255,0.05)}
+/* Right: skill info */
+.sd-right{flex:1;display:flex;flex-direction:column;gap:6px}
+.sd-skill-icon-row{display:flex;align-items:center;gap:10px}
+.sd-skill-icon{display:flex;align-items:center;color:var(--mauve-hi)}
+.sd-skill-name{font-family:var(--f-title);font-size:26px;font-weight:700;color:#fff}
+.sd-rank-label{font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
+.sd-total-row{font-size:14px;color:var(--text3)}
+.sd-total-row strong{color:#fff;font-size:20px;font-weight:800}
+.sd-body{max-width:700px;margin:0 auto;padding:28px 24px 90px}
+/* Streak */
+.streak-section{margin-bottom:22px;padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.streak-lbl{font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
+.streak-count{display:flex;align-items:baseline;gap:5px}
+.streak-num{font-family:var(--f-title);font-size:28px;font-weight:700;color:#fff}
+.streak-unit{font-size:12px;font-weight:600;letter-spacing:1px;color:var(--dim)}
+.streak-track-wrap{position:relative;height:12px;background:rgba(255,255,255,0.05);border-radius:100px;overflow:visible}
+.streak-fill{height:12px;border-radius:100px;background:var(--grad-bar);transition:width 1.2s cubic-bezier(.16,1,.3,1);position:relative;min-width:6px;box-shadow:0 0 14px rgba(167,118,147,0.6)}
+.streak-flame{position:absolute;right:-10px;top:-14px;font-size:24px;line-height:1;filter:drop-shadow(0 0 8px rgba(255,140,50,.7))}
+.streak-miles{display:flex;justify-content:space-between;margin-top:9px;font-size:10px;font-weight:600;letter-spacing:1px;color:var(--dim)}
+/* Chart */
+.chart-section{margin-bottom:22px;padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.chart-title{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
+.chart-tabs{display:flex;gap:4px}
+.chart-tab{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);transition:all .2s}
+.chart-tab.active{background:rgba(167,118,147,0.18);border-color:var(--border2);color:#fff}
+.chart-tab:hover:not(.active){border-color:var(--border2);color:var(--text3)}
+.chart-wrapper{position:relative;height:180px;overflow:hidden}
+.chart-scroll{overflow-x:auto;height:100%;scrollbar-width:thin;scrollbar-color:rgba(167,118,147,0.3) transparent}
+.chart-scroll::-webkit-scrollbar{height:3px}
+.chart-scroll::-webkit-scrollbar-thumb{background:rgba(167,118,147,0.3);border-radius:3px}
+.bar-group{display:inline-flex;gap:5px;align-items:flex-end;height:100%;padding:22px 6px 26px;position:relative;min-width:100%}
+.bar-item{display:flex;flex-direction:column;align-items:center;min-width:26px;height:100%;justify-content:flex-end}
+.bar-val{font-size:9px;font-weight:700;color:var(--text3);margin-bottom:3px;white-space:nowrap;text-align:center;line-height:1}
+.bar-col{width:16px;border-radius:4px 4px 0 0;flex-shrink:0;min-height:3px;transition:height .5s cubic-bezier(.16,1,.3,1)}
+.bar-lbl{font-size:8px;font-weight:600;color:var(--dim);letter-spacing:.5px;margin-top:5px;white-space:nowrap}
+.goal-line{position:absolute;left:0;right:0;border-top:1.5px dashed rgba(196,144,174,0.5);pointer-events:none;z-index:2}
+.goal-line-lbl{position:absolute;right:4px;top:-16px;font-size:8px;font-weight:700;letter-spacing:1px;color:var(--mauve-hi)}
+.chart-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:13px;font-weight:500;color:var(--dim);letter-spacing:1px}
+/* Calendar */
+.cal-section{padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-title{font-family:var(--f-title);font-size:16px;font-weight:700;color:#fff}
+.cal-nav-btns{display:flex;gap:6px}
+.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:4px 12px;color:var(--text3);font-size:16px;line-height:1;transition:all .2s}
+.cal-nav-btn:hover{border-color:var(--border2);color:#fff}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-head{text-align:center;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);padding-bottom:8px}
+.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:7px;font-size:11px;font-weight:600;color:rgba(222,209,198,0.35);
+  background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s;gap:1px;padding:2px 1px}
+.cal-cell.empty{background:none;border:none}
+.cal-cell.cal-today{border-color:rgba(167,118,147,0.5);color:var(--beige)}
+.cal-cell.cal-met{background:rgba(167,118,147,0.5);border-color:var(--mauve-hi);color:#fff;font-weight:800;box-shadow:0 0 10px rgba(167,118,147,0.4)}
+.cal-cell.cal-partial{background:rgba(167,118,147,0.15);border-color:rgba(167,118,147,0.35);color:var(--mauve-hi)}
+.cal-day-num{font-size:11px;font-weight:700;line-height:1}
+.cal-day-val{font-size:7.5px;font-weight:600;line-height:1;opacity:.85}
+.cal-cell.cal-met .cal-day-val{color:rgba(255,255,255,0.9)}
+.cal-legend{display:flex;gap:14px;margin-top:10px;justify-content:flex-end}
+.cal-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:500;color:var(--dim)}
+.cal-legend-dot{width:9px;height:9px;border-radius:3px}
+</style>
+
+<div id="page-skill" class="page hidden">
   <nav>
     <div class="nav-logo">KRESTO</div>
-    <div class="nav-right">
-      <button class="nav-link" onclick="goTo('dash')">← Dashboard</button>
-    </div>
+    <div class="nav-right"><button class="nav-link" onclick="goTo('dash')">← Dashboard</button></div>
   </nav>
-
-  <!-- HERO -->
   <div class="sd-hero">
     <div class="sd-hero-inner">
-      <div class="sd-icon-wrap" id="sd-icon"></div>
-      <div class="sd-title-block">
-        <div class="sd-skill-name" id="sd-name">—</div>
-        <div class="sd-rank-row" id="sd-rank-row"></div>
-        <div class="sd-total-row" id="sd-total-row"></div>
+      <!-- LEFT: large rank badge -->
+      <div class="sd-rank-badge-big" id="sd-rank-badge-big"></div>
+      <!-- RIGHT: skill info -->
+      <div class="sd-right">
+        <div class="sd-skill-icon-row">
+          <div class="sd-skill-icon" id="sd-skill-icon"></div>
+          <div class="sd-skill-name" id="sd-name">—</div>
+        </div>
+        <div class="sd-rank-label" id="sd-rank-label">—</div>
+        <div class="sd-total-row" id="sd-total-row">—</div>
       </div>
     </div>
   </div>
-
   <div class="sd-body">
-
-    <!-- STREAK SECTION HTML -->
     <div class="streak-section">
       <div class="streak-meta">
-        <div class="streak-label-big">🔥 Streak</div>
-        <div class="streak-count">
-          <span class="streak-num" id="sd-streak-n">0</span>
-          <span class="streak-unit">days</span>
-        </div>
+        <div class="streak-lbl">🔥 Streak</div>
+        <div class="streak-count"><span class="streak-num" id="sd-streak-n">0</span><span class="streak-unit">days</span></div>
       </div>
       <div class="streak-track-wrap">
-        <div class="streak-fill" id="sd-streak-fill" style="width:0%">
-          <span class="streak-flame">🔥</span>
-        </div>
+        <div class="streak-fill" id="sd-streak-fill" style="width:0%"><span class="streak-flame">🔥</span></div>
       </div>
-      <div class="streak-milestones" id="sd-streak-miles"></div>
+      <div class="streak-miles" id="sd-streak-miles"></div>
     </div>
-
-    <!-- CHART SECTION HTML -->
     <div class="chart-section">
       <div class="chart-header">
         <div class="chart-title">History</div>
@@ -692,16 +902,12 @@ nav{
         </div>
       </div>
       <div class="chart-wrapper" id="chart-wrapper">
-        <div class="chart-scroll" id="chart-scroll">
-          <div class="chart-empty">No data yet</div>
-        </div>
+        <div class="chart-scroll" id="chart-scroll"><div class="chart-empty">No data yet</div></div>
       </div>
     </div>
-
-    <!-- CALENDAR SECTION HTML -->
     <div class="cal-section">
       <div class="cal-header">
-        <div class="cal-title" id="cal-month-label">—</div>
+        <div class="cal-title" id="cal-month-lbl">—</div>
         <div class="cal-nav-btns">
           <button class="cal-nav-btn" onclick="shiftCal(-1)">‹</button>
           <button class="cal-nav-btn" onclick="shiftCal(1)">›</button>
@@ -709,23 +915,170 @@ nav{
       </div>
       <div class="cal-grid" id="cal-grid"></div>
       <div class="cal-legend">
-        <div class="cal-legend-item">
-          <div class="cal-legend-dot" style="background:rgba(167,118,147,0.5);border:1px solid var(--mauve-hi)"></div>
-          Goal met
-        </div>
-        <div class="cal-legend-item">
-          <div class="cal-legend-dot" style="background:rgba(167,118,147,0.15);border:1px solid rgba(167,118,147,0.35)"></div>
-          Partial
-        </div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(167,118,147,.5);border:1px solid var(--mauve-hi)"></div>Goal met</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(167,118,147,.15);border:1px solid rgba(167,118,147,.35)"></div>Partial</div>
       </div>
     </div>
-
   </div>
 </div>
 
+<script>
+/* SKILL DETAIL JS */
+var detailKey=null,detailRange="day",detailCalY,detailCalM;
+
+function openSkillDetail(key){
+  detailKey=key;var now=getCairoNow();detailCalY=now.getFullYear();detailCalM=now.getMonth();
+  detailRange="day";renderSkillDetail();goTo("skill");
+}
+
+function renderSkillDetail(){
+  if(!detailKey)return;
+  var skill=SKILLS.find(function(s){return s.key===detailKey;});
+  var totals=computeTotals(cachedData);
+  var t=totals[detailKey]||{all:0,today:0,byDay:{}};
+  var todS=cairoToday(),isTyping=detailKey==="typing_score";
+
+  // Hero: left=rank badge, right=skill info
+  if(isTyping){
+    document.getElementById("sd-rank-badge-big").innerHTML=rankBadgeSVG("Bronze","V",72);
+    document.getElementById("sd-skill-icon").innerHTML=skillSVG(detailKey,28);
+    document.getElementById("sd-name").textContent=skill.name;
+    document.getElementById("sd-rank-label").textContent="Consistency Tracker";
+    document.getElementById("sd-rank-label").style.color="var(--beige)";
+    document.getElementById("sd-total-row").innerHTML='Sessions: <strong>'+t.all+'</strong>';
+  }else{
+    var norm=t.all/skill.goal;
+    var si=getSkillRankIdx(norm),sr=SKILL_LEVELS[si];
+    var lparts=sr.label.split(" "),ltier=lparts[0],lsub=lparts.slice(1).join(" ")||"";
+    document.getElementById("sd-rank-badge-big").innerHTML=rankBadgeSVG(ltier,lsub,72);
+    document.getElementById("sd-skill-icon").innerHTML=skillSVG(detailKey,28);
+    document.getElementById("sd-name").textContent=skill.name;
+    document.getElementById("sd-rank-label").textContent=sr.label;
+    document.getElementById("sd-rank-label").style.color=sr.col;
+    var tot=skill.unit==="min"?fmtMin(t.all):t.all.toLocaleString()+" "+skill.unit;
+    document.getElementById("sd-total-row").innerHTML='Total: <strong>'+tot+'</strong>';
+  }
+
+  // Streak (infinite: milestone = next block of 30)
+  var sg=isTyping?1:skill.goal;
+  var stk=calcStreak(t.byDay,sg,todS);
+  var maxS=Math.max(30,Math.ceil((stk+1)/30)*30);
+  var pct=Math.min(stk/maxS*100,100);
+  document.getElementById("sd-streak-n").textContent=stk;
+  var ms=document.getElementById("sd-streak-miles");
+  ms.innerHTML="<span>0</span><span>"+Math.round(maxS/4)+"d</span><span>"+Math.round(maxS/2)+"d</span><span>"+Math.round(maxS*3/4)+"d</span><span>"+maxS+"d</span>";
+  setTimeout(function(){document.getElementById("sd-streak-fill").style.width=pct+"%";},80);
+
+  // Chart
+  document.querySelectorAll(".chart-tab").forEach(function(b,i){b.classList.toggle("active",["day","week","month","year"][i]===detailRange);});
+  renderChart(detailKey,detailRange);
+
+  // Calendar
+  renderCalendar(detailKey,detailCalY,detailCalM,t.byDay,sg,skill.unit);
+}
+
+function setChartRange(range){
+  detailRange=range;
+  document.querySelectorAll(".chart-tab").forEach(function(b,i){b.classList.toggle("active",["day","week","month","year"][i]===range);});
+  if(detailKey)renderChart(detailKey,range);
+}
+
+function groupData(key,range){
+  var filt=cachedData.filter(function(r){return r.skill===key;});
+  var now=getCairoNow();
+  if(range==="day"){
+    var out=[];
+    for(var i=59;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);var ds=dateKey(d),v=0;filt.forEach(function(r){if(normDate(r.date)===ds)v+=Number(r.amount)||0;});out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v,ds:ds});}
+    return out;
+  }
+  if(range==="week"){
+    var out=[];
+    for(var i=25;i>=0;i--){var ws=new Date(now),dy=ws.getDay();ws.setDate(ws.getDate()-(dy===0?6:dy-1)-i*7);ws.setHours(0,0,0,0);var we=new Date(ws);we.setDate(we.getDate()+6);var v=0;filt.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;});var wn=Math.ceil((ws-new Date(ws.getFullYear(),0,1))/604800000)+1;out.push({label:"W"+wn,value:v});}
+    return out;
+  }
+  if(range==="month"){
+    var out=[],mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    for(var i=17;i>=0;i--){var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime(),me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime(),v=0;filt.forEach(function(r){var t2=new Date(normDate(r.date)+"T12:00:00").getTime();if(t2>=ms&&t2<=me)v+=Number(r.amount)||0;});var dm=new Date(ms);out.push({label:mn[dm.getMonth()],value:v});}
+    return out;
+  }
+  if(range==="year"){
+    var map={};filt.forEach(function(r){var y=(normDate(r.date)||"").split("-")[0];if(y)map[y]=(map[y]||0)+(Number(r.amount)||0);});
+    return Object.keys(map).sort().map(function(y){return{label:y,value:map[y]};});
+  }
+  return[];
+}
+
+function renderChart(key,range){
+  var data=groupData(key,range);
+  var scroll=document.getElementById("chart-scroll"),wrapper=document.getElementById("chart-wrapper");
+  Array.from(wrapper.querySelectorAll(".goal-line")).forEach(function(e){e.remove();});
+  if(!data||data.every(function(d){return d.value===0;})){scroll.innerHTML='<div class="chart-empty">No data yet</div>';return;}
+  var skill=SKILLS.find(function(s){return s.key===key;}),goal=skill.goal||0;
+  var maxV=Math.max.apply(null,data.map(function(d){return d.value;}).concat([goal||1,1]));
+  var chartH=120,isMin=skill.unit==="min";
+  scroll.innerHTML='<div class="bar-group">'+data.map(function(d){
+    var h=d.value>0?Math.max(Math.round(d.value/maxV*chartH),3):0;
+    var met=goal>0&&d.value>=goal,has=d.value>0;
+    var bg=met?"linear-gradient(0deg,#A77693,#c490ae)":has?"linear-gradient(0deg,#174871,#2260a0)":"rgba(255,255,255,0.04)";
+    var vl=d.value>0?(isMin?fmtMin(d.value):d.value):"";
+    return'<div class="bar-item"><div class="bar-val">'+vl+'</div><div class="bar-col" style="height:'+h+'px;background:'+bg+'"></div><div class="bar-lbl">'+d.label+'</div></div>';
+  }).join('')+'</div>';
+  if(goal>0){var goalH=Math.round(goal/maxV*chartH)+26;var gl=document.createElement("div");gl.className="goal-line";gl.style.bottom=goalH+"px";var glbl=document.createElement("div");glbl.className="goal-line-lbl";glbl.textContent="goal";gl.appendChild(glbl);wrapper.appendChild(gl);}
+  setTimeout(function(){scroll.scrollLeft=scroll.scrollWidth;},80);
+}
+
+function renderCalendar(key,year,month,byDay,goal,unit){
+  var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  document.getElementById("cal-month-lbl").textContent=MN[month]+" "+year;
+  var todS=cairoToday(),first=new Date(year,month,1).getDay(),offset=first===0?6:first-1;
+  var days=new Date(year,month+1,0).getDate(),isMin=unit==="min";
+  var html="";
+  ["M","T","W","T","F","S","S"].forEach(function(d){html+="<div class='cal-head'>"+d+"</div>";});
+  for(var i=0;i<offset;i++)html+="<div class='cal-cell empty'></div>";
+  for(var day=1;day<=days;day++){
+    var ds=year+"-"+pad2(month+1)+"-"+pad2(day),v=byDay[ds]||0,isToday=ds===todS;
+    var cls="cal-cell";if(isToday)cls+=" cal-today";if(goal>0&&v>=goal)cls+=" cal-met";else if(v>0)cls+=" cal-partial";
+    var valStr=v>0?(isMin?fmtMin(v):v):"";
+    html+="<div class='"+cls+"'><span class='cal-day-num'>"+day+"</span>"+(valStr?"<span class='cal-day-val'>"+valStr+"</span>":"")+"</div>";
+  }
+  document.getElementById("cal-grid").innerHTML=html;
+}
+
+function shiftCal(dir){
+  detailCalM+=dir;if(detailCalM>11){detailCalM=0;detailCalY++;}if(detailCalM<0){detailCalM=11;detailCalY--;}
+  if(detailKey){var totals=computeTotals(cachedData),t=totals[detailKey]||{byDay:{}};var skill=SKILLS.find(function(s){return s.key===detailKey;});renderCalendar(detailKey,detailCalY,detailCalM,t.byDay,detailKey==="typing_score"?1:skill.goal,skill.unit);}
+}
+</script>
+
 <!-- ═══════════════════════════════════════════════════════════
-     INFO MODAL
+     COMPONENT: INFO MODAL (Point System)
+     (CSS + HTML + JS together)
 ════════════════════════════════════════════════════════════ -->
+<style>
+/* INFO MODAL CSS */
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(10,30,46,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:22px 26px;max-width:310px;width:90%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);font-size:18px;line-height:1;transition:color .2s}
+.modal-close:hover{color:#fff}
+.modal-title{font-family:var(--f-title);font-size:14px;font-weight:700;color:var(--mauve-hi);letter-spacing:1px;margin-bottom:14px}
+.modal-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.modal-row:last-of-type{border:none}
+.modal-row-label{color:var(--text3);display:flex;align-items:center;gap:7px}
+.modal-xp{color:#fff;font-weight:800;font-size:14px;font-family:var(--f-title)}
+.modal-note{margin-top:12px;font-size:11px;color:var(--dim);line-height:1.8;border-top:1px solid var(--border);padding-top:12px}
+/* Rank info modal */
+.rank-modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:22px 20px;max-width:480px;width:95%;position:relative;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.rank-modal-list{display:flex;flex-direction:column;gap:4px;margin-top:14px}
+.rank-modal-row{display:flex;align-items:center;gap:12px;padding:6px 8px;border-radius:8px;transition:background .2s}
+.rank-modal-row:hover{background:rgba(167,118,147,0.08)}
+.rank-modal-badge{flex-shrink:0;display:flex;align-items:center}
+.rank-modal-info{flex:1}
+.rank-modal-name{font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--text2)}
+.rank-modal-xp{font-size:11px;color:var(--dim);letter-spacing:.5px}
+.rank-modal-pts{font-size:11px;font-weight:700;color:var(--mauve-hi);white-space:nowrap}
+</style>
+
 <div class="modal-overlay" id="info-modal" onclick="closeInfoModal(event)">
   <div class="modal-box">
     <button class="modal-close" onclick="closeInfoModal()">✕</button>
@@ -736,617 +1089,100 @@ nav{
     <div class="modal-row"><span class="modal-row-label">🎧 Listening / min</span><span class="modal-xp">1 XP</span></div>
     <div class="modal-row"><span class="modal-row-label">📖 Page read</span><span class="modal-xp">15 XP</span></div>
     <div class="modal-row"><span class="modal-row-label">⌨️ Touch Typing</span><span class="modal-xp">streak only</span></div>
-    <div class="modal-note">
-      Daily ideal ≈ <strong style="color:var(--mauve-hi)">318 XP</strong><br>
-      (30×3 + 50×1 + 30×3 + 60×1 + 3×15)<br>
-      Each skill has its own independent rank.
-    </div>
+    <div class="modal-note">Daily ideal ≈ <strong style="color:var(--mauve-hi)">318 XP</strong><br>(30×3 + 50×1 + 30×3 + 60×1 + 3×15)<br>Conqueror reached in ~150 days of consistency.<br>Each skill ranks independently at the same rate.</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 1 — CONFIG & CONSTANTS
-════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="rank-modal" onclick="closeRankModal(event)">
+  <div class="rank-modal-box">
+    <button class="modal-close" onclick="closeRankModal()">✕</button>
+    <div class="modal-title">Rank Progression — XP Required</div>
+    <div class="rank-modal-list" id="rank-modal-list"></div>
+  </div>
+</div>
+
 <script>
-var API_URL  = "https://script.google.com/macros/s/AKfycbwgnKrzVlLswLfiKlkvLepAIPwB_NOgul0NhjPL1BiAl0yQVw5L1smiZrrWDo6NrAOWnQ/exec";
-var CACHE_KEY= "lt_rows_v3";
+/* MODALS JS */
+function openInfoModal(){document.getElementById("info-modal").classList.add("show");}
+function closeInfoModal(e){if(!e||e.target===document.getElementById("info-modal")||!e.target.closest(".modal-box"))document.getElementById("info-modal").classList.remove("show");}
 
-var SKILLS = [
-  {key:"new_words",    name:"New Words",    goal:30,  unit:"words",  xpW:3},
-  {key:"review_words", name:"Review Words", goal:50,  unit:"words",  xpW:1},
-  {key:"speaking_min", name:"Speaking",     goal:30,  unit:"min",    xpW:3},
-  {key:"listening_min",name:"Listening",    goal:60,  unit:"min",    xpW:1},
-  {key:"pages_read",   name:"Reading",      goal:3,   unit:"pages",  xpW:15},
-  {key:"typing_score", name:"Touch Typing", goal:1,   unit:"session",xpW:0}
-];
-
-var UNIT_HINTS={
-  new_words:"words",review_words:"words",
-  speaking_min:"minutes",listening_min:"minutes",
-  pages_read:"pages",typing_score:"minutes of practice"
-};
-
-var RANKS=[
-  {tier:"Bronze",  col:"#cd7f32",subs:["V","IV","III","II","I"],pts:120},
-  {tier:"Silver",  col:"#c0c8d8",subs:["V","IV","III","II","I"],pts:200},
-  {tier:"Gold",    col:"#e8c840",subs:["V","IV","III","II","I"],pts:320},
-  {tier:"Platinum",col:"#d0e0f0",subs:["V","IV","III","II","I"],pts:520},
-  {tier:"Diamond", col:"#80d8ff",subs:["V","IV","III","II","I"],pts:800},
-  {tier:"Crown",   col:"#ff9040",subs:["V","IV","III","II","I"],pts:1200},
-  {tier:"Ace",     col:"#ff6080",subs:["","Master","Dominator"],pts:2000},
-  {tier:"Conqueror",col:"#b090ff",subs:[""],                    pts:4000}
-];
-var LEVELS=[]; var _cx=0;
-RANKS.forEach(function(r){
-  r.subs.forEach(function(s){
-    LEVELS.push({label:s?r.tier+" "+s:r.tier,tier:r.tier,col:r.col,startXP:_cx,pts:r.pts});
-    _cx+=r.pts;
+function openRankModal(){
+  var modal=document.getElementById("rank-modal"),list=document.getElementById("rank-modal-list");
+  list.innerHTML="";
+  OVERALL_LEVELS.forEach(function(lv,i){
+    var nxt=OVERALL_LEVELS[i+1];
+    var needed=nxt?nxt.startXP-lv.startXP:0;
+    var parts=lv.label.split(" "),tier=parts[0],sub=parts.slice(1).join(" ")||"";
+    var row=document.createElement("div");row.className="rank-modal-row";
+    row.innerHTML="<div class='rank-modal-badge'>"+rankBadgeSVG(tier,sub,34)+"</div>"+
+      "<div class='rank-modal-info'>"+
+        "<div class='rank-modal-name' style='color:"+lv.col+"'>"+lv.label+"</div>"+
+        "<div class='rank-modal-xp'>"+lv.startXP.toLocaleString()+" XP"+(nxt?" → "+nxt.startXP.toLocaleString()+" XP":"")+"</div>"+
+      "</div>"+
+      "<div class='rank-modal-pts'>"+(needed?"+"+needed.toLocaleString()+" XP":"MAX")+"</div>";
+    list.appendChild(row);
   });
-});
-var SKILL_SCALE={new_words:1,review_words:0.6,speaking_min:1,listening_min:0.5,pages_read:10};
-
-function getRankIdx(xp){
-  for(var i=LEVELS.length-1;i>=0;i--){if(xp>=LEVELS[i].startXP)return i;}return 0;
+  modal.classList.add("show");
 }
+function closeRankModal(e){if(!e||e.target===document.getElementById("rank-modal")||!e.target.closest(".rank-modal-box"))document.getElementById("rank-modal").classList.remove("show");}
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeInfoModal();closeRankModal();}});
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 2 — SVG LIBRARY
+     COMPONENT: FETCH, PAGE NAV & INIT
 ════════════════════════════════════════════════════════════ -->
+<style>
+@media(max-width:800px){
+  nav{padding:0 14px}
+  .dash-body,.log-body,.sd-body{padding:20px 14px 90px}
+  .rank-block{padding:0 14px}
+  .quest-grid{grid-template-columns:repeat(3,1fr)}
+  .skill-grid{grid-template-columns:repeat(2,1fr)}
+  .log-body{text-align:center}
+  .date-row{justify-content:center}
+  .entry-row{flex-direction:column;align-items:center}
+  .lfield{width:100%}
+  .skill-select,.amount-input{width:100%}
+  .amount-input{text-align:center}
+  .log-footer{flex-direction:column;align-items:stretch}
+  .btn-save,.btn-clear{width:100%;justify-content:center}
+  .sd-hero-inner{flex-direction:column;text-align:center}
+  .sd-rank-badge-big{margin:0 auto}
+}
+@media(max-width:520px){
+  .quest-grid{grid-template-columns:repeat(2,1fr)}
+  .skill-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+
 <script>
-function skillSVG(key,size){
-  size=size||20;
-  var a='stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"';
-  var d={
-    new_words:'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
-    review_words:'M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15',
-    speaking_min:'M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8',
-    listening_min:'M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z',
-    pages_read:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2zM8 8h8M8 12h6',
-    typing_score:'M2 7a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zM6 11h.01M10 11h.01M14 11h.01M18 11h.01M6 15h.01M10 15h4M18 15h.01'
-  };
-  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" '+a+'><path d="'+d[key]+'"/></svg>';
-}
-
-function rankSVG(tier,col,size){
-  size=size||28;
-  var h='width="'+size+'" height="'+size+'" viewBox="0 0 32 32" fill="none"';
-  var m={
-    Bronze:   '<circle cx="16" cy="16" r="12" stroke="'+col+'" stroke-width="1.8"/><path d="M16 10v12M10 16h12" stroke="'+col+'" stroke-width="1.8" stroke-linecap="round"/>',
-    Silver:   '<polygon points="16,3 19.5,11.5 29,12.5 22,19 24.5,28 16,23 7.5,28 10,19 3,12.5 12.5,11.5" stroke="'+col+'" stroke-width="1.5"/>',
-    Gold:     '<polygon points="16,3 19.5,11.5 29,12.5 22,19 24.5,28 16,23 7.5,28 10,19 3,12.5 12.5,11.5" stroke="'+col+'" stroke-width="1.2" fill="'+col+'" opacity=".85"/>',
-    Platinum: '<polygon points="16,3 27,9 27,23 16,29 5,23 5,9" stroke="'+col+'" stroke-width="1.5"/><circle cx="16" cy="16" r="4.5" stroke="'+col+'" stroke-width="1.2"/>',
-    Diamond:  '<polygon points="16,2 29,14 16,30 3,14" stroke="'+col+'" stroke-width="1.5" fill="'+col+'" opacity=".15"/>',
-    Crown:    '<path d="M4 26h24M4 26V14l6 5 6-12 6 12 6-5v12" stroke="'+col+'" stroke-width="1.6" stroke-linejoin="round"/><circle cx="4" cy="14" r="1.8" fill="'+col+'"/><circle cx="28" cy="14" r="1.8" fill="'+col+'"/><circle cx="16" cy="6" r="1.8" fill="'+col+'"/>',
-    Ace:      '<circle cx="16" cy="16" r="13" stroke="'+col+'" stroke-width="1.5"/><path d="M11 23l5-14 5 14M13 18h6" stroke="'+col+'" stroke-width="1.5" stroke-linecap="round"/>',
-    Conqueror:'<path d="M16 2L20 11H30L22 17L25 27L16 21L7 27L10 17L2 11H12Z" stroke="'+col+'" stroke-width="1.3" fill="'+col+'" opacity=".2"/><path d="M11 22L21 10M21 22L11 10" stroke="'+col+'" stroke-width="1.4" stroke-linecap="round"/>'
-  };
-  return'<svg '+h+'>'+(m[tier]||'')+'</svg>';
-}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 3 — TIMEZONE & DATE UTILITIES
-════════════════════════════════════════════════════════════ -->
-<script>
-function getCairoNow(){
-  var n=new Date();
-  return new Date(n.getTime()+n.getTimezoneOffset()*60000+7200000);
-}
-function cairoToday(){
-  var c=getCairoNow();
-  return c.getFullYear()+"-"+pad2(c.getMonth()+1)+"-"+pad2(c.getDate());
-}
-function pad2(n){return String(n).padStart(2,"0");}
-function normDate(str){
-  if(!str)return"";
-  var p=str.split("-");
-  if(p.length!==3)return str;
-  return p[0]+"-"+pad2(p[1])+"-"+pad2(p[2]);
-}
-function dateKey(d){
-  return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
-}
-function weekStartDate(){
-  var c=getCairoNow(),dy=c.getDay();
-  c.setDate(c.getDate()-(dy===0?6:dy-1));
-  c.setHours(0,0,0,0);return c;
-}
-function fmtMin(v){
-  if(!v)return"0m";
-  if(v<60)return v+"m";
-  return v+"m ("+Math.round(v/60*10)/10+"h)";
-}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 4 — DATA LAYER (cache + compute)
-════════════════════════════════════════════════════════════ -->
-<script>
-var cachedData=[];
-function loadCache(){
-  try{var r=localStorage.getItem(CACHE_KEY);if(r)cachedData=JSON.parse(r);}catch(e){}
-}
-function saveCache(rows){
-  try{localStorage.setItem(CACHE_KEY,JSON.stringify(rows));}catch(e){}
-  cachedData=rows;
-}
-
-function computeTotals(rows){
-  var todS=cairoToday(),wkMs=weekStartDate().getTime();
-  var moMs=new Date(getCairoNow().getFullYear(),getCairoNow().getMonth(),1).getTime();
-  var t={};
-  SKILLS.forEach(function(s){t[s.key]={today:0,week:0,month:0,all:0,byDay:{}};});
-  rows.forEach(function(r){
-    var sk=r.skill,v=Number(r.amount)||0;
-    if(!sk||!t[sk]||!v)return;
-    var ds=normDate(r.date);if(!ds)return;
-    var dMs=new Date(ds+"T12:00:00").getTime();
-    t[sk].all+=v;
-    if(dMs>=moMs)t[sk].month+=v;
-    if(dMs>=wkMs)t[sk].week+=v;
-    if(ds===todS)t[sk].today+=v;
-    t[sk].byDay[ds]=(t[sk].byDay[ds]||0)+v;
-  });
-  return t;
-}
-
-function calcStreak(byDay,goal,todS){
-  if(!goal)return 0;
-  var s=0,c=getCairoNow();
-  if(!byDay[todS]||byDay[todS]<goal)c.setDate(c.getDate()-1);
-  for(var i=0;i<9999;i++){
-    var k=dateKey(c);
-    if(byDay[k]&&byDay[k]>=goal){s++;c.setDate(c.getDate()-1);}else break;
-  }
-  return s;
-}
-
-function getTotalXP(totals){
-  return SKILLS.reduce(function(sum,s){
-    return sum+(s.xpW>0?(totals[s.key]?totals[s.key].all:0)*s.xpW:0);
-  },0);
-}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 5 — RENDER: DASHBOARD (rank hero + quests + skills + road)
-════════════════════════════════════════════════════════════ -->
-<script>
-function renderAll(rows){
-  var totals=computeTotals(rows);
-  var xp=getTotalXP(totals),todS=cairoToday();
-  renderRankHero(xp);
-  renderQuests(totals,todS);
-  renderSkillCards(totals,todS);
-  renderRankRoad(xp);
-  document.getElementById("dash-content").style.display="block";
-  document.getElementById("dash-error").classList.remove("show");
-}
-
-/* Rank hero */
-function renderRankHero(xp){
-  var i=getRankIdx(xp),cur=LEVELS[i],nxt=LEVELS[i+1];
-  var pct=nxt?Math.min(Math.round((xp-cur.startXP)/(nxt.startXP-cur.startXP)*100),100):100;
-  document.getElementById("rank-badge-svg").innerHTML=rankSVG(cur.tier,cur.col,34);
-  document.getElementById("rank-name").textContent=cur.label;
-  document.getElementById("rank-xp").textContent=xp.toLocaleString()+" XP Total";
-  document.getElementById("rb-from").textContent=cur.label;
-  document.getElementById("rb-to").textContent=nxt?nxt.label:"MAX";
-  setTimeout(function(){document.getElementById("rank-fill").style.width=pct+"%";},80);
-  var rem=nxt?(nxt.startXP-xp).toLocaleString():0;
-  document.getElementById("rank-remain").innerHTML=nxt
-    ?"<strong>"+rem+"</strong> xp to next"
-    :"<strong>⚔️ Conqueror</strong>";
-}
-
-/* Today's quests */
-function renderQuests(totals,todS){
-  var g=document.getElementById("quest-grid");g.innerHTML="";
-  SKILLS.forEach(function(s){
-    var t=totals[s.key]||{today:0,byDay:{}};
-    var done,pct,nums;
-    if(s.key==="typing_score"){
-      done=t.today>0;pct=done?100:0;
-      var stk=calcStreak(t.byDay,1,todS);
-      nums=(done?"Done":"—")+(stk>0?" 🔥"+stk+"d":"");
-    }else{
-      done=t.today>=s.goal;
-      pct=Math.min(Math.round(t.today/s.goal*100),100);
-      nums=s.unit==="min"?fmtMin(t.today)+" / "+fmtMin(s.goal):t.today+" / "+s.goal+" "+s.unit;
-    }
-    var d=document.createElement("div");d.className="quest-card"+(done?" done":"");
-    d.innerHTML=
-      "<div class='q-top'><span class='q-icon'>"+skillSVG(s.key,16)+"</span><span class='q-check'>"+(done?"✅":"○")+"</span></div>"+
-      "<div class='q-name'>"+s.name+"</div>"+
-      "<div class='q-nums'>"+nums+"</div>"+
-      "<div class='q-bar'><div class='q-fill' style='width:"+pct+"%'></div></div>";
-    g.appendChild(d);
-  });
-}
-
-/* Skill overview cards */
-function renderSkillCards(totals,todS){
-  var g=document.getElementById("skill-grid");g.innerHTML="";
-  SKILLS.forEach(function(s){
-    var t=totals[s.key]||{all:0,today:0,byDay:{}};
-    var d=document.createElement("div");d.className="skill-card";
-    d.onclick=(function(k){return function(){openSkillDetail(k);};})(s.key);
-    if(s.key==="typing_score"){
-      var stk=calcStreak(t.byDay,1,todS),doneT=t.today>0;
-      d.innerHTML=
-        "<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,18)+"</span>"+
-        "<span class='sk-name'>"+s.name+"</span></div>"+
-        "<div class='sk-streak-big'>"+stk+"</div>"+
-        "<div class='sk-streak-label'>day streak</div>"+
-        "<div class='sk-done-badge "+(doneT?"sk-done-yes":"sk-done-no")+"'>"+(doneT?"Done Today":"Not Yet")+"</div>"+
-        "<div class='sk-bar-label'><span>Consistency</span><span>"+Math.min(stk,30)+" / 30d</span></div>"+
-        "<div class='sk-track'><div class='sk-fill' style='width:"+Math.min(Math.round(stk/30*100),100)+"%;background:var(--mauve-hi);box-shadow:0 0 8px rgba(196,144,174,0.5)'></div></div>"+
-        "<div class='sk-next'>Practice every day</div>";
-    }else{
-      var sc=SKILL_SCALE[s.key]||1,adj=Math.round(t.all*sc);
-      var ri=getRankIdx(adj),rank=LEVELS[ri],nxtR=LEVELS[Math.min(ri+1,LEVELS.length-1)];
-      var pct=(nxtR&&nxtR!==rank)?Math.min(Math.round((adj-rank.startXP)/(nxtR.startXP-rank.startXP)*100),100):100;
-      var rem=(nxtR&&nxtR!==rank)?Math.max(0,Math.round((nxtR.startXP-adj)/sc)).toLocaleString():0;
-      var stk=calcStreak(t.byDay,s.goal,todS),stkTxt=stk>=3?"🔥"+stk+"d":stk>0?stk+"d":"";
-      var tot=s.unit==="min"?fmtMin(t.all):t.all.toLocaleString();
-      d.innerHTML=
-        "<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,18)+"</span>"+
-        "<span class='sk-name'>"+s.name+"</span>"+
-        "<span class='sk-rank-badge'>"+rankSVG(rank.tier,rank.col,16)+"</span></div>"+
-        "<div class='sk-total'>"+tot+"</div>"+
-        "<div class='sk-unit'>"+s.unit+" total "+(stkTxt?"&nbsp;"+stkTxt:"")+"</div>"+
-        "<div class='sk-bar-label'><span>"+rank.label+"</span><span>"+pct+"%</span></div>"+
-        "<div class='sk-track'><div class='sk-fill' style='width:"+pct+"%;background:linear-gradient(90deg,"+rank.col+"88,"+rank.col+")'></div></div>"+
-        ((nxtR&&nxtR!==rank)?"<div class='sk-next'><strong>"+rem+"</strong> → "+nxtR.label+"</div>":
-         "<div class='sk-next'>✨ Max Rank</div>");
-    }
-    g.appendChild(d);
-  });
-}
-
-/* Rank road */
-function renderRankRoad(xp){
-  var g=document.getElementById("rank-road");g.innerHTML="";
-  var ci=getRankIdx(xp);
-  RANKS.forEach(function(r){
-    var col=document.createElement("div");col.className="tier-col";
-    var h=document.createElement("div");h.className="tier-head";
-    h.style.cssText="color:"+r.col+";border-bottom-color:"+r.col+"66;background:"+r.col+"18";
-    h.innerHTML=rankSVG(r.tier,r.col,11)+"<span>"+r.tier+"</span>";
-    col.appendChild(h);
-    var subs=document.createElement("div");subs.className="tier-subs";
-    r.subs.forEach(function(s){
-      var label=s?r.tier+" "+s:r.tier;
-      var li=LEVELS.findIndex(function(l){return l.label===label;});
-      var sub=document.createElement("div");
-      sub.className="tier-sub"+(li===ci?" current":li<ci?" passed":"");
-      sub.textContent=label;
-      if(li===ci){
-        sub.style.color=r.col;
-        sub.style.borderColor=r.col+"88";
-        sub.style.background=r.col+"22";
-      }
-      if(li<ci){sub.style.color=r.col+"88";}
-      subs.appendChild(sub);
-    });
-    col.appendChild(subs);g.appendChild(col);
-  });
-}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 6 — SKILL DETAIL (streak + chart + calendar)
-════════════════════════════════════════════════════════════ -->
-<script>
-var detailSkillKey=null,detailChartRange="day";
-var detailCalYear,detailCalMonth;
-
-function openSkillDetail(key){
-  detailSkillKey=key;
-  var now=getCairoNow();
-  detailCalYear=now.getFullYear();detailCalMonth=now.getMonth();
-  detailChartRange="day";
-  renderSkillDetail();goTo("skill");
-}
-
-function renderSkillDetail(){
-  if(!detailSkillKey)return;
-  var key=detailSkillKey;
-  var skill=SKILLS.find(function(s){return s.key===key;});
-  var totals=computeTotals(cachedData);
-  var t=totals[key]||{all:0,today:0,byDay:{}};
-  var todS=cairoToday();
-  var isTyping=key==="typing_score";
-
-  /* Hero */
-  document.getElementById("sd-icon").innerHTML=skillSVG(key,34);
-  document.getElementById("sd-name").textContent=skill.name;
-  if(isTyping){
-    document.getElementById("sd-rank-row").innerHTML='<span class="sd-rank-label" style="color:var(--beige)">Consistency Tracker</span>';
-    document.getElementById("sd-total-row").innerHTML='Sessions: <strong>'+t.all+'</strong>';
-  }else{
-    var sc=SKILL_SCALE[key]||1,adj=Math.round(t.all*sc);
-    var ri=getRankIdx(adj),rank=LEVELS[ri];
-    document.getElementById("sd-rank-row").innerHTML=rankSVG(rank.tier,rank.col,20)+
-      '<span class="sd-rank-label" style="color:'+rank.col+'">'+rank.label+'</span>';
-    var tot=skill.unit==="min"?fmtMin(t.all):t.all.toLocaleString()+" "+skill.unit;
-    document.getElementById("sd-total-row").innerHTML='Total: <strong>'+tot+'</strong>';
-  }
-
-  /* Streak — INFINITE: milestone = next multiple of 30 */
-  var sg=isTyping?1:skill.goal;
-  var stk=calcStreak(t.byDay,sg,todS);
-  var maxStreak=Math.max(30,Math.ceil((stk+1)/30)*30); // always grow to next 30-block
-  var pct=Math.min(stk/maxStreak*100,100);
-  document.getElementById("sd-streak-n").textContent=stk;
-  // Milestones: 0, maxStreak/4, maxStreak/2, 3/4, maxStreak
-  var ms=document.getElementById("sd-streak-miles");
-  ms.innerHTML="<span>0</span><span>"+Math.round(maxStreak/4)+"d</span><span>"+Math.round(maxStreak/2)+"d</span><span>"+Math.round(maxStreak*3/4)+"d</span><span>"+maxStreak+"d</span>";
-  setTimeout(function(){document.getElementById("sd-streak-fill").style.width=pct+"%";},80);
-
-  /* Chart + Calendar */
-  setChartRange(detailChartRange,true);
-  var calGoal=isTyping?1:skill.goal;
-  renderCalendar(key,detailCalYear,detailCalMonth,t.byDay,calGoal,skill.unit);
-}
-
-/* CHART */
-function setChartRange(range,silent){
-  detailChartRange=range;
-  document.querySelectorAll(".chart-tab").forEach(function(btn,i){
-    btn.classList.toggle("active",["day","week","month","year"][i]===range);
-  });
-  if(detailSkillKey)renderChart(detailSkillKey,range);
-}
-
-function groupData(key,range){
-  var filtered=cachedData.filter(function(r){return r.skill===key;});
-  var now=getCairoNow();
-  if(range==="day"){
-    var out=[];
-    for(var i=59;i>=0;i--){
-      var d=new Date(now);d.setDate(d.getDate()-i);
-      var ds=dateKey(d),v=0;
-      filtered.forEach(function(r){if(normDate(r.date)===ds)v+=Number(r.amount)||0;});
-      out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v,ds:ds});
-    }return out;
-  }
-  if(range==="week"){
-    var out=[];
-    for(var i=25;i>=0;i--){
-      var ws=new Date(now),dy=ws.getDay();
-      ws.setDate(ws.getDate()-(dy===0?6:dy-1)-i*7);ws.setHours(0,0,0,0);
-      var we=new Date(ws);we.setDate(we.getDate()+6);
-      var v=0;
-      filtered.forEach(function(r){
-        var ms=new Date(normDate(r.date)+"T12:00:00").getTime();
-        if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;
-      });
-      out.push({label:"W"+(Math.ceil((ws-new Date(ws.getFullYear(),0,1))/604800000)+1),value:v});
-    }return out;
-  }
-  if(range==="month"){
-    var out=[],mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    for(var i=17;i>=0;i--){
-      var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime();
-      var me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime();
-      var v=0;
-      filtered.forEach(function(r){
-        var t=new Date(normDate(r.date)+"T12:00:00").getTime();
-        if(t>=ms&&t<=me)v+=Number(r.amount)||0;
-      });
-      var dm=new Date(ms);out.push({label:mn[dm.getMonth()],value:v});
-    }return out;
-  }
-  if(range==="year"){
-    var map={};
-    filtered.forEach(function(r){
-      var y=(normDate(r.date)||"").split("-")[0];
-      if(y)map[y]=(map[y]||0)+(Number(r.amount)||0);
-    });
-    return Object.keys(map).sort().map(function(y){return{label:y,value:map[y]};});
-  }
-  return[];
-}
-
-function renderChart(key,range){
-  var data=groupData(key,range);
-  var scroll=document.getElementById("chart-scroll");
-  var wrapper=document.getElementById("chart-wrapper");
-  // Remove old goal line
-  Array.from(wrapper.querySelectorAll(".goal-line")).forEach(function(e){e.remove();});
-
-  if(!data||data.every(function(d){return d.value===0;})){
-    scroll.innerHTML='<div class="chart-empty">No data yet</div>';return;
-  }
-  var skill=SKILLS.find(function(s){return s.key===key;});
-  var goal=skill.goal||0;
-  var maxVal=Math.max.apply(null,data.map(function(d){return d.value;}).concat([goal||1,1]));
-  var chartH=120;
-
-  var html=data.map(function(d){
-    var h=d.value>0?Math.max(Math.round(d.value/maxVal*chartH),3):0;
-    var met=goal>0&&d.value>=goal,has=d.value>0;
-    var bg=met
-      ?"linear-gradient(0deg,#A77693,#c490ae)"
-      :has
-        ?"linear-gradient(0deg,#174871,#2260a0)"
-        :"rgba(255,255,255,0.04)";
-    var valLabel=d.value>0
-      ?(key==="speaking_min"||key==="listening_min"?fmtMin(d.value):d.value)
-      :"";
-    return '<div class="bar-item">'+
-      '<div class="bar-val">'+valLabel+'</div>'+
-      '<div class="bar-col" style="height:'+h+'px;background:'+bg+'"></div>'+
-      '<div class="bar-lbl">'+d.label+'</div>'+
-    '</div>';
-  }).join('');
-  scroll.innerHTML='<div class="bar-group">'+html+'</div>';
-
-  if(goal>0){
-    var goalH=Math.round(goal/maxVal*chartH)+24; // +24 = labels at bottom
-    var gl=document.createElement("div");gl.className="goal-line";
-    gl.style.bottom=goalH+"px";
-    var glbl=document.createElement("div");glbl.className="goal-line-label";
-    glbl.textContent="goal";gl.appendChild(glbl);
-    wrapper.appendChild(gl);
-  }
-  setTimeout(function(){scroll.scrollLeft=scroll.scrollWidth;},80);
-}
-
-/* CALENDAR */
-function renderCalendar(key,year,month,byDay,goal,unit){
-  var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
-  document.getElementById("cal-month-label").textContent=MN[month]+" "+year;
-  var todS=cairoToday();
-  var first=new Date(year,month,1).getDay();
-  var offset=first===0?6:first-1;
-  var days=new Date(year,month+1,0).getDate();
-  var isMin=unit==="min";
-
-  var html="";
-  ["M","T","W","T","F","S","S"].forEach(function(d){html+="<div class='cal-head'>"+d+"</div>";});
-  for(var i=0;i<offset;i++)html+="<div class='cal-cell empty'></div>";
-  for(var day=1;day<=days;day++){
-    var ds=year+"-"+pad2(month+1)+"-"+pad2(day);
-    var v=byDay[ds]||0;
-    var isToday=ds===todS;
-    var cls="cal-cell";
-    if(isToday)cls+=" cal-today";
-    if(goal>0&&v>=goal)cls+=" cal-met";
-    else if(v>0)cls+=" cal-partial";
-    var valStr=v>0?(isMin?fmtMin(v):v):"";
-    html+="<div class='"+cls+"'>"+
-      "<span class='cal-day-num'>"+day+"</span>"+
-      (valStr?"<span class='cal-day-val'>"+valStr+"</span>":"")+"</div>";
-  }
-  document.getElementById("cal-grid").innerHTML=html;
-}
-
-function shiftCal(dir){
-  detailCalMonth+=dir;
-  if(detailCalMonth>11){detailCalMonth=0;detailCalYear++;}
-  if(detailCalMonth<0){detailCalMonth=11;detailCalYear--;}
-  if(detailSkillKey){
-    var totals=computeTotals(cachedData);
-    var t=totals[detailSkillKey]||{byDay:{}};
-    var skill=SKILLS.find(function(s){return s.key===detailSkillKey;});
-    var isT=detailSkillKey==="typing_score";
-    renderCalendar(detailSkillKey,detailCalYear,detailCalMonth,t.byDay,isT?1:skill.goal,skill.unit);
-  }
-}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 7 — FETCH & CACHE
-════════════════════════════════════════════════════════════ -->
-<script>
+/* FETCH & NAV JS */
 async function fetchAndRender(){
-  var btn=document.getElementById("btn-refresh");
-  var loading=document.getElementById("dash-loading");
+  var btn=document.getElementById("btn-refresh"),loading=document.getElementById("dash-loading");
   btn.classList.add("spinning");loading.classList.add("show");
   try{
     var res=await fetch(API_URL+"?action=fetch",{method:"GET",mode:"cors"});
     var data=await res.json();
-    if(Array.isArray(data)){saveCache(data);renderAll(data);}
-    else throw new Error("bad response");
+    if(Array.isArray(data)){saveCache(data);renderAll(data);}else throw new Error("bad response");
   }catch(e){
     if(cachedData.length>0)renderAll(cachedData);
     else{document.getElementById("dash-error").classList.add("show");document.getElementById("dash-content").style.display="none";}
     console.error(e);
   }finally{btn.classList.remove("spinning");loading.classList.remove("show");}
 }
-</script>
 
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 8 — PAGE NAVIGATION
-════════════════════════════════════════════════════════════ -->
-<script>
 var currentPage="log";
 function goTo(page){
   if(page===currentPage)return;
   currentPage=page;
-  document.getElementById("page-log").classList.toggle("hidden",page!=="log");
-  document.getElementById("page-dash").classList.toggle("hidden",page!=="dash");
-  document.getElementById("page-skill").classList.toggle("hidden",page!=="skill");
-  if(page==="dash"){
-    if(cachedData.length>0)renderAll(cachedData);
-    else fetchAndRender();
-  }
+  ["log","dash","skill"].forEach(function(p){document.getElementById("page-"+p).classList.toggle("hidden",p!==page);});
+  if(page==="dash"){if(cachedData.length>0)renderAll(cachedData);else fetchAndRender();}
   if(page==="skill")renderSkillDetail();
 }
-</script>
 
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 9 — LOG SAVE
-════════════════════════════════════════════════════════════ -->
-<script>
-function setStatus(msg,type){
-  var el=document.getElementById("log-status");
-  el.textContent=msg;el.className="log-status"+(type?" "+type:"");
-  el.style.border=msg?"":"none";
-}
-function setToday(){document.getElementById("l-date").value=cairoToday();}
-function updateUnit(){
-  document.getElementById("unit-hint").textContent=UNIT_HINTS[document.getElementById("l-skill").value]||"";
-}
-
-async function logSave(){
-  var date=document.getElementById("l-date").value;
-  var skill=document.getElementById("l-skill").value;
-  var amount=parseInt(document.getElementById("l-amount").value)||0;
-  if(!date){setStatus("Please pick a date.","err");return;}
-  if(!skill){setStatus("Please select a skill.","err");return;}
-  if(amount<=0){setStatus("Amount must be > 0.","err");return;}
-  var btn=document.getElementById("log-save-btn");btn.disabled=true;
-  setStatus("Saving…","busy");
-  var params=new URLSearchParams({action:"save",date:date,skill:skill,amount:amount});
-  try{
-    await fetch(API_URL+"?"+params.toString(),{method:"GET",mode:"no-cors"});
-    var c=parseInt(document.getElementById("log-count").textContent)||0;
-    document.getElementById("log-count").textContent=c+1;
-    setStatus("✅  "+skill.replace(/_/g," ")+" — "+amount+" saved","ok");
-    document.getElementById("l-amount").value="";
-    document.getElementById("l-amount").focus();
-    // Stay on log page
-  }catch(e){setStatus("❌ Error — check connection.","err");}
-  finally{btn.disabled=false;}
-}
-
-function logClear(){
-  document.getElementById("l-amount").value="";
-  setStatus("","");
-  document.getElementById("l-amount").focus();
-}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 10 — MODAL
-════════════════════════════════════════════════════════════ -->
-<script>
-function openInfo(){document.getElementById("info-modal").classList.add("show");}
-function closeInfoModal(e){
-  if(!e||e.target===document.getElementById("info-modal")||!e.target.closest(".modal-box")){
-    document.getElementById("info-modal").classList.remove("show");
-  }
-}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     JS SECTION 11 — KEYBOARD & INIT
-════════════════════════════════════════════════════════════ -->
-<script>
-document.addEventListener("keydown",function(e){
-  if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))logSave();
-  if(e.key==="Escape")closeInfoModal();
-});
 document.addEventListener("DOMContentLoaded",function(){
-  loadCache();
-  setToday();
-  updateUnit();
+  loadCache();setToday();updateUnit();
 });
 </script>
-
 </body>
 </html>
