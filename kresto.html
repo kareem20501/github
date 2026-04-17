@@ -6,21 +6,22 @@
 <title>KRESTO — Language Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@300;400;500;600;700;800&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
 
-<!-- ═══════════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════
      GLOBAL TOKENS & RESET
-════════════════════════════════════════════════════════════ -->
+══════════════════════════════════════════ -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --cream:#F2F3F4; --beige:#DED1C6; --mauve:#A77693; --mauve-hi:#c490ae;
-  --navy:#174871;  --navy-deep:#0F2D4D;
-  --bg:#0a1e2e; --surface:rgba(23,72,113,0.45); --surface2:rgba(23,72,113,0.75);
-  --border:rgba(167,118,147,0.22); --border2:rgba(167,118,147,0.5); --border3:rgba(242,243,244,0.15);
-  --text:#FFFFFF; --text2:#F2F3F4; --text3:#DED1C6; --dim:rgba(222,209,198,0.55); --very-dim:rgba(222,209,198,0.32);
+  --cream:#F2F3F4;--beige:#DED1C6;--mauve:#A77693;--mauve-hi:#c490ae;
+  --navy:#174871;--navy-deep:#0F2D4D;
+  --bg:#0a1e2e;--surface:rgba(23,72,113,0.45);--surface2:rgba(23,72,113,0.75);
+  --border:rgba(167,118,147,0.22);--border2:rgba(167,118,147,0.5);
+  --text:#FFFFFF;--text2:#F2F3F4;--text3:#DED1C6;
+  --dim:rgba(222,209,198,0.55);--very-dim:rgba(222,209,198,0.32);
   --grad-mauve:linear-gradient(135deg,#A77693,#174871);
   --grad-bar:linear-gradient(90deg,#A77693,#c490ae,#F2F3F4);
   --grad-hero:linear-gradient(160deg,#0F2D4D 0%,#174871 55%,#A77693 100%);
-  --f-body:'Inter',sans-serif; --f-brand:'Orbitron',sans-serif; --f-title:'Cinzel',serif;
+  --f-body:'Inter',sans-serif;--f-brand:'Orbitron',sans-serif;--f-title:'Cinzel',serif;
 }
 html,body{height:100%;overflow:hidden}
 body{font-family:var(--f-body);background:var(--bg);color:var(--text);font-size:15px}
@@ -32,14 +33,17 @@ button{cursor:pointer;font-family:var(--f-body)}
 @keyframes globalSpin{to{transform:rotate(360deg)}}
 </style>
 
-<!-- ═══════════════════════════════════════════════════════════
-     JS: CONFIG & RANK SYSTEM
-════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     JS: CONFIG, SESSION & SKILL DEFS
+══════════════════════════════════════════ -->
 <script>
-var API_URL  = "https://script.google.com/macros/s/AKfycbwgnKrzVlLswLfiKlkvLepAIPwB_NOgul0NhjPL1BiAl0yQVw5L1smiZrrWDo6NrAOWnQ/exec";
-var CACHE_KEY= "lt_rows_v4";
+var API_URL   = "https://script.google.com/macros/s/AKfycbwgnKrzVlLswLfiKlkvLepAIPwB_NOgul0NhjPL1BiAl0yQVw5L1smiZrrWDo6NrAOWnQ/exec";
+var CACHE_KEY = "lt_rows_v5";
+var LEAGUE_CACHE = "lt_league_v1";
 
-// ── Skills ────────────────────────────────────────────────────
+// Session (in-memory, resets on refresh)
+var SESSION = {name:""};
+
 var SKILLS=[
   {key:"new_words",    name:"New Words",    goal:30, unit:"words",  xpW:3},
   {key:"review_words", name:"Review Words", goal:50, unit:"words",  xpW:1},
@@ -49,111 +53,63 @@ var SKILLS=[
   {key:"typing_score", name:"Touch Typing", goal:1,  unit:"session",xpW:0}
 ];
 
-// ── Overall XP levels (Conqueror at 47,700 XP = 150 days × 318 XP/day) ──
+// ── Overall XP levels (Conqueror at ~47,700 XP ≈ 150 days × 318 XP/day) ──
 var OVERALL_LEVELS=(function(){
-  var tiers=[
-    {tier:"Bronze",   col:"#cd7f32",subs:["V","IV","III","II","I"],pts:500},
-    {tier:"Silver",   col:"#c0c8d8",subs:["V","IV","III","II","I"],pts:800},
-    {tier:"Gold",     col:"#e8c840",subs:["V","IV","III","II","I"],pts:1200},
-    {tier:"Platinum", col:"#d0e0f0",subs:["V","IV","III","II","I"],pts:1800},
-    {tier:"Diamond",  col:"#80d8ff",subs:["V","IV","III","II","I"],pts:2400},
-    {tier:"Crown",    col:"#ff9040",subs:["V","IV","III","II","I"],pts:1800},
-    {tier:"Ace",      col:"#ff6080",subs:[""],                     pts:1700},
-    {tier:"Ace",      col:"#ff6080",subs:["Master"],               pts:1700},
-    {tier:"Ace",      col:"#ff6080",subs:["Dominator"],            pts:1800},
-    {tier:"Conqueror",col:"#b090ff",subs:[""],                     pts:0}
+  var defs=[
+    {label:"Bronze V",   col:"#cd7f32",pts:500},  {label:"Bronze IV",  col:"#cd7f32",pts:500},
+    {label:"Bronze III", col:"#cd7f32",pts:500},  {label:"Bronze II",  col:"#cd7f32",pts:500},
+    {label:"Bronze I",   col:"#cd7f32",pts:500},
+    {label:"Silver V",   col:"#c0c8d8",pts:800},  {label:"Silver IV",  col:"#c0c8d8",pts:800},
+    {label:"Silver III", col:"#c0c8d8",pts:800},  {label:"Silver II",  col:"#c0c8d8",pts:800},
+    {label:"Silver I",   col:"#c0c8d8",pts:800},
+    {label:"Gold V",     col:"#e8c840",pts:1200}, {label:"Gold IV",    col:"#e8c840",pts:1200},
+    {label:"Gold III",   col:"#e8c840",pts:1200}, {label:"Gold II",    col:"#e8c840",pts:1200},
+    {label:"Gold I",     col:"#e8c840",pts:1200},
+    {label:"Platinum V", col:"#d0e0f0",pts:1800}, {label:"Platinum IV",col:"#d0e0f0",pts:1800},
+    {label:"Platinum III",col:"#d0e0f0",pts:1800},{label:"Platinum II",col:"#d0e0f0",pts:1800},
+    {label:"Platinum I", col:"#d0e0f0",pts:1800},
+    {label:"Diamond V",  col:"#80d8ff",pts:2400}, {label:"Diamond IV", col:"#80d8ff",pts:2400},
+    {label:"Diamond III",col:"#80d8ff",pts:2400}, {label:"Diamond II", col:"#80d8ff",pts:2400},
+    {label:"Diamond I",  col:"#80d8ff",pts:2400},
+    {label:"Crown V",    col:"#ff9040",pts:1800}, {label:"Crown IV",   col:"#ff9040",pts:1800},
+    {label:"Crown III",  col:"#ff9040",pts:1800}, {label:"Crown II",   col:"#ff9040",pts:1800},
+    {label:"Crown I",    col:"#ff9040",pts:1800},
+    {label:"Ace",        col:"#ff6080",pts:1700}, {label:"Ace Master", col:"#ff6080",pts:1700},
+    {label:"Ace Dominator",col:"#ff6080",pts:1800},
+    {label:"Conqueror",  col:"#b090ff",pts:0}
   ];
-  var out=[],cx=0;
-  var allSubs=[
-    {label:"Bronze V",   tier:"Bronze",   col:"#cd7f32",pts:500},
-    {label:"Bronze IV",  tier:"Bronze",   col:"#cd7f32",pts:500},
-    {label:"Bronze III", tier:"Bronze",   col:"#cd7f32",pts:500},
-    {label:"Bronze II",  tier:"Bronze",   col:"#cd7f32",pts:500},
-    {label:"Bronze I",   tier:"Bronze",   col:"#cd7f32",pts:500},
-    {label:"Silver V",   tier:"Silver",   col:"#c0c8d8",pts:800},
-    {label:"Silver IV",  tier:"Silver",   col:"#c0c8d8",pts:800},
-    {label:"Silver III", tier:"Silver",   col:"#c0c8d8",pts:800},
-    {label:"Silver II",  tier:"Silver",   col:"#c0c8d8",pts:800},
-    {label:"Silver I",   tier:"Silver",   col:"#c0c8d8",pts:800},
-    {label:"Gold V",     tier:"Gold",     col:"#e8c840",pts:1200},
-    {label:"Gold IV",    tier:"Gold",     col:"#e8c840",pts:1200},
-    {label:"Gold III",   tier:"Gold",     col:"#e8c840",pts:1200},
-    {label:"Gold II",    tier:"Gold",     col:"#e8c840",pts:1200},
-    {label:"Gold I",     tier:"Gold",     col:"#e8c840",pts:1200},
-    {label:"Platinum V", tier:"Platinum", col:"#d0e0f0",pts:1800},
-    {label:"Platinum IV",tier:"Platinum", col:"#d0e0f0",pts:1800},
-    {label:"Platinum III",tier:"Platinum",col:"#d0e0f0",pts:1800},
-    {label:"Platinum II",tier:"Platinum", col:"#d0e0f0",pts:1800},
-    {label:"Platinum I", tier:"Platinum", col:"#d0e0f0",pts:1800},
-    {label:"Diamond V",  tier:"Diamond",  col:"#80d8ff",pts:2400},
-    {label:"Diamond IV", tier:"Diamond",  col:"#80d8ff",pts:2400},
-    {label:"Diamond III",tier:"Diamond",  col:"#80d8ff",pts:2400},
-    {label:"Diamond II", tier:"Diamond",  col:"#80d8ff",pts:2400},
-    {label:"Diamond I",  tier:"Diamond",  col:"#80d8ff",pts:2400},
-    {label:"Crown V",    tier:"Crown",    col:"#ff9040",pts:1800},
-    {label:"Crown IV",   tier:"Crown",    col:"#ff9040",pts:1800},
-    {label:"Crown III",  tier:"Crown",    col:"#ff9040",pts:1800},
-    {label:"Crown II",   tier:"Crown",    col:"#ff9040",pts:1800},
-    {label:"Crown I",    tier:"Crown",    col:"#ff9040",pts:1800},
-    {label:"Ace",        tier:"Ace",      col:"#ff6080",pts:1700},
-    {label:"Ace Master", tier:"Ace",      col:"#ff6080",pts:1700},
-    {label:"Ace Dominator",tier:"Ace",    col:"#ff6080",pts:1800},
-    {label:"Conqueror",  tier:"Conqueror",col:"#b090ff",pts:0}
-  ];
-  allSubs.forEach(function(s){s.startXP=cx;cx+=s.pts;});
-  return allSubs;
+  var cx=0;
+  defs.forEach(function(d){d.startXP=cx;cx+=d.pts;});
+  return defs;
 })();
 
-// ── Skill internal levels (normalized days: total/daily_goal)
-//    All skills reach Conqueror at 150 normalized days ──
 var SKILL_LEVELS=(function(){
   var rows=[
-    {label:"Bronze V",    tier:"Bronze",   col:"#cd7f32",d:0},
-    {label:"Bronze IV",   tier:"Bronze",   col:"#cd7f32",d:2},
-    {label:"Bronze III",  tier:"Bronze",   col:"#cd7f32",d:4},
-    {label:"Bronze II",   tier:"Bronze",   col:"#cd7f32",d:6},
-    {label:"Bronze I",    tier:"Bronze",   col:"#cd7f32",d:8},
-    {label:"Silver V",    tier:"Silver",   col:"#c0c8d8",d:10},
-    {label:"Silver IV",   tier:"Silver",   col:"#c0c8d8",d:13},
-    {label:"Silver III",  tier:"Silver",   col:"#c0c8d8",d:16},
-    {label:"Silver II",   tier:"Silver",   col:"#c0c8d8",d:19},
-    {label:"Silver I",    tier:"Silver",   col:"#c0c8d8",d:22},
-    {label:"Gold V",      tier:"Gold",     col:"#e8c840",d:26},
-    {label:"Gold IV",     tier:"Gold",     col:"#e8c840",d:31},
-    {label:"Gold III",    tier:"Gold",     col:"#e8c840",d:36},
-    {label:"Gold II",     tier:"Gold",     col:"#e8c840",d:41},
-    {label:"Gold I",      tier:"Gold",     col:"#e8c840",d:46},
-    {label:"Platinum V",  tier:"Platinum", col:"#d0e0f0",d:53},
-    {label:"Platinum IV", tier:"Platinum", col:"#d0e0f0",d:60},
-    {label:"Platinum III",tier:"Platinum", col:"#d0e0f0",d:67},
-    {label:"Platinum II", tier:"Platinum", col:"#d0e0f0",d:74},
-    {label:"Platinum I",  tier:"Platinum", col:"#d0e0f0",d:81},
-    {label:"Diamond V",   tier:"Diamond",  col:"#80d8ff",d:90},
-    {label:"Diamond IV",  tier:"Diamond",  col:"#80d8ff",d:98},
-    {label:"Diamond III", tier:"Diamond",  col:"#80d8ff",d:106},
-    {label:"Diamond II",  tier:"Diamond",  col:"#80d8ff",d:114},
-    {label:"Diamond I",   tier:"Diamond",  col:"#80d8ff",d:122},
-    {label:"Crown V",     tier:"Crown",    col:"#ff9040",d:130},
-    {label:"Crown IV",    tier:"Crown",    col:"#ff9040",d:134},
-    {label:"Crown III",   tier:"Crown",    col:"#ff9040",d:138},
-    {label:"Crown II",    tier:"Crown",    col:"#ff9040",d:141},
-    {label:"Crown I",     tier:"Crown",    col:"#ff9040",d:144},
-    {label:"Ace",         tier:"Ace",      col:"#ff6080",d:147},
-    {label:"Ace Master",  tier:"Ace",      col:"#ff6080",d:148.5},
-    {label:"Ace Dominator",tier:"Ace",     col:"#ff6080",d:149.5},
-    {label:"Conqueror",   tier:"Conqueror",col:"#b090ff",d:150}
+    {label:"Bronze V",    col:"#cd7f32",d:0},   {label:"Bronze IV",   col:"#cd7f32",d:2},
+    {label:"Bronze III",  col:"#cd7f32",d:4},   {label:"Bronze II",   col:"#cd7f32",d:6},
+    {label:"Bronze I",    col:"#cd7f32",d:8},
+    {label:"Silver V",    col:"#c0c8d8",d:10},  {label:"Silver IV",   col:"#c0c8d8",d:13},
+    {label:"Silver III",  col:"#c0c8d8",d:16},  {label:"Silver II",   col:"#c0c8d8",d:19},
+    {label:"Silver I",    col:"#c0c8d8",d:22},
+    {label:"Gold V",      col:"#e8c840",d:26},  {label:"Gold IV",     col:"#e8c840",d:31},
+    {label:"Gold III",    col:"#e8c840",d:36},  {label:"Gold II",     col:"#e8c840",d:41},
+    {label:"Gold I",      col:"#e8c840",d:46},
+    {label:"Platinum V",  col:"#d0e0f0",d:53},  {label:"Platinum IV", col:"#d0e0f0",d:60},
+    {label:"Platinum III",col:"#d0e0f0",d:67},  {label:"Platinum II", col:"#d0e0f0",d:74},
+    {label:"Platinum I",  col:"#d0e0f0",d:81},
+    {label:"Diamond V",   col:"#80d8ff",d:90},  {label:"Diamond IV",  col:"#80d8ff",d:98},
+    {label:"Diamond III", col:"#80d8ff",d:106}, {label:"Diamond II",  col:"#80d8ff",d:114},
+    {label:"Diamond I",   col:"#80d8ff",d:122},
+    {label:"Crown V",     col:"#ff9040",d:130}, {label:"Crown IV",    col:"#ff9040",d:134},
+    {label:"Crown III",   col:"#ff9040",d:138}, {label:"Crown II",    col:"#ff9040",d:141},
+    {label:"Crown I",     col:"#ff9040",d:144},
+    {label:"Ace",         col:"#ff6080",d:147}, {label:"Ace Master",  col:"#ff6080",d:148.5},
+    {label:"Ace Dominator",col:"#ff6080",d:149.5},
+    {label:"Conqueror",   col:"#b090ff",d:150}
   ];
   return rows;
 })();
 
-function getOverallRankIdx(xp){
-  for(var i=OVERALL_LEVELS.length-1;i>=0;i--){if(xp>=OVERALL_LEVELS[i].startXP)return i;}return 0;
-}
-function getSkillRankIdx(normalizedDays){
-  for(var i=SKILL_LEVELS.length-1;i>=0;i--){if(normalizedDays>=SKILL_LEVELS[i].d)return i;}return 0;
-}
-
-// Rank tiers for road rendering
 var RANK_TIERS=[
   {tier:"Bronze",   col:"#cd7f32",subs:["V","IV","III","II","I"]},
   {tier:"Silver",   col:"#c0c8d8",subs:["V","IV","III","II","I"]},
@@ -164,158 +120,70 @@ var RANK_TIERS=[
   {tier:"Ace",      col:"#ff6080",subs:["","Master","Dominator"]},
   {tier:"Conqueror",col:"#b090ff",subs:[""]}
 ];
+
+function getOverallRankIdx(xp){for(var i=OVERALL_LEVELS.length-1;i>=0;i--){if(xp>=OVERALL_LEVELS[i].startXP)return i;}return 0;}
+function getSkillRankIdx(nd){for(var i=SKILL_LEVELS.length-1;i>=0;i--){if(nd>=SKILL_LEVELS[i].d)return i;}return 0;}
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════
-     JS: SVG BADGE LIBRARY
-════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     JS: SVG LIBRARY
+══════════════════════════════════════════ -->
 <script>
-// Generates a rank badge SVG string based on tier + sub + size
-// Faithfully represents the style of each tier
-function rankBadgeSVG(tier, sub, size){
-  size = size||28;
+function rankBadgeSVG(tier,sub,size){
+  size=size||28;
   var cfg={
-    Bronze:   {c1:"#cd7f32",c2:"#7d3c0a",c3:"#e8a857",bg:"#3d1500",text:"#e8c070"},
-    Silver:   {c1:"#c0c0d8",c2:"#606090",c3:"#e8e8f5",bg:"#1a1a3a",text:"#e8e8ff"},
-    Gold:     {c1:"#ffd700",c2:"#a07800",c3:"#fff176",bg:"#2d1800",text:"#fffde7"},
-    Platinum: {c1:"#4fc3f7",c2:"#0277bd",c3:"#b3e5fc",bg:"#041830",text:"#e0f7ff"},
-    Diamond:  {c1:"#9575cd",c2:"#6a1b9a",c3:"#e1bee7",bg:"#100020",text:"#f3e5f5"},
-    Crown:    {c1:"#e91e63",c2:"#880e4f",c3:"#fce4ec",bg:"#1a002a",text:"#fce4ec"},
-    Ace:      {c1:"#ff5722",c2:"#bf360c",c3:"#ffca28",bg:"#1a0500",text:"#ffe0c0"},
-    Conqueror:{c1:"#ffc200",c2:"#a07800",c3:"#fffde7",bg:"#0d0b00",text:"#fffde7"}
+    Bronze:{c1:"#cd7f32",c2:"#7d3c0a",c3:"#e8a857",bg:"#3d1500"},
+    Silver:{c1:"#c0c0d8",c2:"#606090",c3:"#e8e8f5",bg:"#1a1a3a"},
+    Gold:{c1:"#ffd700",c2:"#a07800",c3:"#fff176",bg:"#2d1800"},
+    Platinum:{c1:"#4fc3f7",c2:"#0277bd",c3:"#b3e5fc",bg:"#041830"},
+    Diamond:{c1:"#9575cd",c2:"#6a1b9a",c3:"#e1bee7",bg:"#100020"},
+    Crown:{c1:"#e91e63",c2:"#880e4f",c3:"#fce4ec",bg:"#1a002a"},
+    Ace:{c1:"#ff5722",c2:"#bf360c",c3:"#ffca28",bg:"#1a0500"},
+    Conqueror:{c1:"#ffc200",c2:"#a07800",c3:"#fffde7",bg:"#0d0b00"}
   };
-  var g = cfg[tier]||cfg.Bronze;
-  var s = size, h = size; // viewBox will be square for simplicity
-  var label = sub ? (tier==="Ace"&&sub===""? "ACE" : sub) : (tier==="Conqueror"?"⚔":"");
-  var id = "b_"+tier.toLowerCase().replace(/ /g,"")+(sub||"").replace(/ /g,"");
-
-  // Shield path (normalised to 0-100 viewport)
-  var defs='<defs>'+
-    '<radialGradient id="'+id+'_s" cx="40%" cy="35%" r="65%">'+
-      '<stop offset="0%" stop-color="'+g.c3+'"/>'+
-      '<stop offset="45%" stop-color="'+g.c1+'"/>'+
-      '<stop offset="100%" stop-color="'+g.bg+'"/>'+
-    '</radialGradient>'+
-    '<radialGradient id="'+id+'_g" cx="50%" cy="50%" r="50%">'+
-      '<stop offset="0%" stop-color="'+g.c1+'44"/>'+
-      '<stop offset="100%" stop-color="'+g.c1+'00"/>'+
-    '</radialGradient>'+
-    (tier==="Ace"||tier==="Conqueror"?'<linearGradient id="'+id+'_f" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%" stop-color="'+g.c2+'"/><stop offset="50%" stop-color="'+g.c1+'"/><stop offset="100%" stop-color="'+g.c3+'"/></linearGradient>':'')
-  +'</defs>';
-
-  var inner = "";
-
+  var g=cfg[tier]||cfg.Bronze;
+  var id="b_"+(tier||"").toLowerCase()+(sub||"").replace(/ /g,"");
+  var defs='<defs><radialGradient id="'+id+'s" cx="40%" cy="35%" r="65%"><stop offset="0%" stop-color="'+g.c3+'"/><stop offset="45%" stop-color="'+g.c1+'"/><stop offset="100%" stop-color="'+g.bg+'"/></radialGradient></defs>';
+  var inner="";
   if(tier==="Ace"){
-    // Card style
-    inner+=
-      '<ellipse cx="50" cy="55" rx="48" ry="52" fill="'+g.c1+'22"/>'+
-      '<rect x="12" y="10" width="76" height="90" rx="8" fill="'+g.c3+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
-      '<text x="50" y="64" text-anchor="middle" font-family="Cinzel,serif" font-size="28" font-weight="900" fill="'+g.c2+'">A</text>'+
-      '<text x="20" y="28" font-size="10" fill="'+g.c2+'" font-weight="700">♠</text>'+
-      '<text x="80" y="28" font-size="10" fill="'+g.c2+'" font-weight="700" text-anchor="end">♠</text>'+
-      (sub==="Master"?'<path d="M32 10 L32 2 L38 6 L44 0 L50 6 L56 0 L62 6 L68 2 L68 10 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="0.8"/>':'')+
-      (sub==="Dominator"?'<path d="M28 10 L28 0 L35 5 L42 -2 L50 5 L58 -2 L65 5 L72 0 L72 10 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>':'')+
-      '<path d="M25 100 Q33 88 30 78 Q38 90 36 100" fill="url(#'+id+'_f'+')" opacity="0.85"/>'+
-      '<path d="M45 100 Q55 82 50 68 Q60 84 57 100" fill="url(#'+id+'_f'+')" opacity="0.95"/>'+
-      '<path d="M65 100 Q73 88 70 78 Q78 90 76 100" fill="url(#'+id+'_f'+')" opacity="0.85"/>'+
-      (sub?"<text x='50' y='80' text-anchor='middle' font-family='Cinzel,serif' font-size='8' font-weight='700' fill='"+g.c2+"' letter-spacing='1'>"+sub.toUpperCase()+"</text>":'');
-  } else if(tier==="Conqueror"){
-    // Large ornate shield
-    inner+=
-      '<ellipse cx="50" cy="60" rx="48" ry="54" fill="url(#'+id+'_g)"/>'+
-      '<path d="M50 5 L88 22 L88 58 Q88 88 50 100 Q12 88 12 58 L12 22 Z" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
-      '<path d="M50 9 L84 25 L84 57 Q84 85 50 96 Q16 85 16 57 L16 25 Z" fill="url(#'+id+'_s)"/>'+
-      // Crown on top
-      '<path d="M30 22 L30 12 L37 17 L43 8 L50 16 L57 8 L63 17 L70 12 L70 22 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>'+
-      '<rect x="28" y="22" width="44" height="7" rx="1.5" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/>'+
-      // Center star
-      '<path d="M50 40 L53 48 L62 48 L55 53 L58 62 L50 57 L42 62 L45 53 L38 48 L47 48 Z" fill="'+g.c2+'88" stroke="'+g.c1+'" stroke-width="1"/>'+
-      '<circle cx="50" cy="52" r="7" fill="'+g.c2+'55" stroke="'+g.c1+'" stroke-width="1.2"/>'+
-      '<text x="50" y="56" text-anchor="middle" font-family="Cinzel,serif" font-size="7" font-weight="900" fill="'+g.text+'">C</text>'+
-      // Flames
-      '<path d="M20 100 Q27 88 24 78 Q31 90 29 100" fill="url(#'+id+'_f'+')" opacity="0.8"/>'+
-      '<path d="M50 100 Q59 84 53 68 Q63 86 60 100" fill="url(#'+id+'_f'+')" opacity="0.95"/>'+
-      '<path d="M80 100 Q87 88 84 78 Q91 90 89 100" fill="url(#'+id+'_f'+')" opacity="0.8"/>';
-  } else {
-    // Standard shield style
-    var subText = sub||"";
-    // Sub-number visual indicator (dots at bottom)
-    var subNum = ["V","IV","III","II","I"].indexOf(sub);
-    var tierIdx = ["Bronze","Silver","Gold","Platinum","Diamond","Crown"].indexOf(tier);
-
-    // Inner emblem per tier
-    var emblem="";
-    if(tier==="Bronze"){
-      emblem='<line x1="50" y1="30" x2="50" y2="80" stroke="'+g.bg+'66" stroke-width="1.2"/>'+
-             '<line x1="25" y1="55" x2="75" y2="55" stroke="'+g.bg+'66" stroke-width="1.2"/>'+
-             '<circle cx="50" cy="55" r="10" fill="none" stroke="'+g.c2+'" stroke-width="1"/>'+
-             '<text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
-    } else if(tier==="Silver"){
-      emblem='<line x1="50" y1="28" x2="50" y2="82" stroke="'+g.c2+'55" stroke-width="1"/>'+
-             '<line x1="18" y1="55" x2="82" y2="55" stroke="'+g.c2+'55" stroke-width="1"/>'+
-             '<line x1="30" y1="35" x2="70" y2="75" stroke="'+g.c2+'40" stroke-width="0.8"/>'+
-             '<line x1="70" y1="35" x2="30" y2="75" stroke="'+g.c2+'40" stroke-width="0.8"/>'+
-             '<circle cx="50" cy="55" r="11" fill="none" stroke="'+g.c2+'" stroke-width="1.2"/>'+
-             '<text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
-    } else if(tier==="Gold"){
-      // Sun rays
-      emblem='<g transform="translate(50,55)" stroke="'+g.c2+'55" stroke-width="0.8">'+
-               '<line x1="0" y1="-24" x2="0" y2="24"/>'+
-               '<line x1="-24" y1="0" x2="24" y2="0"/>'+
-               '<line x1="-17" y1="-17" x2="17" y2="17"/>'+
-               '<line x1="17" y1="-17" x2="-17" y2="17"/>'+
-               '<line x1="-8" y1="-23" x2="8" y2="23"/>'+
-               '<line x1="23" y1="-8" x2="-23" y2="8"/>'+
-             '</g>'+
-             '<circle cx="50" cy="55" r="12" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/>'+
-             '<text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="10" font-weight="700" fill="'+g.bg+'">'+subText+'</text>';
-    } else if(tier==="Platinum"){
-      // Hex/crystal
-      emblem='<path d="M50 32 L64 40 L64 56 L50 64 L36 56 L36 40 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/>'+
-             '<path d="M50 38 L59 43 L59 53 L50 58 L41 53 L41 43 Z" fill="'+g.c2+'44" stroke="'+g.c3+'" stroke-width="0.8"/>'+
-             '<text x="50" y="54" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
-    } else if(tier==="Diamond"){
-      // Diamond gem
-      emblem='<path d="M50 30 L66 46 L50 82 L34 46 Z" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/>'+
-             '<path d="M50 30 L66 46 L50 56 L34 46 Z" fill="'+g.c1+'66" stroke="'+g.c3+'" stroke-width="0.8"/>'+
-             '<line x1="34" y1="46" x2="66" y2="46" stroke="'+g.c1+'" stroke-width="0.8"/>'+
-             '<circle cx="50" cy="30" r="2" fill="'+g.c3+'"/>'+
-             '<text x="50" y="76" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
-    } else if(tier==="Crown"){
-      // Crown emblem
-      emblem='<path d="M30 65 L30 50 L37 57 L43 45 L50 55 L57 45 L63 57 L70 50 L70 65 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>'+
-             '<rect x="28" y="65" width="44" height="7" rx="1" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/>'+
-             '<circle cx="41" cy="58" r="2.5" fill="'+g.c3+'"/>'+
-             '<circle cx="50" cy="56" r="3" fill="'+g.bg+'"/>'+
-             '<circle cx="59" cy="58" r="2.5" fill="'+g.c3+'"/>'+
-             '<text x="50" y="83" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.text+'">'+subText+'</text>';
-    }
-
-    inner+=
-      '<ellipse cx="50" cy="60" rx="47" ry="52" fill="url(#'+id+'_g)"/>'+
-      '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="'+g.bg+'" stroke="'+g.bg+'" stroke-width="1"/>'+
-      '<path d="M50 10 L83 27 L83 59 Q83 87 50 99 Q17 87 17 59 L17 27 Z" fill="url(#'+id+'_s)"/>'+
-      // Rim
-      '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/>'+
-      emblem+
-      // Corner dots
-      '<circle cx="23" cy="30" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
-      '<circle cx="77" cy="30" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
-      '<circle cx="23" cy="88" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
-      '<circle cx="77" cy="88" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
-      // Label bar
-      '<rect x="18" y="104" width="64" height="12" rx="3" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="0.7"/>'+
-      '<text x="50" y="113" text-anchor="middle" font-family="Cinzel,serif" font-size="6.5" font-weight="700" fill="'+g.c1+'" letter-spacing="1.5">'+(tier==="Ace"?"ACE":tier.toUpperCase())+'</text>';
+    inner='<rect x="12" y="10" width="76" height="90" rx="8" fill="'+g.c3+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
+          '<text x="50" y="65" text-anchor="middle" font-family="Cinzel,serif" font-size="28" font-weight="900" fill="'+g.c2+'">A</text>'+
+          '<text x="20" y="28" font-size="10" fill="'+g.c2+'" font-weight="700">♠</text>'+
+          '<text x="80" y="28" font-size="10" fill="'+g.c2+'" font-weight="700" text-anchor="end">♠</text>'+
+          (sub?'<text x="50" y="82" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.c2+'" letter-spacing="1">'+sub.toUpperCase()+'</text>':'');
+  }else if(tier==="Conqueror"){
+    inner='<path d="M50 5 L88 22 L88 58 Q88 88 50 100 Q12 88 12 58 L12 22 Z" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
+          '<path d="M50 9 L84 25 L84 57 Q84 85 50 96 Q16 85 16 57 L16 25 Z" fill="url(#'+id+'s)"/>'+
+          '<path d="M30 22 L30 12 L37 17 L43 8 L50 16 L57 8 L63 17 L70 12 L70 22 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>'+
+          '<rect x="28" y="22" width="44" height="7" rx="1.5" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/>'+
+          '<text x="50" y="62" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="900" fill="'+g.c3+'">C</text>';
+  }else{
+    var subT=sub||"";
+    var emb="";
+    if(tier==="Bronze") emb='<line x1="50" y1="30" x2="50" y2="80" stroke="'+g.bg+'66" stroke-width="1.2"/><line x1="25" y1="55" x2="75" y2="55" stroke="'+g.bg+'66" stroke-width="1.2"/><circle cx="50" cy="55" r="10" fill="none" stroke="'+g.c2+'" stroke-width="1"/><text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+subT+'</text>';
+    else if(tier==="Silver") emb='<line x1="50" y1="28" x2="50" y2="82" stroke="'+g.c2+'55" stroke-width="1"/><line x1="18" y1="55" x2="82" y2="55" stroke="'+g.c2+'55" stroke-width="1"/><circle cx="50" cy="55" r="11" fill="none" stroke="'+g.c2+'" stroke-width="1.2"/><text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+subT+'</text>';
+    else if(tier==="Gold") emb='<g transform="translate(50,55)" stroke="'+g.c2+'55" stroke-width="0.8"><line x1="0" y1="-24" x2="0" y2="24"/><line x1="-24" y1="0" x2="24" y2="0"/><line x1="-17" y1="-17" x2="17" y2="17"/><line x1="17" y1="-17" x2="-17" y2="17"/></g><circle cx="50" cy="55" r="12" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/><text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="10" font-weight="700" fill="'+g.bg+'">'+subT+'</text>';
+    else if(tier==="Platinum") emb='<path d="M50 32 L64 40 L64 56 L50 64 L36 56 L36 40 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/><text x="50" y="54" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+subT+'</text>';
+    else if(tier==="Diamond") emb='<path d="M50 30 L66 46 L50 82 L34 46 Z" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/><path d="M50 30 L66 46 L50 56 L34 46 Z" fill="'+g.c1+'66" stroke="'+g.c3+'" stroke-width="0.8"/><text x="50" y="76" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.c3+'">'+subT+'</text>';
+    else if(tier==="Crown") emb='<path d="M30 65 L30 50 L37 57 L43 45 L50 55 L57 45 L63 57 L70 50 L70 65 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/><rect x="28" y="65" width="44" height="7" rx="1" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/><text x="50" y="84" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+subT+'</text>';
+    inner='<ellipse cx="50" cy="60" rx="47" ry="52" fill="'+g.c1+'22"/>'+
+          '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="'+g.bg+'" stroke="'+g.bg+'" stroke-width="1"/>'+
+          '<path d="M50 10 L83 27 L83 59 Q83 87 50 99 Q17 87 17 59 L17 27 Z" fill="url(#'+id+'s)"/>'+
+          '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/>'+
+          emb+
+          '<circle cx="23" cy="30" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
+          '<circle cx="77" cy="30" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
+          '<circle cx="23" cy="88" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
+          '<circle cx="77" cy="88" r="2.2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.6"/>'+
+          '<rect x="18" y="104" width="64" height="12" rx="3" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="0.7"/>'+
+          '<text x="50" y="113" text-anchor="middle" font-family="Cinzel,serif" font-size="6.5" font-weight="700" fill="'+g.c1+'" letter-spacing="1.5">'+tier.toUpperCase()+'</text>';
   }
-
-  return '<svg width="'+s+'" height="'+h+'" viewBox="0 0 100 118" xmlns="http://www.w3.org/2000/svg">'+defs+inner+'</svg>';
+  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 118" xmlns="http://www.w3.org/2000/svg">'+defs+inner+'</svg>';
 }
 
-// Skill icon SVG
 function skillSVG(key,size){
   size=size||20;
-  var a='stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"';
-  var d={
+  var paths={
     new_words:'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
     review_words:'M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15',
     speaking_min:'M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8',
@@ -323,34 +191,49 @@ function skillSVG(key,size){
     pages_read:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2zM8 8h8M8 12h6',
     typing_score:'M2 7a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zM6 11h.01M10 11h.01M14 11h.01M18 11h.01M6 15h.01M10 15h4M18 15h.01'
   };
-  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="'+d[key]+'"/></svg>';
+  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="'+paths[key]+'"/></svg>';
 }
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════
-     JS: DATE & DATA UTILITIES
-════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     JS: DATE & DATA UTILITIES (week starts Saturday)
+══════════════════════════════════════════ -->
 <script>
 function getCairoNow(){var n=new Date();return new Date(n.getTime()+n.getTimezoneOffset()*60000+7200000);}
 function cairoToday(){var c=getCairoNow();return c.getFullYear()+"-"+pad2(c.getMonth()+1)+"-"+pad2(c.getDate());}
 function pad2(n){return String(n).padStart(2,"0");}
 function normDate(s){if(!s)return"";var p=s.split("-");if(p.length!==3)return s;return p[0]+"-"+pad2(p[1])+"-"+pad2(p[2]);}
 function dateKey(d){return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());}
-function weekStartDate(){var c=getCairoNow(),dy=c.getDay();c.setDate(c.getDate()-(dy===0?6:dy-1));c.setHours(0,0,0,0);return c;}
 function fmtMin(v){if(!v)return"0m";if(v<60)return v+"m";return v+"m ("+Math.round(v/60*10)/10+"h)";}
 
-var cachedData=[];
-function loadCache(){try{var r=localStorage.getItem(CACHE_KEY);if(r)cachedData=JSON.parse(r);}catch(e){}}
-function saveCache(rows){try{localStorage.setItem(CACHE_KEY,JSON.stringify(rows));}catch(e){}cachedData=rows;}
+// Week starts SATURDAY (dy=6 → diff=0, dy=0 Sun → diff=1 ... dy=5 Fri → diff=6)
+function weekStartDate(fromDate){
+  var c=fromDate?new Date(fromDate):getCairoNow();
+  var dy=c.getDay();
+  var diff=(dy+1)%7; // Sat=0,Sun=1,...,Fri=6
+  c.setDate(c.getDate()-diff);c.setHours(0,0,0,0);return c;
+}
+// League end: Friday 23:59:59 Cairo
+function leagueEndDate(){
+  var now=getCairoNow(),dy=now.getDay();
+  var daysToFri=dy===5?0:dy===6?6:(5-dy);
+  var fri=new Date(now);fri.setDate(fri.getDate()+daysToFri);fri.setHours(23,59,59,999);
+  return fri;
+}
+
+// XP weights
+var XP_WEIGHTS={new_words:3,review_words:1,speaking_min:3,listening_min:1,pages_read:15,typing_score:0};
 
 function computeTotals(rows){
   var todS=cairoToday(),wkMs=weekStartDate().getTime(),moMs=new Date(getCairoNow().getFullYear(),getCairoNow().getMonth(),1).getTime();
-  var t={};SKILLS.forEach(function(s){t[s.key]={today:0,week:0,month:0,all:0,byDay:{}};});
+  var t={};
+  SKILLS.forEach(function(s){t[s.key]={today:0,week:0,month:0,all:0,byDay:{}};});
   rows.forEach(function(r){
     var sk=r.skill,v=Number(r.amount)||0;if(!sk||!t[sk]||!v)return;
     var ds=normDate(r.date);if(!ds)return;
     var ms=new Date(ds+"T12:00:00").getTime();
-    t[sk].all+=v;if(ms>=moMs)t[sk].month+=v;if(ms>=wkMs)t[sk].week+=v;if(ds===todS)t[sk].today+=v;
+    t[sk].all+=v;if(ms>=moMs)t[sk].month+=v;if(ms>=wkMs)t[sk].week+=v;
+    if(ds===todS)t[sk].today+=v;
     t[sk].byDay[ds]=(t[sk].byDay[ds]||0)+v;
   });
   return t;
@@ -367,122 +250,216 @@ function getTotalXP(totals){
   return SKILLS.reduce(function(sum,s){return sum+(s.xpW>0?(totals[s.key]?totals[s.key].all:0)*s.xpW:0);},0);
 }
 
+function getWeeklyXP(rows){
+  var wkMs=weekStartDate().getTime(),xp=0;
+  rows.forEach(function(r){
+    var ds=normDate(r.date);if(!ds)return;
+    var ms=new Date(ds+"T12:00:00").getTime();
+    if(ms>=wkMs)xp+=(XP_WEIGHTS[r.skill]||0)*(Number(r.amount)||0);
+  });
+  return xp;
+}
+
+// Cache
+var cachedData=[];
+function loadCache(){try{var r=localStorage.getItem(CACHE_KEY);if(r)cachedData=JSON.parse(r);}catch(e){}}
+function saveCache(rows){try{localStorage.setItem(CACHE_KEY,JSON.stringify(rows));}catch(e){}cachedData=rows;}
+var leagueCache={rows:[],players:[]};
+function loadLeagueCache(){try{var r=localStorage.getItem(LEAGUE_CACHE);if(r)leagueCache=JSON.parse(r);}catch(e){}}
+function saveLeagueCache(data){try{localStorage.setItem(LEAGUE_CACHE,JSON.stringify(data));}catch(e){}leagueCache=data;}
+
 var UNIT_HINTS={new_words:"words",review_words:"words",speaking_min:"minutes",listening_min:"minutes",pages_read:"pages",typing_score:"minutes of practice"};
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: NAV (CSS + HTML template)
-════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     COMPONENT: NAV & SHARED CSS
+══════════════════════════════════════════ -->
 <style>
 nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
-  padding:0 32px;height:56px;background:rgba(10,30,46,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
-.nav-logo{font-family:var(--f-brand);font-size:18px;font-weight:900;letter-spacing:4px;text-transform:uppercase;
-  background:linear-gradient(90deg,#F2F3F4,#c490ae,#A77693);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  background-clip:text;filter:drop-shadow(0 0 8px rgba(167,118,147,0.5))}
-.nav-right{display:flex;gap:6px;align-items:center}
-.nav-link{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);
-  background:none;border:none;padding:6px 12px;border-radius:7px;transition:all .2s}
+  padding:0 28px;height:54px;background:rgba(10,30,46,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.nav-logo{font-family:var(--f-brand);font-size:17px;font-weight:900;letter-spacing:3px;text-transform:uppercase;
+  background:linear-gradient(90deg,#F2F3F4,#c490ae,#A77693);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 8px rgba(167,118,147,0.5))}
+.nav-right{display:flex;gap:5px;align-items:center}
+.nav-link{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);background:none;border:none;padding:5px 11px;border-radius:7px;transition:all .2s}
 .nav-link:hover,.nav-link.active{color:#fff;background:rgba(167,118,147,0.15)}
-.nav-btn{padding:6px 16px;border:1px solid var(--border2);border-radius:7px;background:transparent;
-  color:var(--mauve-hi);font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;transition:all .2s}
+.nav-btn{padding:5px 14px;border:1px solid var(--border2);border-radius:7px;background:transparent;color:var(--mauve-hi);font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;transition:all .2s}
 .nav-btn:hover{background:rgba(167,118,147,0.12)}
-.btn-icon-nav{background:none;border:1px solid var(--border);border-radius:7px;color:var(--dim);
-  padding:6px 9px;display:flex;align-items:center;transition:all .2s}
+.btn-icon-nav{background:none;border:1px solid var(--border);border-radius:7px;color:var(--dim);padding:5px 8px;display:flex;align-items:center;transition:all .2s}
 .btn-icon-nav:hover{border-color:var(--border2);color:#fff}
 .btn-icon-nav.spinning svg{animation:globalSpin .7s linear infinite}
-.loading-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,30,46,0.9);
-  backdrop-filter:blur(10px);flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.loading-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,30,46,0.9);backdrop-filter:blur(10px);flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .loading-overlay.show{display:flex}
-.spin-ring{width:40px;height:40px;border-radius:50%;border:2px solid rgba(167,118,147,0.2);
-  border-top-color:var(--mauve-hi);animation:globalSpin .8s linear infinite}
-.spin-label{font-size:11px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim)}
-</style>
-
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: SHARED ELEMENTS
-════════════════════════════════════════════════════════════ -->
-<style>
-.sec-label{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--beige);
-  margin-bottom:14px;margin-top:28px;display:flex;align-items:center;gap:8px}
+.spin-ring{width:38px;height:38px;border-radius:50%;border:2px solid rgba(167,118,147,0.2);border-top-color:var(--mauve-hi);animation:globalSpin .8s linear infinite}
+.spin-lbl{font-size:11px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim)}
+.sec-label{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--beige);margin-bottom:12px;margin-top:24px;display:flex;align-items:center;gap:8px}
 .sec-label:first-child{margin-top:0}
 .sec-label::after{content:'';flex:1;height:1px;background:rgba(222,209,198,0.18)}
-.info-btn{background:none;border:1px solid rgba(222,209,198,0.3);border-radius:50%;width:19px;height:19px;
-  color:var(--beige);font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;
-  flex-shrink:0;transition:all .2s;line-height:1}
+.info-btn{background:none;border:1px solid rgba(222,209,198,0.3);border-radius:50%;width:18px;height:18px;color:var(--beige);font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;line-height:1}
 .info-btn:hover{background:rgba(222,209,198,0.1);border-color:var(--beige);color:#fff}
+/* Modal base */
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(10,30,46,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:22px 24px;max-width:300px;width:90%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);font-size:18px;line-height:1;transition:color .2s}
+.modal-close:hover{color:#fff}
+.modal-title{font-family:var(--f-title);font-size:14px;font-weight:700;color:var(--mauve-hi);letter-spacing:1px;margin-bottom:14px}
+.modal-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.modal-row:last-of-type{border:none}
+.modal-xp{color:#fff;font-weight:800;font-size:14px;font-family:var(--f-title)}
+.modal-note{margin-top:12px;font-size:11px;color:var(--dim);line-height:1.8;border-top:1px solid var(--border);padding-top:12px}
+/* Rank modal */
+.rank-modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:20px 18px;max-width:460px;width:95%;position:relative;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.rank-modal-list{display:flex;flex-direction:column;gap:3px;margin-top:14px}
+.rank-modal-row{display:flex;align-items:center;gap:10px;padding:5px 7px;border-radius:7px}
+.rank-modal-row:hover{background:rgba(167,118,147,0.08)}
+.rank-modal-info{flex:1}
+.rank-modal-name{font-size:12px;font-weight:700;color:var(--text2)}
+.rank-modal-xp{font-size:10px;color:var(--dim)}
+.rank-modal-pts{font-size:11px;font-weight:700;color:var(--mauve-hi);white-space:nowrap}
+@media(max-width:750px){
+  nav{padding:0 14px}
+  .sec-label{margin-top:18px}
+}
 </style>
 
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: LOG PAGE
-     (CSS + HTML + JS together)
-════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     COMPONENT: LOGIN PAGE
+     CSS + HTML + JS
+══════════════════════════════════════════ -->
 <style>
-/* LOG PAGE CSS */
-.log-hero{padding:44px 32px 28px;text-align:center;
-  background:radial-gradient(ellipse 60% 50% at 50% 115%,rgba(167,118,147,0.16),transparent 65%)}
-.log-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
-.log-title{font-family:var(--f-title);font-size:clamp(28px,5vw,52px);font-weight:700;
-  text-transform:uppercase;line-height:.92;margin-bottom:12px;color:#fff}
+/* LOGIN CSS */
+#page-login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)}
+.login-bg{position:absolute;inset:0;z-index:0;background:radial-gradient(ellipse 60% 55% at 50% 50%,rgba(167,118,147,0.18),transparent 65%);pointer-events:none}
+.login-card{position:relative;z-index:1;background:rgba(23,72,113,0.35);border:1px solid var(--border);border-radius:22px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.4);backdrop-filter:blur(18px)}
+.login-logo{font-family:var(--f-brand);font-size:22px;font-weight:900;letter-spacing:4px;text-align:center;margin-bottom:8px;background:linear-gradient(90deg,#F2F3F4,#c490ae,#A77693);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.login-sub{text-align:center;font-size:12px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:32px}
+.login-field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.login-field label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.login-input{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 16px;font-size:15px;font-weight:500;color:#fff;outline:none;transition:all .2s;width:100%}
+.login-input:focus{border-color:var(--mauve-hi);background:var(--surface2)}
+.login-input::placeholder{color:rgba(222,209,198,0.25)}
+.login-btn{width:100%;padding:13px;background:var(--grad-mauve);border:1px solid var(--border2);border-radius:9px;color:#fff;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;transition:all .2s;box-shadow:0 4px 18px rgba(167,118,147,0.25);margin-top:6px}
+.login-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 26px rgba(167,118,147,0.4)}
+.login-btn:disabled{opacity:.4;cursor:not-allowed}
+.login-error{margin-top:14px;padding:10px 14px;background:rgba(200,60,60,0.12);border:1px solid rgba(200,60,60,0.3);border-radius:8px;color:#ff9090;font-size:13px;text-align:center;display:none}
+.login-error.show{display:block}
+</style>
+
+<div id="page-login" class="page">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">KRESTO</div>
+    <div class="login-sub">Language Tracker — Sign In</div>
+    <div class="login-field">
+      <label>Name</label>
+      <input type="text" id="li-name" class="login-input" placeholder="Enter your name" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="li-pass" class="login-input" placeholder="Enter your password" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="li-btn" onclick="doLogin()">→ Enter</button>
+    <div class="login-error" id="li-err">Invalid name or password. Please try again.</div>
+  </div>
+</div>
+
+<script>
+/* LOGIN JS */
+async function doLogin(){
+  var name=document.getElementById("li-name").value.trim();
+  var pass=document.getElementById("li-pass").value.trim();
+  if(!name||!pass){showLoginErr("Please enter both name and password.");return;}
+  var btn=document.getElementById("li-btn");btn.disabled=true;btn.textContent="Checking…";
+  try{
+    var res=await fetch(API_URL+"?action=login&name="+encodeURIComponent(name)+"&password="+encodeURIComponent(pass),{method:"GET",mode:"cors"});
+    var data=await res.json();
+    if(data.ok){
+      SESSION.name=data.name;
+      document.getElementById("li-err").classList.remove("show");
+      goTo("log");
+    }else{
+      showLoginErr("Invalid name or password.");
+    }
+  }catch(e){showLoginErr("Connection error. Try again.");}
+  finally{btn.disabled=false;btn.textContent="→ Enter";}
+}
+function showLoginErr(msg){var el=document.getElementById("li-err");el.textContent=msg;el.classList.add("show");}
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&currentPage==="login")doLogin();});
+</script>
+
+<!-- ══════════════════════════════════════════
+     COMPONENT: LOG PAGE
+     CSS + HTML + JS
+══════════════════════════════════════════ -->
+<style>
+/* LOG CSS */
+.log-hero{padding:40px 28px 24px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 115%,rgba(167,118,147,0.16),transparent 65%)}
+.log-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.log-title{font-family:var(--f-title);font-size:clamp(26px,5vw,50px);font-weight:700;text-transform:uppercase;line-height:.92;margin-bottom:10px;color:#fff}
 .log-title em{font-style:normal;color:var(--mauve-hi)}
-.log-sub{font-size:14px;color:var(--text3);max-width:380px;margin:0 auto;line-height:1.8}
-.log-body{max-width:560px;margin:0 auto;padding:28px 24px 80px}
+.log-sub{font-size:13px;color:var(--text3);max-width:360px;margin:0 auto;line-height:1.8}
+.log-body{max-width:540px;margin:0 auto;padding:24px 22px 80px}
+.log-player-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);border:1px solid var(--border2);border-radius:9px;margin-bottom:18px}
+.log-player-icon{font-size:18px}
+.log-player-name{font-family:var(--f-title);font-size:16px;font-weight:700;color:var(--mauve-hi)}
+.log-player-label{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-left:auto}
 .date-row{display:flex;gap:8px;align-items:center}
-.date-row input[type="date"]{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:9px;
-  padding:11px 16px;font-size:15px;font-weight:500;color:#fff;outline:none;transition:all .2s;color-scheme:dark}
+.date-row input[type="date"]{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 14px;font-size:15px;font-weight:500;color:#fff;outline:none;transition:all .2s;color-scheme:dark}
 .date-row input[type="date"]:focus{border-color:var(--mauve-hi);background:var(--surface2)}
-.today-btn{background:none;border:1px solid var(--border);border-radius:9px;padding:11px 14px;
-  color:var(--text3);font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
-  transition:all .2s;white-space:nowrap}
+.today-btn{background:none;border:1px solid var(--border);border-radius:9px;padding:10px 12px;color:var(--text3);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:all .2s;white-space:nowrap}
 .today-btn:hover{border-color:var(--border2);color:#fff}
 .entry-row{display:flex;gap:10px;align-items:flex-end}
-.lfield{display:flex;flex-direction:column;gap:6px}
-.lfield label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
-.skill-select{background:var(--surface);border:1px solid var(--border);border-radius:9px;
-  padding:11px 30px 11px 16px;font-size:15px;font-weight:500;color:#fff;outline:none;
-  transition:border-color .2s;cursor:pointer;appearance:none;-webkit-appearance:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23A77693' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 12px center;min-width:195px}
+.lfield{display:flex;flex-direction:column;gap:5px}
+.lfield label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.skill-select{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 30px 10px 14px;font-size:15px;font-weight:500;color:#fff;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23A77693' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;min-width:185px;transition:border-color .2s}
 .skill-select:focus{border-color:var(--mauve-hi);background:var(--surface2)}
 .skill-select option{background:#0F2D4D;color:#fff}
-.amount-input{width:120px;background:var(--surface);border:1px solid var(--border);border-radius:9px;
-  padding:11px 12px;font-size:22px;font-weight:700;color:#fff;outline:none;
-  transition:border-color .2s;-moz-appearance:textfield}
+.amount-input{width:110px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:21px;font-weight:700;color:#fff;outline:none;-moz-appearance:textfield;transition:border-color .2s}
 .amount-input::-webkit-inner-spin-button{-webkit-appearance:none}
-.amount-input::placeholder{color:rgba(222,209,198,0.2);font-size:18px}
+.amount-input::placeholder{color:rgba(222,209,198,0.2);font-size:16px}
 .amount-input:focus{border-color:var(--mauve-hi);background:var(--surface2)}
-.unit-hint{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px;text-align:center}
-.log-footer{margin-top:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.btn-clear{background:none;border:1px solid var(--border);border-radius:8px;padding:10px 15px;
-  color:var(--dim);font-size:13px;letter-spacing:1px;transition:all .2s}
+.unit-hint{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:3px;text-align:center}
+.log-footer{margin-top:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn-clear{background:none;border:1px solid var(--border);border-radius:8px;padding:9px 13px;color:var(--dim);font-size:12px;letter-spacing:1px;transition:all .2s}
 .btn-clear:hover{border-color:var(--border2);color:#fff}
-#log-status{flex:1;min-height:42px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;
-  letter-spacing:.5px;display:flex;align-items:center;transition:all .3s}
+#log-status{flex:1;min-height:40px;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:500;display:flex;align-items:center;transition:all .3s}
 #log-status.ok{background:rgba(167,118,147,0.15);color:var(--mauve-hi);border:1px solid var(--border2)}
 #log-status.err{background:rgba(200,60,60,0.12);color:#ff9090;border:1px solid rgba(200,60,60,0.3)}
 #log-status.busy{background:rgba(222,209,198,0.08);color:var(--beige);border:1px solid rgba(222,209,198,0.22)}
-.btn-save{padding:10px 26px;background:var(--grad-mauve);border:1px solid var(--border2);border-radius:8px;
-  color:#fff;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
-  transition:all .2s;box-shadow:0 4px 18px rgba(167,118,147,0.25)}
-.btn-save:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 26px rgba(167,118,147,0.4)}
+.btn-save{padding:9px 22px;background:var(--grad-mauve);border:1px solid var(--border2);border-radius:8px;color:#fff;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;transition:all .2s;box-shadow:0 4px 16px rgba(167,118,147,0.22)}
+.btn-save:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 24px rgba(167,118,147,0.38)}
 .btn-save:disabled{opacity:.4;cursor:not-allowed}
-.log-copyright{margin-top:16px;text-align:center;font-size:11px;color:var(--very-dim);line-height:1.8}
+.log-copyright{margin-top:18px;text-align:center;font-size:11px;color:var(--very-dim);line-height:1.8}
 .log-copyright .brand{color:var(--mauve-hi);font-weight:600}
+@media(max-width:750px){
+  .log-body{padding:20px 14px 80px;text-align:center}
+  .date-row{justify-content:center}
+  .entry-row{flex-direction:column;align-items:center}
+  .lfield{width:100%}.skill-select,.amount-input{width:100%}.amount-input{text-align:center}
+  .log-footer{flex-direction:column;align-items:stretch}.btn-save,.btn-clear{width:100%}
+}
 </style>
 
-<div id="page-log" class="page">
+<div id="page-log" class="page hidden">
   <nav>
     <div class="nav-logo">KRESTO</div>
     <div class="nav-right">
       <button class="nav-link active">Log</button>
       <button class="nav-btn" onclick="goTo('dash')">Dashboard →</button>
+      <button class="nav-btn" onclick="goTo('league')" style="border-color:var(--border)">League</button>
     </div>
   </nav>
   <div class="log-hero">
     <div class="log-tag">Now Recording</div>
     <h1 class="log-title">DAILY<br><em>ENTRY</em></h1>
-    <p class="log-sub">Select a skill, pick a date, enter your amount — sent directly to the sheet</p>
+    <p class="log-sub">Select a skill, enter your amount — saved to your personal sheet</p>
   </div>
   <div class="log-body">
+    <div class="log-player-bar">
+      <span class="log-player-icon">👤</span>
+      <span class="log-player-name" id="log-player-name">—</span>
+      <span class="log-player-label">Signed in</span>
+    </div>
     <div class="sec-label">Date</div>
     <div class="date-row">
       <input type="date" id="l-date">
@@ -520,7 +497,8 @@ nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-co
 </div>
 
 <script>
-/* LOG PAGE JS */
+/* LOG JS */
+function setLogPlayerName(){document.getElementById("log-player-name").textContent=SESSION.name||"—";}
 function setStatus(msg,type){var el=document.getElementById("log-status");el.textContent=msg;el.className="log-status"+(type?" "+type:"");el.style.border=msg?"":"none";}
 function setToday(){document.getElementById("l-date").value=cairoToday();}
 function updateUnit(){document.getElementById("unit-hint").textContent=UNIT_HINTS[document.getElementById("l-skill").value]||"";}
@@ -532,98 +510,93 @@ async function logSave(){
   if(!skill){setStatus("Please select a skill.","err");return;}
   if(amount<=0){setStatus("Amount must be > 0.","err");return;}
   var btn=document.getElementById("log-save-btn");btn.disabled=true;setStatus("Saving…","busy");
-  var params=new URLSearchParams({action:"save",date:date,skill:skill,amount:amount});
+  var params=new URLSearchParams({action:"save",name:SESSION.name,date:date,skill:skill,amount:amount});
   try{
     await fetch(API_URL+"?"+params.toString(),{method:"GET",mode:"no-cors"});
     setStatus("✅  "+skill.replace(/_/g," ")+" — "+amount+" saved","ok");
-    document.getElementById("l-amount").value="";
-    document.getElementById("l-amount").focus();
+    document.getElementById("l-amount").value="";document.getElementById("l-amount").focus();
   }catch(e){setStatus("❌ Error — check connection.","err");}
   finally{btn.disabled=false;}
 }
 function logClear(){document.getElementById("l-amount").value="";setStatus("","");document.getElementById("l-amount").focus();}
-document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))if(currentPage==="log")logSave();});
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════
      COMPONENT: DASHBOARD PAGE
-     (CSS + HTML + JS together)
-════════════════════════════════════════════════════════════ -->
+     CSS + HTML + JS
+══════════════════════════════════════════ -->
 <style>
 /* DASHBOARD CSS */
-.dash-hero{padding:38px 32px 22px;text-align:center;background:radial-gradient(ellipse 60% 45% at 50% 120%,rgba(167,118,147,0.18),transparent 60%)}
-.dash-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
-.dash-title{font-family:var(--f-title);font-size:clamp(24px,4.5vw,48px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff}
+.dash-hero{padding:34px 28px 20px;text-align:center;background:radial-gradient(ellipse 60% 45% at 50% 120%,rgba(167,118,147,0.18),transparent 60%)}
+.dash-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.dash-title{font-family:var(--f-title);font-size:clamp(22px,4.5vw,46px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff}
 .dash-title em{font-style:normal;color:var(--mauve-hi)}
-/* Rank block */
-.rank-block{max-width:820px;margin:22px auto 0;padding:0 28px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-.rank-badge-wrap{width:60px;height:60px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);
-  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rank-block{max-width:800px;margin:20px auto 0;padding:0 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.rank-badge-wrap{width:56px;height:56px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .rank-info{flex:1}
-.rank-name{font-family:var(--f-title);font-size:22px;font-weight:700;line-height:1;color:#fff}
-.rank-xp{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:4px}
-.rank-bar-wrap{min-width:210px;flex:1;max-width:330px}
-.rank-bar-labels{display:flex;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-bottom:5px}
+.rank-name{font-family:var(--f-title);font-size:20px;font-weight:700;line-height:1;color:#fff}
+.rank-xp{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:3px}
+.rank-bar-wrap{min-width:200px;flex:1;max-width:320px}
+.rank-bar-labels{display:flex;justify-content:space-between;font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-bottom:4px}
 .rank-track{height:6px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
 .rank-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width 1.2s cubic-bezier(.16,1,.3,1);box-shadow:0 0 10px rgba(167,118,147,0.5)}
-.rank-remain{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-top:5px;text-align:right}
+.rank-remain{font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-top:4px;text-align:right}
 .rank-remain strong{color:#fff}
-/* Dashboard body */
-.dash-body{max-width:940px;margin:0 auto;padding:26px 28px 90px}
-/* Quest grid */
-.quest-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:28px}
-.quest-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 10px;transition:border-color .2s}
+.dash-body{max-width:920px;margin:0 auto;padding:22px 24px 90px}
+.quest-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:26px}
+.quest-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 9px;transition:border-color .2s}
 .quest-card.done{border-color:var(--border2);background:rgba(167,118,147,0.1)}
 .q-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
 .q-icon{display:flex;align-items:center;color:rgba(222,209,198,0.35)}
 .quest-card.done .q-icon{color:var(--mauve-hi)}
 .q-check{font-size:12px}
-.q-name{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.45);margin-bottom:4px}
+.q-name{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.45);margin-bottom:3px}
 .quest-card.done .q-name{color:var(--mauve-hi)}
-.q-nums{font-size:12px;font-weight:500;color:var(--text3);margin-bottom:6px;line-height:1.4}
+.q-nums{font-size:12px;font-weight:500;color:var(--text3);margin-bottom:5px;line-height:1.4}
 .q-bar{height:3px;background:rgba(167,118,147,0.1);border-radius:100px;overflow:hidden}
 .q-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width .9s}
 .quest-card.done .q-fill{box-shadow:0 0 5px rgba(167,118,147,0.4)}
-/* Skill grid */
-.skill-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:28px}
-.skill-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;
-  padding:14px 13px;transition:all .22s;cursor:pointer;position:relative}
+.skill-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:26px}
+.skill-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 12px;transition:all .22s;cursor:pointer;position:relative}
 .skill-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:0 10px 28px rgba(167,118,147,0.14)}
-.skill-card::after{content:'›';position:absolute;top:12px;right:12px;font-size:16px;color:rgba(167,118,147,0.3);transition:color .2s}
+.skill-card::after{content:'›';position:absolute;top:12px;right:12px;font-size:15px;color:rgba(167,118,147,0.3);transition:color .2s}
 .skill-card:hover::after{color:var(--mauve-hi)}
-.sk-top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sk-top{display:flex;align-items:center;gap:7px;margin-bottom:9px}
 .sk-svg{display:flex;align-items:center;color:rgba(222,209,198,0.4);flex-shrink:0;transition:color .2s}
 .skill-card:hover .sk-svg{color:var(--mauve-hi)}
-.sk-name{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.65);flex:1;line-height:1.3}
+.sk-name{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.65);flex:1;line-height:1.3}
 .sk-badge{display:flex;align-items:center;flex-shrink:0}
-.sk-total{font-size:21px;font-weight:800;color:#fff;margin-bottom:1px;line-height:1}
-.sk-unit{font-size:9px;font-weight:500;color:var(--dim);letter-spacing:.5px;margin-bottom:8px}
-.sk-streak-big{font-size:26px;font-weight:800;color:#fff;line-height:1;margin-bottom:2px}
-.sk-streak-lbl{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-bottom:7px}
-.sk-done-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:5px;margin-bottom:8px}
+.sk-total{font-size:20px;font-weight:800;color:#fff;margin-bottom:1px;line-height:1}
+.sk-unit{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-bottom:8px}
+.sk-streak-big{font-size:24px;font-weight:800;color:#fff;line-height:1;margin-bottom:2px}
+.sk-streak-lbl{font-size:9px;color:var(--dim);margin-bottom:7px}
+.sk-done-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 7px;border-radius:5px;margin-bottom:7px}
 .sk-done-yes{background:rgba(167,118,147,0.2);color:var(--mauve-hi);border:1px solid var(--border2)}
 .sk-done-no{background:rgba(255,255,255,0.04);color:var(--dim);border:1px solid var(--border)}
-.sk-bar-lbl{display:flex;justify-content:space-between;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.sk-bar-lbl{display:flex;justify-content:space-between;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
 .sk-track{height:4px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
-.sk-fill{height:100%;border-radius:100px;transition:width 1s;box-shadow:0 0 8px rgba(167,118,147,0.4)}
-.sk-next{font-size:9px;font-weight:500;color:var(--dim);margin-top:5px}
+.sk-fill{height:100%;border-radius:100px;transition:width 1s;box-shadow:0 0 8px rgba(167,118,147,0.35)}
+.sk-next{font-size:9px;color:var(--dim);margin-top:5px}
 .sk-next strong{color:var(--beige)}
-/* Rank road */
-.rank-road{display:flex;gap:3px;overflow-x:auto;padding-bottom:8px;margin-bottom:28px}
+.rank-road{display:flex;gap:3px;overflow-x:auto;padding-bottom:7px;margin-bottom:26px}
 .rank-road::-webkit-scrollbar{height:3px}
-.tier-col{display:flex;flex-direction:column;min-width:88px;flex:1}
-.tier-head{padding:6px 4px 5px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-align:center;
-  border-radius:5px 5px 0 0;border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:4px}
+.tier-col{display:flex;flex-direction:column;min-width:86px;flex:1}
+.tier-head{padding:5px 3px 4px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-align:center;border-radius:5px 5px 0 0;border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:3px}
 .tier-subs{display:flex;flex-direction:column-reverse;gap:2px;padding:2px}
-.tier-sub{padding:5px 3px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.5px;text-align:center;
-  color:rgba(222,209,198,0.4);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);transition:all .2s}
+.tier-sub{padding:4px 3px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:.5px;text-align:center;color:rgba(222,209,198,0.4);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s}
 .tier-sub.current{border-color:var(--border2);animation:tierPulse 2.5s ease infinite}
 .tier-sub.passed{opacity:.6}
 @keyframes tierPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px currentColor}}
-/* Error */
-.dash-error{text-align:center;padding:50px 28px;color:var(--dim);font-size:14px;line-height:2;display:none}
+.dash-error{text-align:center;padding:44px 24px;color:var(--dim);font-size:14px;line-height:2;display:none}
 .dash-error.show{display:block}
-.dash-error strong{color:var(--beige);display:block;font-size:17px;margin-bottom:8px}
+.dash-error strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
+@media(max-width:750px){
+  .quest-grid{grid-template-columns:repeat(3,1fr)}
+  .skill-grid{grid-template-columns:repeat(2,1fr)}
+  .rank-block{padding:0 14px}
+  .dash-body{padding:20px 14px 90px}
+}
+@media(max-width:480px){.quest-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 
 <div id="page-dash" class="page hidden">
@@ -632,25 +605,20 @@ document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||
     <div class="nav-right">
       <button class="nav-link" onclick="goTo('log')">← Log</button>
       <button class="nav-link active">Dashboard</button>
-      <button class="btn-icon-nav" id="btn-refresh" onclick="fetchAndRender()" title="Refresh from sheet">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          <path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+      <button class="nav-link" onclick="goTo('league')">League</button>
+      <button class="btn-icon-nav" id="btn-refresh" onclick="fetchPlayerData()" title="Refresh from sheet">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
   </nav>
-  <div class="loading-overlay" id="dash-loading"><div class="spin-ring"></div><div class="spin-label">Fetching from sheet…</div></div>
+  <div class="loading-overlay" id="dash-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching your data…</div></div>
   <div class="dash-hero">
     <div class="dash-tag">Language Conqueror System</div>
-    <h1 class="dash-title">YOUR<br><em>PROGRESS</em></h1>
+    <h1 class="dash-title">YOUR PROGRESS,<br><em id="dash-player-name">—</em></h1>
   </div>
   <div class="rank-block">
     <div class="rank-badge-wrap" id="rank-badge-svg"></div>
-    <div class="rank-info">
-      <div class="rank-name" id="rank-name">—</div>
-      <div class="rank-xp" id="rank-xp">0 XP Total</div>
-    </div>
+    <div class="rank-info"><div class="rank-name" id="rank-name">—</div><div class="rank-xp" id="rank-xp">0 XP Total</div></div>
     <div class="rank-bar-wrap">
       <div class="rank-bar-labels"><span id="rb-from">—</span><span id="rb-to">—</span></div>
       <div class="rank-track"><div class="rank-fill" id="rank-fill" style="width:0%"></div></div>
@@ -658,21 +626,13 @@ document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||
     </div>
   </div>
   <div class="dash-body">
-    <div class="dash-error" id="dash-error">
-      <strong>Could not load data</strong>Make sure the Apps Script is deployed as <em>Anyone can access</em> using the <em>/exec</em> URL, then press ↺
-    </div>
+    <div class="dash-error" id="dash-error"><strong>Could not load data</strong>Press ↺ to retry.</div>
     <div id="dash-content" style="display:none">
       <div class="sec-label">Today's Quests</div>
       <div class="quest-grid" id="quest-grid"></div>
-      <div class="sec-label">
-        Skill Overview
-        <button class="info-btn" onclick="openInfoModal()" title="Point system">i</button>
-      </div>
+      <div class="sec-label">Skill Overview <button class="info-btn" onclick="openInfoModal()" title="Point system">i</button></div>
       <div class="skill-grid" id="skill-grid"></div>
-      <div class="sec-label">
-        Rank Progression
-        <button class="info-btn" onclick="openRankModal()" title="Rank XP requirements">i</button>
-      </div>
+      <div class="sec-label">Rank Progression <button class="info-btn" onclick="openRankModal()" title="Rank XP">i</button></div>
       <div class="rank-road" id="rank-road"></div>
     </div>
   </div>
@@ -680,7 +640,21 @@ document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||
 
 <script>
 /* DASHBOARD JS */
-function renderAll(rows){
+async function fetchPlayerData(){
+  var btn=document.getElementById("btn-refresh"),loading=document.getElementById("dash-loading");
+  btn.classList.add("spinning");loading.classList.add("show");
+  try{
+    var res=await fetch(API_URL+"?action=fetch&name="+encodeURIComponent(SESSION.name),{method:"GET",mode:"cors"});
+    var data=await res.json();
+    if(Array.isArray(data)){saveCache(data);renderDashboard(data);}else throw new Error("bad response");
+  }catch(e){
+    if(cachedData.length>0)renderDashboard(cachedData);
+    else{document.getElementById("dash-error").classList.add("show");document.getElementById("dash-content").style.display="none";}
+  }finally{btn.classList.remove("spinning");loading.classList.remove("show");}
+}
+
+function renderDashboard(rows){
+  document.getElementById("dash-player-name").textContent=SESSION.name;
   var totals=computeTotals(rows),xp=getTotalXP(totals),todS=cairoToday();
   renderRankHero(xp);renderQuests(totals,todS);renderSkillCards(totals,todS);renderRankRoad(xp);
   document.getElementById("dash-content").style.display="block";
@@ -690,9 +664,8 @@ function renderAll(rows){
 function renderRankHero(xp){
   var i=getOverallRankIdx(xp),cur=OVERALL_LEVELS[i],nxt=OVERALL_LEVELS[i+1];
   var pct=nxt?Math.min(Math.round((xp-cur.startXP)/(nxt.startXP-cur.startXP)*100),100):100;
-  // Parse tier + sub from label
   var parts=cur.label.split(" "),tier=parts[0],sub=parts.slice(1).join(" ")||"";
-  document.getElementById("rank-badge-svg").innerHTML=rankBadgeSVG(tier,sub,52);
+  document.getElementById("rank-badge-svg").innerHTML=rankBadgeSVG(tier,sub,48);
   document.getElementById("rank-name").textContent=cur.label;
   document.getElementById("rank-xp").textContent=xp.toLocaleString()+" XP Total";
   document.getElementById("rb-from").textContent=cur.label;
@@ -707,14 +680,8 @@ function renderQuests(totals,todS){
   SKILLS.forEach(function(s){
     var t=totals[s.key]||{today:0,byDay:{}};
     var done,pct,nums;
-    if(s.key==="typing_score"){
-      done=t.today>0;pct=done?100:0;
-      var stk=calcStreak(t.byDay,1,todS);
-      nums=(done?"Done":"—")+(stk>0?" 🔥"+stk+"d":"");
-    }else{
-      done=t.today>=s.goal;pct=Math.min(Math.round(t.today/s.goal*100),100);
-      nums=s.unit==="min"?fmtMin(t.today)+" / "+fmtMin(s.goal):t.today+" / "+s.goal+" "+s.unit;
-    }
+    if(s.key==="typing_score"){done=t.today>0;pct=done?100:0;var stk=calcStreak(t.byDay,1,todS);nums=(done?"Done":"—")+(stk>0?" 🔥"+stk+"d":"");}
+    else{done=t.today>=s.goal;pct=Math.min(Math.round(t.today/s.goal*100),100);nums=s.unit==="min"?fmtMin(t.today)+" / "+fmtMin(s.goal):t.today+" / "+s.goal+" "+s.unit;}
     var d=document.createElement("div");d.className="quest-card"+(done?" done":"");
     d.innerHTML="<div class='q-top'><span class='q-icon'>"+skillSVG(s.key,15)+"</span><span class='q-check'>"+(done?"✅":"○")+"</span></div>"+
       "<div class='q-name'>"+s.name+"</div><div class='q-nums'>"+nums+"</div>"+
@@ -731,23 +698,20 @@ function renderSkillCards(totals,todS){
     d.onclick=(function(k){return function(){openSkillDetail(k);};})(s.key);
     if(s.key==="typing_score"){
       var stk=calcStreak(t.byDay,1,todS),doneT=t.today>0;
-      d.innerHTML="<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,18)+"</span><span class='sk-name'>"+s.name+"</span></div>"+
+      d.innerHTML="<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,17)+"</span><span class='sk-name'>"+s.name+"</span></div>"+
         "<div class='sk-streak-big'>"+stk+"</div><div class='sk-streak-lbl'>day streak</div>"+
         "<div class='sk-done-badge "+(doneT?"sk-done-yes":"sk-done-no")+"'>"+(doneT?"Done Today":"Not Yet")+"</div>"+
         "<div class='sk-bar-lbl'><span>Consistency</span><span>"+Math.min(stk,30)+" / 30d</span></div>"+
         "<div class='sk-track'><div class='sk-fill' style='width:"+Math.min(Math.round(stk/30*100),100)+"%;background:var(--mauve-hi)'></div></div>"+
         "<div class='sk-next'>Practice every day</div>";
     }else{
-      var norm=t.all/s.goal; // normalized days
-      var si=getSkillRankIdx(norm),sr=SKILL_LEVELS[si],snxt=SKILL_LEVELS[Math.min(si+1,SKILL_LEVELS.length-1)];
+      var norm=t.all/s.goal,si=getSkillRankIdx(norm),sr=SKILL_LEVELS[si],snxt=SKILL_LEVELS[Math.min(si+1,SKILL_LEVELS.length-1)];
       var pct=(snxt&&snxt!==sr)?Math.min(Math.round((norm-sr.d)/(snxt.d-sr.d)*100),100):100;
       var rem=(snxt&&snxt!==sr)?Math.max(0,Math.round((snxt.d-norm)*s.goal)).toLocaleString():0;
       var stk=calcStreak(t.byDay,s.goal,todS),stkT=stk>=3?"🔥"+stk+"d":stk>0?stk+"d":"";
       var tot=s.unit==="min"?fmtMin(t.all):t.all.toLocaleString();
-      // Parse tier+sub for badge
       var lparts=sr.label.split(" "),ltier=lparts[0],lsub=lparts.slice(1).join(" ")||"";
-      d.innerHTML="<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,18)+"</span><span class='sk-name'>"+s.name+"</span>"+
-        "<span class='sk-badge'>"+rankBadgeSVG(ltier,lsub,22)+"</span></div>"+
+      d.innerHTML="<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,17)+"</span><span class='sk-name'>"+s.name+"</span><span class='sk-badge'>"+rankBadgeSVG(ltier,lsub,20)+"</span></div>"+
         "<div class='sk-total'>"+tot+"</div><div class='sk-unit'>"+s.unit+" total "+(stkT?"&nbsp;"+stkT:"")+"</div>"+
         "<div class='sk-bar-lbl'><span>"+sr.label+"</span><span>"+pct+"%</span></div>"+
         "<div class='sk-track'><div class='sk-fill' style='width:"+pct+"%;background:linear-gradient(90deg,"+sr.col+"88,"+sr.col+")'></div></div>"+
@@ -765,14 +729,12 @@ function renderRankRoad(xp){
     var col=document.createElement("div");col.className="tier-col";
     var h=document.createElement("div");h.className="tier-head";
     h.style.cssText="color:"+r.col+";border-bottom-color:"+r.col+"66;background:"+r.col+"18";
-    h.innerHTML=rankBadgeSVG(r.tier,"V",13)+"<span>"+r.tier+"</span>";
-    col.appendChild(h);
+    h.innerHTML=rankBadgeSVG(r.tier,"V",12)+"<span>"+r.tier+"</span>";col.appendChild(h);
     var subs=document.createElement("div");subs.className="tier-subs";
     r.subs.forEach(function(s){
       var label=s?r.tier+" "+s:r.tier;
       var li=OVERALL_LEVELS.findIndex(function(l){return l.label===label;});
-      var sub=document.createElement("div");
-      sub.className="tier-sub"+(li===ci?" current":li<ci?" passed":"");
+      var sub=document.createElement("div");sub.className="tier-sub"+(li===ci?" current":li<ci?" passed":"");
       sub.textContent=label;
       if(li===ci){sub.style.color=r.col;sub.style.borderColor=r.col+"88";sub.style.background=r.col+"22";}
       if(li<ci){sub.style.color=r.col+"88";}
@@ -783,45 +745,39 @@ function renderRankRoad(xp){
 }
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════
      COMPONENT: SKILL DETAIL PAGE
-     (CSS + HTML + JS together)
-════════════════════════════════════════════════════════════ -->
+     CSS + HTML + JS (week starts Saturday)
+══════════════════════════════════════════ -->
 <style>
 /* SKILL DETAIL CSS */
 #page-skill{background:var(--bg)}
-.sd-hero{padding:32px 28px 26px;background:var(--grad-hero);border-bottom:1px solid var(--border)}
-.sd-hero-inner{max-width:700px;margin:0 auto;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-/* Left: large rank badge */
-.sd-rank-badge-big{flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  width:90px;height:90px;border-radius:18px;border:1px solid var(--border2);background:rgba(255,255,255,0.05)}
-/* Right: skill info */
+.sd-hero{padding:28px 24px;background:var(--grad-hero);border-bottom:1px solid var(--border)}
+.sd-hero-inner{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.sd-rank-badge-big{flex-shrink:0;width:88px;height:88px;border-radius:18px;border:1px solid var(--border2);background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center}
 .sd-right{flex:1;display:flex;flex-direction:column;gap:6px}
 .sd-skill-icon-row{display:flex;align-items:center;gap:10px}
 .sd-skill-icon{display:flex;align-items:center;color:var(--mauve-hi)}
-.sd-skill-name{font-family:var(--f-title);font-size:26px;font-weight:700;color:#fff}
+.sd-skill-name{font-family:var(--f-title);font-size:25px;font-weight:700;color:#fff}
 .sd-rank-label{font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
 .sd-total-row{font-size:14px;color:var(--text3)}
 .sd-total-row strong{color:#fff;font-size:20px;font-weight:800}
-.sd-body{max-width:700px;margin:0 auto;padding:28px 24px 90px}
-/* Streak */
-.streak-section{margin-bottom:22px;padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.sd-body{max-width:680px;margin:0 auto;padding:24px 22px 90px}
+.streak-section{margin-bottom:20px;padding:17px 19px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
 .streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .streak-lbl{font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
 .streak-count{display:flex;align-items:baseline;gap:5px}
-.streak-num{font-family:var(--f-title);font-size:28px;font-weight:700;color:#fff}
+.streak-num{font-family:var(--f-title);font-size:26px;font-weight:700;color:#fff}
 .streak-unit{font-size:12px;font-weight:600;letter-spacing:1px;color:var(--dim)}
 .streak-track-wrap{position:relative;height:12px;background:rgba(255,255,255,0.05);border-radius:100px;overflow:visible}
 .streak-fill{height:12px;border-radius:100px;background:var(--grad-bar);transition:width 1.2s cubic-bezier(.16,1,.3,1);position:relative;min-width:6px;box-shadow:0 0 14px rgba(167,118,147,0.6)}
-.streak-flame{position:absolute;right:-10px;top:-14px;font-size:24px;line-height:1;filter:drop-shadow(0 0 8px rgba(255,140,50,.7))}
+.streak-flame{position:absolute;right:-10px;top:-14px;font-size:22px;line-height:1;filter:drop-shadow(0 0 8px rgba(255,140,50,.7))}
 .streak-miles{display:flex;justify-content:space-between;margin-top:9px;font-size:10px;font-weight:600;letter-spacing:1px;color:var(--dim)}
-/* Chart */
-.chart-section{margin-bottom:22px;padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.chart-section{margin-bottom:20px;padding:17px 19px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
 .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .chart-title{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
 .chart-tabs{display:flex;gap:4px}
-.chart-tab{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;
-  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);transition:all .2s}
+.chart-tab{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);transition:all .2s}
 .chart-tab.active{background:rgba(167,118,147,0.18);border-color:var(--border2);color:#fff}
 .chart-tab:hover:not(.active){border-color:var(--border2);color:var(--text3)}
 .chart-wrapper{position:relative;height:180px;overflow:hidden}
@@ -831,23 +787,20 @@ function renderRankRoad(xp){
 .bar-group{display:inline-flex;gap:5px;align-items:flex-end;height:100%;padding:22px 6px 26px;position:relative;min-width:100%}
 .bar-item{display:flex;flex-direction:column;align-items:center;min-width:26px;height:100%;justify-content:flex-end}
 .bar-val{font-size:9px;font-weight:700;color:var(--text3);margin-bottom:3px;white-space:nowrap;text-align:center;line-height:1}
-.bar-col{width:16px;border-radius:4px 4px 0 0;flex-shrink:0;min-height:3px;transition:height .5s cubic-bezier(.16,1,.3,1)}
+.bar-col{width:16px;border-radius:4px 4px 0 0;min-height:3px;transition:height .5s cubic-bezier(.16,1,.3,1)}
 .bar-lbl{font-size:8px;font-weight:600;color:var(--dim);letter-spacing:.5px;margin-top:5px;white-space:nowrap}
 .goal-line{position:absolute;left:0;right:0;border-top:1.5px dashed rgba(196,144,174,0.5);pointer-events:none;z-index:2}
 .goal-line-lbl{position:absolute;right:4px;top:-16px;font-size:8px;font-weight:700;letter-spacing:1px;color:var(--mauve-hi)}
 .chart-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:13px;font-weight:500;color:var(--dim);letter-spacing:1px}
-/* Calendar */
-.cal-section{padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
-.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-section{padding:17px 19px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
 .cal-title{font-family:var(--f-title);font-size:16px;font-weight:700;color:#fff}
 .cal-nav-btns{display:flex;gap:6px}
-.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:4px 12px;color:var(--text3);font-size:16px;line-height:1;transition:all .2s}
+.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:4px 11px;color:var(--text3);font-size:15px;line-height:1;transition:all .2s}
 .cal-nav-btn:hover{border-color:var(--border2);color:#fff}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.cal-head{text-align:center;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);padding-bottom:8px}
-.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  border-radius:7px;font-size:11px;font-weight:600;color:rgba(222,209,198,0.35);
-  background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s;gap:1px;padding:2px 1px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-head{text-align:center;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);padding-bottom:7px}
+.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;font-size:11px;font-weight:600;color:rgba(222,209,198,0.35);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s;gap:1px;padding:2px 1px}
 .cal-cell.empty{background:none;border:none}
 .cal-cell.cal-today{border-color:rgba(167,118,147,0.5);color:var(--beige)}
 .cal-cell.cal-met{background:rgba(167,118,147,0.5);border-color:var(--mauve-hi);color:#fff;font-weight:800;box-shadow:0 0 10px rgba(167,118,147,0.4)}
@@ -858,6 +811,7 @@ function renderRankRoad(xp){
 .cal-legend{display:flex;gap:14px;margin-top:10px;justify-content:flex-end}
 .cal-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:500;color:var(--dim)}
 .cal-legend-dot{width:9px;height:9px;border-radius:3px}
+@media(max-width:750px){.sd-hero-inner{flex-direction:column;text-align:center}.sd-rank-badge-big{margin:0 auto}.sd-body{padding:20px 14px 90px}}
 </style>
 
 <div id="page-skill" class="page hidden">
@@ -867,14 +821,9 @@ function renderRankRoad(xp){
   </nav>
   <div class="sd-hero">
     <div class="sd-hero-inner">
-      <!-- LEFT: large rank badge -->
       <div class="sd-rank-badge-big" id="sd-rank-badge-big"></div>
-      <!-- RIGHT: skill info -->
       <div class="sd-right">
-        <div class="sd-skill-icon-row">
-          <div class="sd-skill-icon" id="sd-skill-icon"></div>
-          <div class="sd-skill-name" id="sd-name">—</div>
-        </div>
+        <div class="sd-skill-icon-row"><div class="sd-skill-icon" id="sd-skill-icon"></div><div class="sd-skill-name" id="sd-name">—</div></div>
         <div class="sd-rank-label" id="sd-rank-label">—</div>
         <div class="sd-total-row" id="sd-total-row">—</div>
       </div>
@@ -882,13 +831,8 @@ function renderRankRoad(xp){
   </div>
   <div class="sd-body">
     <div class="streak-section">
-      <div class="streak-meta">
-        <div class="streak-lbl">🔥 Streak</div>
-        <div class="streak-count"><span class="streak-num" id="sd-streak-n">0</span><span class="streak-unit">days</span></div>
-      </div>
-      <div class="streak-track-wrap">
-        <div class="streak-fill" id="sd-streak-fill" style="width:0%"><span class="streak-flame">🔥</span></div>
-      </div>
+      <div class="streak-meta"><div class="streak-lbl">🔥 Streak</div><div class="streak-count"><span class="streak-num" id="sd-streak-n">0</span><span class="streak-unit">days</span></div></div>
+      <div class="streak-track-wrap"><div class="streak-fill" id="sd-streak-fill" style="width:0%"><span class="streak-flame">🔥</span></div></div>
       <div class="streak-miles" id="sd-streak-miles"></div>
     </div>
     <div class="chart-section">
@@ -901,18 +845,10 @@ function renderRankRoad(xp){
           <button class="chart-tab" onclick="setChartRange('year')">Year</button>
         </div>
       </div>
-      <div class="chart-wrapper" id="chart-wrapper">
-        <div class="chart-scroll" id="chart-scroll"><div class="chart-empty">No data yet</div></div>
-      </div>
+      <div class="chart-wrapper" id="chart-wrapper"><div class="chart-scroll" id="chart-scroll"><div class="chart-empty">No data yet</div></div></div>
     </div>
     <div class="cal-section">
-      <div class="cal-header">
-        <div class="cal-title" id="cal-month-lbl">—</div>
-        <div class="cal-nav-btns">
-          <button class="cal-nav-btn" onclick="shiftCal(-1)">‹</button>
-          <button class="cal-nav-btn" onclick="shiftCal(1)">›</button>
-        </div>
-      </div>
+      <div class="cal-header"><div class="cal-title" id="cal-month-lbl">—</div><div class="cal-nav-btns"><button class="cal-nav-btn" onclick="shiftCal(-1)">‹</button><button class="cal-nav-btn" onclick="shiftCal(1)">›</button></div></div>
       <div class="cal-grid" id="cal-grid"></div>
       <div class="cal-legend">
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(167,118,147,.5);border:1px solid var(--mauve-hi)"></div>Goal met</div>
@@ -934,46 +870,33 @@ function openSkillDetail(key){
 function renderSkillDetail(){
   if(!detailKey)return;
   var skill=SKILLS.find(function(s){return s.key===detailKey;});
-  var totals=computeTotals(cachedData);
-  var t=totals[detailKey]||{all:0,today:0,byDay:{}};
+  var totals=computeTotals(cachedData),t=totals[detailKey]||{all:0,today:0,byDay:{}};
   var todS=cairoToday(),isTyping=detailKey==="typing_score";
-
-  // Hero: left=rank badge, right=skill info
   if(isTyping){
-    document.getElementById("sd-rank-badge-big").innerHTML=rankBadgeSVG("Bronze","V",72);
-    document.getElementById("sd-skill-icon").innerHTML=skillSVG(detailKey,28);
+    document.getElementById("sd-rank-badge-big").innerHTML=rankBadgeSVG("Bronze","V",70);
+    document.getElementById("sd-skill-icon").innerHTML=skillSVG(detailKey,26);
     document.getElementById("sd-name").textContent=skill.name;
     document.getElementById("sd-rank-label").textContent="Consistency Tracker";
     document.getElementById("sd-rank-label").style.color="var(--beige)";
     document.getElementById("sd-total-row").innerHTML='Sessions: <strong>'+t.all+'</strong>';
   }else{
-    var norm=t.all/skill.goal;
-    var si=getSkillRankIdx(norm),sr=SKILL_LEVELS[si];
+    var norm=t.all/skill.goal,si=getSkillRankIdx(norm),sr=SKILL_LEVELS[si];
     var lparts=sr.label.split(" "),ltier=lparts[0],lsub=lparts.slice(1).join(" ")||"";
-    document.getElementById("sd-rank-badge-big").innerHTML=rankBadgeSVG(ltier,lsub,72);
-    document.getElementById("sd-skill-icon").innerHTML=skillSVG(detailKey,28);
+    document.getElementById("sd-rank-badge-big").innerHTML=rankBadgeSVG(ltier,lsub,70);
+    document.getElementById("sd-skill-icon").innerHTML=skillSVG(detailKey,26);
     document.getElementById("sd-name").textContent=skill.name;
     document.getElementById("sd-rank-label").textContent=sr.label;
     document.getElementById("sd-rank-label").style.color=sr.col;
     var tot=skill.unit==="min"?fmtMin(t.all):t.all.toLocaleString()+" "+skill.unit;
     document.getElementById("sd-total-row").innerHTML='Total: <strong>'+tot+'</strong>';
   }
-
-  // Streak (infinite: milestone = next block of 30)
-  var sg=isTyping?1:skill.goal;
-  var stk=calcStreak(t.byDay,sg,todS);
-  var maxS=Math.max(30,Math.ceil((stk+1)/30)*30);
-  var pct=Math.min(stk/maxS*100,100);
+  var sg=isTyping?1:skill.goal,stk=calcStreak(t.byDay,sg,todS);
+  var maxS=Math.max(30,Math.ceil((stk+1)/30)*30),pct=Math.min(stk/maxS*100,100);
   document.getElementById("sd-streak-n").textContent=stk;
-  var ms=document.getElementById("sd-streak-miles");
-  ms.innerHTML="<span>0</span><span>"+Math.round(maxS/4)+"d</span><span>"+Math.round(maxS/2)+"d</span><span>"+Math.round(maxS*3/4)+"d</span><span>"+maxS+"d</span>";
+  document.getElementById("sd-streak-miles").innerHTML="<span>0</span><span>"+Math.round(maxS/4)+"d</span><span>"+Math.round(maxS/2)+"d</span><span>"+Math.round(maxS*3/4)+"d</span><span>"+maxS+"d</span>";
   setTimeout(function(){document.getElementById("sd-streak-fill").style.width=pct+"%";},80);
-
-  // Chart
   document.querySelectorAll(".chart-tab").forEach(function(b,i){b.classList.toggle("active",["day","week","month","year"][i]===detailRange);});
   renderChart(detailKey,detailRange);
-
-  // Calendar
   renderCalendar(detailKey,detailCalY,detailCalM,t.byDay,sg,skill.unit);
 }
 
@@ -984,22 +907,28 @@ function setChartRange(range){
 }
 
 function groupData(key,range){
-  var filt=cachedData.filter(function(r){return r.skill===key;});
-  var now=getCairoNow();
+  var filt=cachedData.filter(function(r){return r.skill===key;}),now=getCairoNow();
   if(range==="day"){
     var out=[];
-    for(var i=59;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);var ds=dateKey(d),v=0;filt.forEach(function(r){if(normDate(r.date)===ds)v+=Number(r.amount)||0;});out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v,ds:ds});}
+    for(var i=59;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);var ds=dateKey(d),v=0;filt.forEach(function(r){if(normDate(r.date)===ds)v+=Number(r.amount)||0;});out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v});}
     return out;
   }
   if(range==="week"){
     var out=[];
-    for(var i=25;i>=0;i--){var ws=new Date(now),dy=ws.getDay();ws.setDate(ws.getDate()-(dy===0?6:dy-1)-i*7);ws.setHours(0,0,0,0);var we=new Date(ws);we.setDate(we.getDate()+6);var v=0;filt.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;});var wn=Math.ceil((ws-new Date(ws.getFullYear(),0,1))/604800000)+1;out.push({label:"W"+wn,value:v});}
-    return out;
+    for(var i=25;i>=0;i--){
+      // Week starts Saturday
+      var now2=new Date(now);var dy=now2.getDay();var diff=(dy+1)%7;
+      now2.setDate(now2.getDate()-diff-i*7);now2.setHours(0,0,0,0);
+      var ws=new Date(now2);var we=new Date(ws);we.setDate(we.getDate()+6);we.setHours(23,59,59);
+      var v=0;filt.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;});
+      // Week number (Sat-based approximate)
+      var wr=Math.ceil((ws.getTime()-new Date(ws.getFullYear(),0,1).getTime())/604800000)+1;
+      out.push({label:"W"+wr,value:v});
+    }return out;
   }
   if(range==="month"){
     var out=[],mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    for(var i=17;i>=0;i--){var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime(),me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime(),v=0;filt.forEach(function(r){var t2=new Date(normDate(r.date)+"T12:00:00").getTime();if(t2>=ms&&t2<=me)v+=Number(r.amount)||0;});var dm=new Date(ms);out.push({label:mn[dm.getMonth()],value:v});}
-    return out;
+    for(var i=17;i>=0;i--){var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime(),me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime(),v=0;filt.forEach(function(r){var t2=new Date(normDate(r.date)+"T12:00:00").getTime();if(t2>=ms&&t2<=me)v+=Number(r.amount)||0;});var dm=new Date(ms);out.push({label:mn[dm.getMonth()],value:v});}return out;
   }
   if(range==="year"){
     var map={};filt.forEach(function(r){var y=(normDate(r.date)||"").split("-")[0];if(y)map[y]=(map[y]||0)+(Number(r.amount)||0);});
@@ -1009,13 +938,11 @@ function groupData(key,range){
 }
 
 function renderChart(key,range){
-  var data=groupData(key,range);
-  var scroll=document.getElementById("chart-scroll"),wrapper=document.getElementById("chart-wrapper");
+  var data=groupData(key,range),scroll=document.getElementById("chart-scroll"),wrapper=document.getElementById("chart-wrapper");
   Array.from(wrapper.querySelectorAll(".goal-line")).forEach(function(e){e.remove();});
   if(!data||data.every(function(d){return d.value===0;})){scroll.innerHTML='<div class="chart-empty">No data yet</div>';return;}
-  var skill=SKILLS.find(function(s){return s.key===key;}),goal=skill.goal||0;
-  var maxV=Math.max.apply(null,data.map(function(d){return d.value;}).concat([goal||1,1]));
-  var chartH=120,isMin=skill.unit==="min";
+  var skill=SKILLS.find(function(s){return s.key===key;}),goal=skill.goal||0,isMin=skill.unit==="min";
+  var maxV=Math.max.apply(null,data.map(function(d){return d.value;}).concat([goal||1,1])),chartH=120;
   scroll.innerHTML='<div class="bar-group">'+data.map(function(d){
     var h=d.value>0?Math.max(Math.round(d.value/maxV*chartH),3):0;
     var met=goal>0&&d.value>=goal,has=d.value>0;
@@ -1030,10 +957,13 @@ function renderChart(key,range){
 function renderCalendar(key,year,month,byDay,goal,unit){
   var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
   document.getElementById("cal-month-lbl").textContent=MN[month]+" "+year;
-  var todS=cairoToday(),first=new Date(year,month,1).getDay(),offset=first===0?6:first-1;
+  var todS=cairoToday(),first=new Date(year,month,1).getDay();
+  // Week starts Saturday: offset = (first+1)%7
+  var offset=(first+1)%7;
   var days=new Date(year,month+1,0).getDate(),isMin=unit==="min";
   var html="";
-  ["M","T","W","T","F","S","S"].forEach(function(d){html+="<div class='cal-head'>"+d+"</div>";});
+  // Headers: Sat Sun Mon Tue Wed Thu Fri
+  ["S","S","M","T","W","T","F"].forEach(function(d){html+="<div class='cal-head'>"+d+"</div>";});
   for(var i=0;i<offset;i++)html+="<div class='cal-cell empty'></div>";
   for(var day=1;day<=days;day++){
     var ds=year+"-"+pad2(month+1)+"-"+pad2(day),v=byDay[ds]||0,isToday=ds===todS;
@@ -1050,46 +980,261 @@ function shiftCal(dir){
 }
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: INFO MODAL (Point System)
-     (CSS + HTML + JS together)
-════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     COMPONENT: LEAGUE PAGE
+     CSS + HTML + JS
+══════════════════════════════════════════ -->
 <style>
-/* INFO MODAL CSS */
-.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(10,30,46,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center}
-.modal-overlay.show{display:flex}
-.modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:22px 26px;max-width:310px;width:90%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
-.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);font-size:18px;line-height:1;transition:color .2s}
-.modal-close:hover{color:#fff}
-.modal-title{font-family:var(--f-title);font-size:14px;font-weight:700;color:var(--mauve-hi);letter-spacing:1px;margin-bottom:14px}
-.modal-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
-.modal-row:last-of-type{border:none}
-.modal-row-label{color:var(--text3);display:flex;align-items:center;gap:7px}
-.modal-xp{color:#fff;font-weight:800;font-size:14px;font-family:var(--f-title)}
-.modal-note{margin-top:12px;font-size:11px;color:var(--dim);line-height:1.8;border-top:1px solid var(--border);padding-top:12px}
-/* Rank info modal */
-.rank-modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:22px 20px;max-width:480px;width:95%;position:relative;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
-.rank-modal-list{display:flex;flex-direction:column;gap:4px;margin-top:14px}
-.rank-modal-row{display:flex;align-items:center;gap:12px;padding:6px 8px;border-radius:8px;transition:background .2s}
-.rank-modal-row:hover{background:rgba(167,118,147,0.08)}
-.rank-modal-badge{flex-shrink:0;display:flex;align-items:center}
-.rank-modal-info{flex:1}
-.rank-modal-name{font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--text2)}
-.rank-modal-xp{font-size:11px;color:var(--dim);letter-spacing:.5px}
-.rank-modal-pts{font-size:11px;font-weight:700;color:var(--mauve-hi);white-space:nowrap}
+/* LEAGUE CSS */
+#page-league{background:var(--bg)}
+.league-hero{padding:32px 24px 22px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 120%,rgba(232,193,64,0.14),transparent 60%)}
+.league-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:rgba(232,193,64,0.6);margin-bottom:10px}
+.league-title{font-family:var(--f-title);font-size:clamp(22px,4.5vw,46px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff;margin-bottom:14px}
+.league-title em{font-style:normal;color:#e8c840}
+
+/* Timer */
+.timer-wrap{display:inline-flex;align-items:center;gap:16px;background:rgba(23,72,113,0.5);border:1px solid rgba(232,193,64,0.25);border-radius:14px;padding:14px 22px;margin-bottom:0}
+.timer-block{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:50px}
+.timer-num{font-family:var(--f-brand);font-size:24px;font-weight:700;color:#e8c840;line-height:1}
+.timer-lbl{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.timer-sep{font-family:var(--f-brand);font-size:22px;font-weight:700;color:rgba(232,193,64,0.4);margin-bottom:14px}
+
+.league-body{max-width:920px;margin:0 auto;padding:22px 24px 90px}
+
+/* Section 1: Standings */
+.standings-list{display:flex;flex-direction:column;gap:8px;margin-bottom:28px}
+.standing-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px 14px;transition:border-color .2s}
+.standing-row.gold-row{border-color:rgba(232,193,64,0.4);background:rgba(232,193,64,0.06)}
+.standing-row.silver-row{border-color:rgba(192,192,200,0.35);background:rgba(192,192,200,0.04)}
+.standing-row.bronze-row{border-color:rgba(205,127,50,0.35);background:rgba(205,127,50,0.04)}
+.standing-pos{font-family:var(--f-title);font-size:18px;font-weight:700;width:28px;text-align:center;flex-shrink:0;color:var(--dim)}
+.standing-pos.pos1{color:#e8c840}.standing-pos.pos2{color:#c0c0d0}.standing-pos.pos3{color:#cd7f32}
+.standing-medal{font-size:20px;flex-shrink:0;width:22px}
+.standing-name{font-size:14px;font-weight:700;color:#fff;flex:1;min-width:80px}
+.standing-xp{font-size:13px;font-weight:700;color:var(--mauve-hi);white-space:nowrap;margin-left:8px;flex-shrink:0}
+.standing-bar-wrap{flex:2;min-width:80px;max-width:300px}
+.standing-bar-track{height:6px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.standing-bar-fill{height:100%;border-radius:100px;transition:width .9s}
+
+/* Section 2: Skill leaders (3+2 layout) */
+.skill-leaders-top{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:9px}
+.skill-leaders-bottom{display:flex;justify-content:center;gap:9px;margin-bottom:28px}
+.skill-leaders-bottom .leader-card{max-width:calc(33.33% - 5px);width:calc(33.33% - 5px)}
+.leader-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:14px 12px;display:flex;flex-direction:column;gap:7px}
+.leader-card-top{display:flex;align-items:center;gap:7px}
+.leader-icon{display:flex;align-items:center;color:var(--dim);flex-shrink:0}
+.leader-skill-name{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);flex:1}
+.leader-trophy{font-size:16px;flex-shrink:0}
+.leader-name{font-size:15px;font-weight:800;color:#fff}
+.leader-amount{font-size:21px;font-weight:800;color:var(--mauve-hi);line-height:1}
+.leader-unit{font-size:10px;font-weight:500;color:var(--dim);letter-spacing:.5px}
+.leader-none{font-size:12px;color:var(--very-dim)}
+
+/* Section 3: History */
+.history-list{display:flex;flex-direction:column;gap:8px;margin-bottom:28px}
+.history-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px 14px}
+.history-week{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);min-width:70px;flex-shrink:0}
+.history-trophy{font-size:22px;flex-shrink:0}
+.history-name{font-size:14px;font-weight:700;color:#fff;flex:1}
+.history-xp{font-size:13px;font-weight:700;color:#e8c840;white-space:nowrap}
+.history-empty{text-align:center;color:var(--very-dim);font-size:13px;padding:20px 0}
+
+@media(max-width:750px){
+  .league-body{padding:18px 14px 90px}
+  .skill-leaders-top{grid-template-columns:repeat(2,1fr)}
+  .skill-leaders-bottom .leader-card{max-width:calc(50% - 4px);width:calc(50% - 4px)}
+  .timer-wrap{gap:10px;padding:12px 16px}
+  .timer-num{font-size:20px}
+}
+@media(max-width:480px){
+  .skill-leaders-top{grid-template-columns:1fr 1fr}
+  .skill-leaders-bottom{flex-direction:column;align-items:center}
+  .skill-leaders-bottom .leader-card{max-width:100%;width:100%}
+}
 </style>
 
+<div id="page-league" class="page hidden">
+  <nav>
+    <div class="nav-logo">KRESTO</div>
+    <div class="nav-right">
+      <button class="nav-link" onclick="goTo('log')">Log</button>
+      <button class="nav-link" onclick="goTo('dash')">Dashboard</button>
+      <button class="nav-link active">League</button>
+      <button class="btn-icon-nav" id="btn-league-refresh" onclick="fetchLeagueData()" title="Refresh league">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </nav>
+  <div class="loading-overlay" id="league-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching league data…</div></div>
+
+  <div class="league-hero">
+    <div class="league-tag">⚔ Weekly Competition</div>
+    <h1 class="league-title">WEEKLY<br><em>LEAGUE</em></h1>
+    <div class="timer-wrap">
+      <div class="timer-block"><div class="timer-num" id="t-days">00</div><div class="timer-lbl">Days</div></div>
+      <div class="timer-sep">:</div>
+      <div class="timer-block"><div class="timer-num" id="t-hrs">00</div><div class="timer-lbl">Hours</div></div>
+      <div class="timer-sep">:</div>
+      <div class="timer-block"><div class="timer-num" id="t-min">00</div><div class="timer-lbl">Min</div></div>
+      <div class="timer-sep">:</div>
+      <div class="timer-block"><div class="timer-num" id="t-sec">00</div><div class="timer-lbl">Sec</div></div>
+    </div>
+  </div>
+
+  <div class="league-body">
+    <div id="league-content" style="display:none">
+      <!-- Section 1: Standings -->
+      <div class="sec-label">⚔ Weekly Standings</div>
+      <div class="standings-list" id="standings-list"></div>
+
+      <!-- Section 2: Skill Leaders -->
+      <div class="sec-label">🏅 Skill Leaders This Week</div>
+      <div class="skill-leaders-top" id="skill-leaders-top"></div>
+      <div class="skill-leaders-bottom" id="skill-leaders-bottom"></div>
+
+      <!-- Section 3: Past Champions -->
+      <div class="sec-label">👑 Past Week Champions</div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+    <div class="dash-error" id="league-error" style="display:none"><strong>Could not load league data</strong>Press ↺ to retry.</div>
+  </div>
+</div>
+
+<script>
+/* LEAGUE JS */
+var leagueTimerInterval=null;
+
+function startLeagueTimer(){
+  function tick(){
+    var now=getCairoNow(),end=leagueEndDate(),diff=end.getTime()-now.getTime();
+    if(diff<=0){document.getElementById("t-days").textContent="00";document.getElementById("t-hrs").textContent="00";document.getElementById("t-min").textContent="00";document.getElementById("t-sec").textContent="00";return;}
+    var days=Math.floor(diff/86400000),hrs=Math.floor((diff%86400000)/3600000);
+    var min=Math.floor((diff%3600000)/60000),sec=Math.floor((diff%60000)/1000);
+    document.getElementById("t-days").textContent=pad2(days);
+    document.getElementById("t-hrs").textContent=pad2(hrs);
+    document.getElementById("t-min").textContent=pad2(min);
+    document.getElementById("t-sec").textContent=pad2(sec);
+  }
+  if(leagueTimerInterval)clearInterval(leagueTimerInterval);
+  tick();leagueTimerInterval=setInterval(tick,1000);
+}
+
+async function fetchLeagueData(){
+  var btn=document.getElementById("btn-league-refresh"),loading=document.getElementById("league-loading");
+  btn.classList.add("spinning");loading.classList.add("show");
+  try{
+    var res=await fetch(API_URL+"?action=fetchLeague",{method:"GET",mode:"cors"});
+    var data=await res.json();
+    if(data&&data.rows){saveLeagueCache(data);renderLeague(data);}else throw new Error("bad");
+  }catch(e){
+    if(leagueCache.rows&&leagueCache.rows.length)renderLeague(leagueCache);
+    else{document.getElementById("league-error").style.display="block";document.getElementById("league-content").style.display="none";}
+  }finally{btn.classList.remove("spinning");loading.classList.remove("show");}
+}
+
+function renderLeague(data){
+  var allRows=data.rows||[],players=data.players||[];
+  var wkMs=weekStartDate().getTime();
+
+  // Build per-player weekly totals
+  var playerWeek={};
+  players.forEach(function(p){playerWeek[p]={xp:0};SKILLS.forEach(function(s){playerWeek[p][s.key]=0;});});
+  allRows.forEach(function(r){
+    var ms=new Date(normDate(r.date)+"T12:00:00").getTime();
+    if(ms<wkMs)return;
+    var p=r.name,sk=r.skill,v=Number(r.amount)||0;
+    if(!playerWeek[p])return;
+    playerWeek[p].xp+=(XP_WEIGHTS[sk]||0)*v;
+    if(playerWeek[p][sk]!==undefined)playerWeek[p][sk]+=v;
+  });
+
+  // Sort by weekly XP
+  var sorted=Object.keys(playerWeek).sort(function(a,b){return playerWeek[b].xp-playerWeek[a].xp;});
+  var maxXP=sorted.length>0?playerWeek[sorted[0]].xp:1;
+
+  // Section 1: Standings
+  var sl=document.getElementById("standings-list");sl.innerHTML="";
+  if(sorted.length===0){sl.innerHTML='<div class="history-empty">No players yet.</div>';}
+  sorted.forEach(function(p,i){
+    var xp=playerWeek[p].xp,pct=maxXP>0?Math.min(Math.round(xp/maxXP*100),100):0;
+    var medals=["🥇","🥈","🥉"];var medal=medals[i]||"";
+    var rowCls="standing-row"+(i===0?" gold-row":i===1?" silver-row":i===2?" bronze-row":"");
+    var posCls="standing-pos"+(i===0?" pos1":i===1?" pos2":i===2?" pos3":"");
+    var barCol=i===0?"linear-gradient(90deg,#e8c840aa,#e8c840)":i===1?"linear-gradient(90deg,#c0c0d088,#c0c0d0)":i===2?"linear-gradient(90deg,#cd7f3288,#cd7f32)":"var(--grad-bar)";
+    var row=document.createElement("div");row.className=rowCls;
+    row.innerHTML="<div class='"+posCls+"'>"+(i+1)+"</div>"+
+      "<div class='standing-medal'>"+medal+"</div>"+
+      "<div class='standing-name'>"+p+"</div>"+
+      "<div class='standing-bar-wrap'><div class='standing-bar-track'><div class='standing-bar-fill' style='width:"+pct+"%;background:"+barCol+"'></div></div></div>"+
+      "<div class='standing-xp'>"+xp.toLocaleString()+" XP</div>";
+    sl.appendChild(row);
+  });
+
+  // Section 2: Skill leaders (first 3 in top row, last 2 in bottom)
+  var leagueSkills=SKILLS.filter(function(s){return s.key!=="typing_score";});
+  var topRow=document.getElementById("skill-leaders-top"),botRow=document.getElementById("skill-leaders-bottom");
+  topRow.innerHTML="";botRow.innerHTML="";
+  leagueSkills.forEach(function(s,i){
+    var bestP="",bestV=0;
+    Object.keys(playerWeek).forEach(function(p){if(playerWeek[p][s.key]>bestV){bestV=playerWeek[p][s.key];bestP=p;}});
+    var dispV=s.unit==="min"?fmtMin(bestV):(bestV.toLocaleString()+" "+s.unit);
+    var card=document.createElement("div");card.className="leader-card";
+    card.innerHTML="<div class='leader-card-top'><span class='leader-icon'>"+skillSVG(s.key,16)+"</span><span class='leader-skill-name'>"+s.name+"</span><span class='leader-trophy'>"+(bestP?"🏆":"")+"</span></div>"+
+      (bestP?"<div class='leader-name'>"+bestP+"</div><div class='leader-amount'>"+dispV+"</div>":
+             "<div class='leader-none'>No data yet</div>");
+    if(i<3)topRow.appendChild(card);else botRow.appendChild(card);
+  });
+
+  // Section 3: Past week champions
+  var hl=document.getElementById("history-list");hl.innerHTML="";
+  // Find all past weeks (each Sat→Fri window before current week)
+  var pastChamps=[];
+  var now=getCairoNow(),curWkMs=weekStartDate().getTime();
+  // Go back up to 10 weeks
+  for(var w=1;w<=10;w++){
+    var wStart=weekStartDate(new Date(curWkMs-w*7*86400000));
+    var wEnd=new Date(wStart);wEnd.setDate(wEnd.getDate()+6);wEnd.setHours(23,59,59);
+    var wMs=wStart.getTime(),weMs=wEnd.getTime();
+    var weekXP={};
+    allRows.forEach(function(r){
+      var ms=new Date(normDate(r.date)+"T12:00:00").getTime();
+      if(ms<wMs||ms>weMs)return;
+      var p=r.name,sk=r.skill,v=Number(r.amount)||0;
+      weekXP[p]=(weekXP[p]||0)+(XP_WEIGHTS[sk]||0)*v;
+    });
+    var wPlayers=Object.keys(weekXP);if(wPlayers.length===0)continue;
+    var champ=wPlayers.sort(function(a,b){return weekXP[b]-weekXP[a];})[0];
+    var wLabel=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][wStart.getMonth()]+" "+wStart.getDate()+"–"+wEnd.getDate();
+    pastChamps.push({label:wLabel,name:champ,xp:weekXP[champ]});
+  }
+  if(pastChamps.length===0){hl.innerHTML='<div class="history-empty">No completed weeks yet.</div>';}
+  pastChamps.forEach(function(h){
+    var row=document.createElement("div");row.className="history-row";
+    row.innerHTML="<div class='history-week'>"+h.label+"</div><div class='history-trophy'>👑</div>"+
+      "<div class='history-name'>"+h.name+"</div><div class='history-xp'>"+h.xp.toLocaleString()+" XP</div>";
+    hl.appendChild(row);
+  });
+
+  document.getElementById("league-content").style.display="block";
+  document.getElementById("league-error").style.display="none";
+}
+</script>
+
+<!-- ══════════════════════════════════════════
+     COMPONENT: INFO MODALS
+     CSS + HTML + JS
+══════════════════════════════════════════ -->
 <div class="modal-overlay" id="info-modal" onclick="closeInfoModal(event)">
   <div class="modal-box">
     <button class="modal-close" onclick="closeInfoModal()">✕</button>
     <div class="modal-title">Point System</div>
-    <div class="modal-row"><span class="modal-row-label">📘 New Word</span><span class="modal-xp">3 XP</span></div>
-    <div class="modal-row"><span class="modal-row-label">🔁 Review Word</span><span class="modal-xp">1 XP</span></div>
-    <div class="modal-row"><span class="modal-row-label">🗣️ Speaking / min</span><span class="modal-xp">3 XP</span></div>
-    <div class="modal-row"><span class="modal-row-label">🎧 Listening / min</span><span class="modal-xp">1 XP</span></div>
-    <div class="modal-row"><span class="modal-row-label">📖 Page read</span><span class="modal-xp">15 XP</span></div>
-    <div class="modal-row"><span class="modal-row-label">⌨️ Touch Typing</span><span class="modal-xp">streak only</span></div>
-    <div class="modal-note">Daily ideal ≈ <strong style="color:var(--mauve-hi)">318 XP</strong><br>(30×3 + 50×1 + 30×3 + 60×1 + 3×15)<br>Conqueror reached in ~150 days of consistency.<br>Each skill ranks independently at the same rate.</div>
+    <div class="modal-row"><span style="color:var(--text3)">📘 New Word</span><span class="modal-xp">3 XP</span></div>
+    <div class="modal-row"><span style="color:var(--text3)">🔁 Review Word</span><span class="modal-xp">1 XP</span></div>
+    <div class="modal-row"><span style="color:var(--text3)">🗣️ Speaking / min</span><span class="modal-xp">3 XP</span></div>
+    <div class="modal-row"><span style="color:var(--text3)">🎧 Listening / min</span><span class="modal-xp">1 XP</span></div>
+    <div class="modal-row"><span style="color:var(--text3)">📖 Page read</span><span class="modal-xp">15 XP</span></div>
+    <div class="modal-row"><span style="color:var(--text3)">⌨️ Touch Typing</span><span class="modal-xp">streak only</span></div>
+    <div class="modal-note">Daily ideal ≈ <strong style="color:var(--mauve-hi)">318 XP</strong> · Conqueror ~150 days.<br>Each skill ranks independently.</div>
   </div>
 </div>
 
@@ -1102,86 +1247,52 @@ function shiftCal(dir){
 </div>
 
 <script>
-/* MODALS JS */
 function openInfoModal(){document.getElementById("info-modal").classList.add("show");}
 function closeInfoModal(e){if(!e||e.target===document.getElementById("info-modal")||!e.target.closest(".modal-box"))document.getElementById("info-modal").classList.remove("show");}
-
 function openRankModal(){
-  var modal=document.getElementById("rank-modal"),list=document.getElementById("rank-modal-list");
-  list.innerHTML="";
+  var list=document.getElementById("rank-modal-list");list.innerHTML="";
   OVERALL_LEVELS.forEach(function(lv,i){
-    var nxt=OVERALL_LEVELS[i+1];
-    var needed=nxt?nxt.startXP-lv.startXP:0;
+    var nxt=OVERALL_LEVELS[i+1],needed=nxt?nxt.startXP-lv.startXP:0;
     var parts=lv.label.split(" "),tier=parts[0],sub=parts.slice(1).join(" ")||"";
     var row=document.createElement("div");row.className="rank-modal-row";
-    row.innerHTML="<div class='rank-modal-badge'>"+rankBadgeSVG(tier,sub,34)+"</div>"+
-      "<div class='rank-modal-info'>"+
-        "<div class='rank-modal-name' style='color:"+lv.col+"'>"+lv.label+"</div>"+
-        "<div class='rank-modal-xp'>"+lv.startXP.toLocaleString()+" XP"+(nxt?" → "+nxt.startXP.toLocaleString()+" XP":"")+"</div>"+
-      "</div>"+
+    row.innerHTML="<div>"+rankBadgeSVG(tier,sub,32)+"</div>"+
+      "<div class='rank-modal-info'><div class='rank-modal-name' style='color:"+lv.col+"'>"+lv.label+"</div><div class='rank-modal-xp'>"+lv.startXP.toLocaleString()+" XP"+(nxt?" → "+nxt.startXP.toLocaleString()+" XP":"")+"</div></div>"+
       "<div class='rank-modal-pts'>"+(needed?"+"+needed.toLocaleString()+" XP":"MAX")+"</div>";
     list.appendChild(row);
   });
-  modal.classList.add("show");
+  document.getElementById("rank-modal").classList.add("show");
 }
 function closeRankModal(e){if(!e||e.target===document.getElementById("rank-modal")||!e.target.closest(".rank-modal-box"))document.getElementById("rank-modal").classList.remove("show");}
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeInfoModal();closeRankModal();}});
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════
-     COMPONENT: FETCH, PAGE NAV & INIT
-════════════════════════════════════════════════════════════ -->
-<style>
-@media(max-width:800px){
-  nav{padding:0 14px}
-  .dash-body,.log-body,.sd-body{padding:20px 14px 90px}
-  .rank-block{padding:0 14px}
-  .quest-grid{grid-template-columns:repeat(3,1fr)}
-  .skill-grid{grid-template-columns:repeat(2,1fr)}
-  .log-body{text-align:center}
-  .date-row{justify-content:center}
-  .entry-row{flex-direction:column;align-items:center}
-  .lfield{width:100%}
-  .skill-select,.amount-input{width:100%}
-  .amount-input{text-align:center}
-  .log-footer{flex-direction:column;align-items:stretch}
-  .btn-save,.btn-clear{width:100%;justify-content:center}
-  .sd-hero-inner{flex-direction:column;text-align:center}
-  .sd-rank-badge-big{margin:0 auto}
-}
-@media(max-width:520px){
-  .quest-grid{grid-template-columns:repeat(2,1fr)}
-  .skill-grid{grid-template-columns:1fr 1fr}
-}
-</style>
-
+<!-- ══════════════════════════════════════════
+     COMPONENT: PAGE NAVIGATION & INIT
+     JS only
+══════════════════════════════════════════ -->
 <script>
-/* FETCH & NAV JS */
-async function fetchAndRender(){
-  var btn=document.getElementById("btn-refresh"),loading=document.getElementById("dash-loading");
-  btn.classList.add("spinning");loading.classList.add("show");
-  try{
-    var res=await fetch(API_URL+"?action=fetch",{method:"GET",mode:"cors"});
-    var data=await res.json();
-    if(Array.isArray(data)){saveCache(data);renderAll(data);}else throw new Error("bad response");
-  }catch(e){
-    if(cachedData.length>0)renderAll(cachedData);
-    else{document.getElementById("dash-error").classList.add("show");document.getElementById("dash-content").style.display="none";}
-    console.error(e);
-  }finally{btn.classList.remove("spinning");loading.classList.remove("show");}
-}
+var currentPage="login";
+var PAGES=["login","log","dash","skill","league"];
 
-var currentPage="log";
 function goTo(page){
   if(page===currentPage)return;
+  // Require login
+  if(page!=="login"&&!SESSION.name){goTo("login");return;}
   currentPage=page;
-  ["log","dash","skill"].forEach(function(p){document.getElementById("page-"+p).classList.toggle("hidden",p!==page);});
-  if(page==="dash"){if(cachedData.length>0)renderAll(cachedData);else fetchAndRender();}
+  PAGES.forEach(function(p){
+    var el=document.getElementById("page-"+p);
+    if(el)el.classList.toggle("hidden",p!==page);
+  });
+  if(page==="log"){setToday();updateUnit();setLogPlayerName();}
+  if(page==="dash"){document.getElementById("dash-player-name").textContent=SESSION.name;if(cachedData.length>0)renderDashboard(cachedData);else fetchPlayerData();}
   if(page==="skill")renderSkillDetail();
+  if(page==="league"){startLeagueTimer();if(leagueCache.rows&&leagueCache.rows.length)renderLeague(leagueCache);else fetchLeagueData();}
 }
 
 document.addEventListener("DOMContentLoaded",function(){
-  loadCache();setToday();updateUnit();
+  loadCache();loadLeagueCache();
+  // Show login page
+  PAGES.forEach(function(p){var el=document.getElementById("page-"+p);if(el&&p!=="login")el.classList.add("hidden");});
 });
 </script>
 </body>
