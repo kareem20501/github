@@ -11,9 +11,65 @@
 ══════════════════════════════════════════ -->
 <script>
 var API_URL = "https://script.google.com/macros/s/AKfycbwgnKrzVlLswLfiKlkvLepAIPwB_NOgul0NhjPL1BiAl0yQVw5L1smiZrrWDo6NrAOWnQ/exec";
-var PLAYERS = ["Kareem", "Salama", "Mazen", "MO khaled"];   // Add or remove player names here
+var PLAYERS = ["Kareem", "Salama", "Mazen", "MO khaled"];
+var LAST_PLAYER_KEY = "kresto_last_player"; // localStorage key for memory
 </script>
-<!-- ══════════════════════════════════════════ -->
+
+<!-- ══════════════════════════════════════════
+     ▌JSONP ENGINE — fixes Google Apps Script CORS
+     fetch+cors fails because Apps Script does a 302
+     redirect before responding. JSONP uses <script>
+     tags which bypass CORS entirely.
+══════════════════════════════════════════ -->
+<script>
+var _cbCounter = 0;
+
+function jsonpCall(params) {
+  return new Promise(function(resolve, reject) {
+    var cbName = "__jcb_" + (++_cbCounter) + "_" + Date.now();
+    var timer, script;
+
+    window[cbName] = function(data) {
+      clearTimeout(timer);
+      try { document.head.removeChild(script); } catch(e) {}
+      delete window[cbName];
+      resolve(data);
+    };
+
+    timer = setTimeout(function() {
+      try { document.head.removeChild(script); } catch(e) {}
+      delete window[cbName];
+      reject(new Error("Timeout"));
+    }, 20000);
+
+    script = document.createElement("script");
+    script.onerror = function() {
+      clearTimeout(timer);
+      try { document.head.removeChild(script); } catch(e) {}
+      delete window[cbName];
+      reject(new Error("Network error"));
+    };
+    script.src = API_URL + "?" + params + "&callback=" + cbName;
+    document.head.appendChild(script);
+  });
+}
+
+// ── Clean API wrappers ─────────────────────
+function apiSave(name, date, skill, amount) {
+  var p = "action=save"
+    + "&name="   + encodeURIComponent(name)
+    + "&date="   + encodeURIComponent(date)
+    + "&skill="  + encodeURIComponent(skill)
+    + "&amount=" + encodeURIComponent(amount);
+  return jsonpCall(p);
+}
+function apiFetch(name) {
+  return jsonpCall("action=fetch&name=" + encodeURIComponent(name));
+}
+function apiFetchLeague() {
+  return jsonpCall("action=fetchLeague");
+}
+</script>
 
 <!-- ══════════════════════════════════════════
      GLOBAL STYLES & RESET
@@ -57,7 +113,6 @@ var SKILLS=[
 var XP_WEIGHTS={new_words:3,review_words:1,speaking_min:3,listening_min:1,pages_read:15,typing_score:0};
 var UNIT_HINTS={new_words:"words",review_words:"words",speaking_min:"minutes",listening_min:"minutes",pages_read:"pages",typing_score:"minutes"};
 
-// Overall XP levels — Conqueror ≈ 47,700 XP (150 days × 318 XP/day)
 var OVERALL_LEVELS=(function(){
   var defs=[
     {label:"Bronze V",col:"#cd7f32",pts:500},{label:"Bronze IV",col:"#cd7f32",pts:500},{label:"Bronze III",col:"#cd7f32",pts:500},{label:"Bronze II",col:"#cd7f32",pts:500},{label:"Bronze I",col:"#cd7f32",pts:500},
@@ -73,7 +128,7 @@ var OVERALL_LEVELS=(function(){
 })();
 
 var SKILL_LEVELS=(function(){
-  var r=[
+  return[
     {label:"Bronze V",col:"#cd7f32",d:0},{label:"Bronze IV",col:"#cd7f32",d:2},{label:"Bronze III",col:"#cd7f32",d:4},{label:"Bronze II",col:"#cd7f32",d:6},{label:"Bronze I",col:"#cd7f32",d:8},
     {label:"Silver V",col:"#c0c8d8",d:10},{label:"Silver IV",col:"#c0c8d8",d:13},{label:"Silver III",col:"#c0c8d8",d:16},{label:"Silver II",col:"#c0c8d8",d:19},{label:"Silver I",col:"#c0c8d8",d:22},
     {label:"Gold V",col:"#e8c840",d:26},{label:"Gold IV",col:"#e8c840",d:31},{label:"Gold III",col:"#e8c840",d:36},{label:"Gold II",col:"#e8c840",d:41},{label:"Gold I",col:"#e8c840",d:46},
@@ -82,7 +137,7 @@ var SKILL_LEVELS=(function(){
     {label:"Crown V",col:"#ff9040",d:130},{label:"Crown IV",col:"#ff9040",d:134},{label:"Crown III",col:"#ff9040",d:138},{label:"Crown II",col:"#ff9040",d:141},{label:"Crown I",col:"#ff9040",d:144},
     {label:"Ace",col:"#ff6080",d:147},{label:"Ace Master",col:"#ff6080",d:148.5},{label:"Ace Dominator",col:"#ff6080",d:149.5},
     {label:"Conqueror",col:"#b090ff",d:150}
-  ];return r;
+  ];
 })();
 
 var RANK_TIERS=[
@@ -154,7 +209,45 @@ function skillSVG(key,size){
 </script>
 
 <!-- ══════════════════════════════════════════
-     JS: DATE / DATA UTILITIES (week = Saturday)
+     JS: SESSION — single source of truth for current player
+══════════════════════════════════════════ -->
+<script>
+// ── Active player (single source of truth) ──────────────────
+// All pages read from SESSION.name — never from their own selectors
+var SESSION = {
+  name: "",
+
+  // init: restore last player from localStorage, fallback to first
+  init: function() {
+    var saved = "";
+    try { saved = localStorage.getItem(LAST_PLAYER_KEY) || ""; } catch(e) {}
+    // Validate saved name is still in PLAYERS list
+    if (saved && PLAYERS.indexOf(saved) !== -1) {
+      this.name = saved;
+    } else {
+      this.name = PLAYERS[0] || "";
+    }
+  },
+
+  // Set active player + persist to localStorage
+  set: function(name) {
+    if (!name || PLAYERS.indexOf(name) === -1) return;
+    this.name = name;
+    try { localStorage.setItem(LAST_PLAYER_KEY, name); } catch(e) {}
+    // Sync ALL dropdowns to the new name
+    ["l-name", "dash-name"].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = name;
+    });
+    // Update dashboard label
+    var lbl = document.getElementById("dash-player-label");
+    if (lbl) lbl.textContent = name;
+  }
+};
+</script>
+
+<!-- ══════════════════════════════════════════
+     JS: DATE / DATA UTILITIES
 ══════════════════════════════════════════ -->
 <script>
 function getCairoNow(){var n=new Date();return new Date(n.getTime()+n.getTimezoneOffset()*60000+7200000);}
@@ -164,7 +257,6 @@ function normDate(s){if(!s)return"";var a=s.split("-");return a.length!==3?s:a[0
 function dateKey(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());}
 function fmtMin(v){if(!v)return"0m";if(v<60)return v+"m";return v+"m ("+Math.round(v/60*10)/10+"h)";}
 
-// Week starts Saturday (diff=(day+1)%7 → Sat=0)
 function weekStartDate(from){
   var c=from?new Date(from):getCairoNow();
   var dy=c.getDay();c.setDate(c.getDate()-((dy+1)%7));c.setHours(0,0,0,0);return c;
@@ -185,7 +277,6 @@ function computeTotals(rows){
     if(ds===todS)t[sk].today+=v;t[sk].byDay[ds]=(t[sk].byDay[ds]||0)+v;
   });return t;
 }
-
 function calcStreak(byDay,goal,todS){
   if(!goal)return 0;var s=0,c=getCairoNow();
   if(!byDay[todS]||byDay[todS]<goal)c.setDate(c.getDate()-1);
@@ -194,20 +285,29 @@ function calcStreak(byDay,goal,todS){
 }
 function getTotalXP(t){return SKILLS.reduce(function(s,sk){return s+(sk.xpW>0?(t[sk.key]?t[sk.key].all:0)*sk.xpW:0);},0);}
 
-// Cache: separate per player name
-function cacheKey(name){return"lt_"+name.toLowerCase().replace(/ /g,"_");}
+// ── Per-player cache (separate key per player) ───────────────
+function cacheKey(name){return"kresto_data_"+name.toLowerCase().replace(/\s+/g,"_");}
 var playerCache={};
-function loadPlayerCache(name){try{var r=localStorage.getItem(cacheKey(name));if(r)playerCache[name]=JSON.parse(r);}catch(e){}return playerCache[name]||[];}
-function savePlayerCache(name,rows){try{localStorage.setItem(cacheKey(name),JSON.stringify(rows));}catch(e){}playerCache[name]=rows;}
 
-var leagueCacheKey="lt_league_v2";
+function loadPlayerCache(name){
+  if(!playerCache[name]){
+    try{var r=localStorage.getItem(cacheKey(name));if(r)playerCache[name]=JSON.parse(r);}catch(e){}
+  }
+  return playerCache[name]||[];
+}
+function savePlayerCache(name,rows){
+  try{localStorage.setItem(cacheKey(name),JSON.stringify(rows));}catch(e){}
+  playerCache[name]=rows;
+}
+
+var leagueCacheKey="kresto_league_v3";
 var leagueCache={rows:[],players:[]};
 function loadLeagueCache(){try{var r=localStorage.getItem(leagueCacheKey);if(r)leagueCache=JSON.parse(r);}catch(e){}}
 function saveLeagueCache(d){try{localStorage.setItem(leagueCacheKey,JSON.stringify(d));}catch(e){}leagueCache=d;}
 </script>
 
 <!-- ══════════════════════════════════════════
-     SHARED NAV & UTILITY CSS
+     SHARED NAV CSS
 ══════════════════════════════════════════ -->
 <style>
 nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 26px;height:54px;background:rgba(10,30,46,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
@@ -250,10 +350,8 @@ nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-co
 
 <!-- ══════════════════════════════════════════
      PAGE: LOG
-     CSS + HTML + JS
 ══════════════════════════════════════════ -->
 <style>
-/* LOG */
 .log-hero{padding:38px 26px 22px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 115%,rgba(167,118,147,0.16),transparent 65%)}
 .log-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
 .log-title{font-family:var(--f-title);font-size:clamp(26px,5vw,50px);font-weight:700;text-transform:uppercase;line-height:.92;margin-bottom:10px;color:#fff}
@@ -270,6 +368,7 @@ select.log-input{appearance:none;-webkit-appearance:none;background-image:url("d
 select.log-input option{background:#0F2D4D;color:#fff}
 select.log-input:focus{border-color:var(--mauve-hi);background-color:var(--surface2)}
 input[type="number"].log-input{font-size:22px;font-weight:700}
+input[type="date"].log-input{color-scheme:dark}
 .fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .log-footer{margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .btn-clear{background:none;border:1px solid var(--border);border-radius:8px;padding:9px 13px;color:var(--dim);font-size:12px;letter-spacing:1px;transition:all .2s}
@@ -309,13 +408,11 @@ input[type="number"].log-input{font-size:22px;font-weight:700}
   </div>
 
   <div class="log-body">
-    <!-- Name dropdown -->
     <div class="sec-label">Player</div>
     <div class="lfield">
       <label>Name</label>
-      <select class="log-input" id="l-name" onchange="onNameChange()">
-        <!-- Populated by JS -->
-      </select>
+      <!-- onchange → SESSION.set() which syncs all pages -->
+      <select class="log-input" id="l-name" onchange="onLogNameChange()"></select>
     </div>
 
     <div class="sec-label" style="margin-top:18px">Date</div>
@@ -360,50 +457,68 @@ input[type="number"].log-input{font-size:22px;font-weight:700}
 <script>
 /* LOG JS */
 function buildNameDropdown(){
-  var sel=document.getElementById("l-name");sel.innerHTML="";
-  PLAYERS.forEach(function(p){var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});
+  var sel=document.getElementById("l-name");
+  sel.innerHTML="";
+  PLAYERS.forEach(function(p){
+    var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);
+  });
+  // Set to session player
+  sel.value=SESSION.name;
 }
-function selectedName(){return document.getElementById("l-name").value;}
-function onNameChange(){/* Nothing needed — name is read on save */}
+
+// When player changed in Log page → update SESSION (global source of truth)
+function onLogNameChange(){
+  SESSION.set(document.getElementById("l-name").value);
+}
+
 function setToday(){document.getElementById("l-date").value=cairoToday();}
 function updateUnit(){document.getElementById("unit-hint").textContent=UNIT_HINTS[document.getElementById("l-skill").value]||"";}
-function setStatus(msg,type){var el=document.getElementById("log-status");el.textContent=msg;el.className="log-status"+(type?" "+type:"");el.style.border=msg?"":"none";}
+function setStatus(msg,type){var el=document.getElementById("log-status");el.textContent=msg;el.className=""+(type?" "+type:"");el.style.border=msg?"":"none";}
 
 async function logSave(){
-  var name=selectedName(),date=document.getElementById("l-date").value;
-  var skill=document.getElementById("l-skill").value,amount=parseInt(document.getElementById("l-amount").value)||0;
-  if(!name){setStatus("No player selected.","err");return;}
-  if(!date){setStatus("Please pick a date.","err");return;}
-  if(amount<=0){setStatus("Amount must be > 0.","err");return;}
-  var btn=document.getElementById("log-save-btn");btn.disabled=true;setStatus("Saving…","busy");
-  var params=new URLSearchParams({action:"save",name:name,date:date,skill:skill,amount:amount});
-  try{
-    await fetch(API_URL+"?"+params.toString(),{method:"GET",mode:"no-cors"});
-    setStatus("✅  "+skill.replace(/_/g," ")+" — "+amount+" saved","ok");
-    document.getElementById("l-amount").value="";document.getElementById("l-amount").focus();
-  }catch(e){setStatus("❌ Error — check connection.","err");}
-  finally{btn.disabled=false;}
+  var name = SESSION.name;   // ← always from SESSION, not from a stale variable
+  var date  = document.getElementById("l-date").value;
+  var skill = document.getElementById("l-skill").value;
+  var amount = parseInt(document.getElementById("l-amount").value) || 0;
+
+  if(!name) { setStatus("No player selected.","err"); return; }
+  if(!date)  { setStatus("Please pick a date.","err"); return; }
+  if(amount<=0){ setStatus("Amount must be > 0.","err"); return; }
+
+  var btn=document.getElementById("log-save-btn");
+  btn.disabled=true;
+  setStatus("Saving…","busy");
+
+  try {
+    // ← JSONP: sends name/date/skill/amount correctly to Apps Script
+    var data = await apiSave(name, date, skill, amount);
+    if(data && data.ok){
+      setStatus("✅  "+skill.replace(/_/g," ")+" — "+amount+" saved","ok");
+      document.getElementById("l-amount").value="";
+      document.getElementById("l-amount").focus();
+    } else {
+      setStatus("❌ "+(data&&data.error?data.error:"Save failed"),"err");
+    }
+  } catch(e) {
+    setStatus("❌ Connection error. Try again.","err");
+  } finally {
+    btn.disabled=false;
+  }
 }
+
 function logClear(){document.getElementById("l-amount").value="";setStatus("","");document.getElementById("l-amount").focus();}
 document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)&&currentPage==="log")logSave();});
 </script>
 
 <!-- ══════════════════════════════════════════
      PAGE: DASHBOARD
-     CSS + HTML + JS
 ══════════════════════════════════════════ -->
 <style>
-/* DASHBOARD */
 .dash-hero{padding:32px 24px 18px;text-align:center;background:radial-gradient(ellipse 60% 45% at 50% 120%,rgba(167,118,147,0.18),transparent 60%)}
 .dash-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
 .dash-title{font-family:var(--f-title);font-size:clamp(20px,4vw,44px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff}
 .dash-title em{font-style:normal;color:var(--mauve-hi)}
-/* Player picker inside dashboard */
-.dash-player-bar{max-width:800px;margin:14px auto 0;padding:0 22px;display:flex;align-items:center;gap:10px}
-.dash-player-bar select{background:var(--surface);border:1px solid var(--border2);border-radius:9px;padding:8px 30px 8px 14px;font-size:14px;font-weight:600;color:var(--mauve-hi);outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23c490ae' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-family:var(--f-title);letter-spacing:1px;transition:all .2s}
-.dash-player-bar select:focus,.dash-player-bar select:hover{border-color:var(--border2);background-color:var(--surface2)}
-.dash-player-bar select option{background:#0F2D4D;color:#fff}
-.rank-block{max-width:800px;margin:14px auto 0;padding:0 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.rank-block{max-width:800px;margin:16px auto 0;padding:0 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .rank-badge-wrap{width:54px;height:54px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .rank-info{flex:1}
 .rank-name{font-family:var(--f-title);font-size:20px;font-weight:700;line-height:1;color:#fff}
@@ -461,12 +576,7 @@ document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||
 .dash-error{text-align:center;padding:44px 22px;color:var(--dim);font-size:14px;line-height:2;display:none}
 .dash-error.show{display:block}
 .dash-error strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
-@media(max-width:750px){
-  .quest-grid{grid-template-columns:repeat(3,1fr)}
-  .skill-grid{grid-template-columns:repeat(2,1fr)}
-  .rank-block,.dash-player-bar{padding:0 14px}
-  .dash-body{padding:18px 14px 90px}
-}
+@media(max-width:750px){.quest-grid{grid-template-columns:repeat(3,1fr)}.skill-grid{grid-template-columns:repeat(2,1fr)}.rank-block{padding:0 14px}.dash-body{padding:18px 14px 90px}}
 @media(max-width:480px){.quest-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 
@@ -477,19 +587,16 @@ document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||
       <button class="nav-link" onclick="goTo('log')">← Log</button>
       <button class="nav-link active">Dashboard</button>
       <button class="nav-link" onclick="goTo('league')">League</button>
-      <button class="btn-icon" id="btn-refresh" onclick="fetchPlayerData()" title="Refresh my data">
+      <button class="btn-icon" id="btn-refresh" onclick="fetchPlayerData()" title="Refresh">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
   </nav>
-  <div class="loading-overlay" id="dash-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching your data…</div></div>
+  <div class="loading-overlay" id="dash-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching data…</div></div>
   <div class="dash-hero">
     <div class="dash-tag">Language Conqueror System</div>
+    <!-- name shown here comes from SESSION, no separate dropdown -->
     <h1 class="dash-title">YOUR PROGRESS,<br><em id="dash-player-label">—</em></h1>
-  </div>
-  <!-- Player picker -->
-  <div class="dash-player-bar">
-    <select id="dash-name" onchange="onDashNameChange()"><!-- filled by JS --></select>
   </div>
   <div class="rank-block">
     <div class="rank-badge-wrap" id="rank-badge-svg"></div>
@@ -514,39 +621,32 @@ document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||
 </div>
 
 <script>
-/* DASHBOARD JS */
-function buildDashDropdown(){
-  var sel=document.getElementById("dash-name");sel.innerHTML="";
-  PLAYERS.forEach(function(p){var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});
-  // Default to same name as log
-  var logName=selectedName();if(logName)sel.value=logName;
-}
-function dashSelectedName(){return document.getElementById("dash-name").value;}
-function onDashNameChange(){
-  var name=dashSelectedName();
-  document.getElementById("dash-player-label").textContent=name;
-  var cached=loadPlayerCache(name);
-  if(cached.length>0)renderDashboard(cached);
-  else fetchPlayerData();
-}
-
+/* DASHBOARD JS — reads SESSION.name, no own dropdown */
 async function fetchPlayerData(){
+  var name = SESSION.name;
+  if(!name) return;
   var btn=document.getElementById("btn-refresh"),loading=document.getElementById("dash-loading");
-  var name=dashSelectedName();if(!name)return;
-  btn.classList.add("spinning");loading.classList.add("show");
+  btn.classList.add("spinning"); loading.classList.add("show");
   try{
-    var res=await fetch(API_URL+"?action=fetch&name="+encodeURIComponent(name),{method:"GET",mode:"cors"});
-    var data=await res.json();
-    if(Array.isArray(data)){savePlayerCache(name,data);renderDashboard(data);}else throw new Error("bad");
-  }catch(e){
-    var cached=loadPlayerCache(name);
-    if(cached.length>0)renderDashboard(cached);
-    else{document.getElementById("dash-error").classList.add("show");document.getElementById("dash-content").style.display="none";}
-  }finally{btn.classList.remove("spinning");loading.classList.remove("show");}
+    var data = await apiFetch(name);  // ← JSONP
+    if(Array.isArray(data)){
+      savePlayerCache(name, data);
+      renderDashboard(data);
+    } else throw new Error("bad response");
+  } catch(e) {
+    var cached = loadPlayerCache(name);
+    if(cached.length>0) renderDashboard(cached);
+    else {
+      document.getElementById("dash-error").classList.add("show");
+      document.getElementById("dash-content").style.display="none";
+    }
+  } finally {
+    btn.classList.remove("spinning"); loading.classList.remove("show");
+  }
 }
 
 function renderDashboard(rows){
-  var name=dashSelectedName();
+  var name=SESSION.name;
   document.getElementById("dash-player-label").textContent=name;
   var totals=computeTotals(rows),xp=getTotalXP(totals),todS=cairoToday();
   // Rank hero
@@ -613,7 +713,7 @@ function renderDashboard(rows){
 </script>
 
 <!-- ══════════════════════════════════════════
-     PAGE: SKILL DETAIL (CSS+HTML+JS) — week starts Saturday
+     PAGE: SKILL DETAIL
 ══════════════════════════════════════════ -->
 <style>
 #page-skill{background:var(--bg)}
@@ -723,7 +823,7 @@ function renderDashboard(rows){
 </div>
 
 <script>
-/* SKILL DETAIL JS */
+/* SKILL DETAIL JS — reads from SESSION.name cache */
 var detailKey=null,detailRange="day",detailCalY,detailCalM;
 
 function openSkillDetail(key){
@@ -734,7 +834,7 @@ function openSkillDetail(key){
 function renderSkillDetail(){
   if(!detailKey)return;
   var skill=SKILLS.find(function(s){return s.key===detailKey;});
-  var rows=loadPlayerCache(dashSelectedName());
+  var rows=loadPlayerCache(SESSION.name);  // ← always SESSION.name
   var totals=computeTotals(rows),t=totals[detailKey]||{all:0,today:0,byDay:{}};
   var todS=cairoToday(),isTyping=detailKey==="typing_score";
   if(isTyping){
@@ -772,19 +872,11 @@ function setChartRange(range){
 }
 
 function groupData(key,range){
-  var rows=loadPlayerCache(dashSelectedName());
+  var rows=loadPlayerCache(SESSION.name); // ← SESSION.name
   var filt=rows.filter(function(r){return r.skill===key;}),now=getCairoNow();
-  if(range==="day"){
-    var out=[];for(var i=59;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);var ds=dateKey(d),v=0;filt.forEach(function(r){if(normDate(r.date)===ds)v+=Number(r.amount)||0;});out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v});}return out;
-  }
-  if(range==="week"){
-    var out=[];
-    for(var i=25;i>=0;i--){var ws=weekStartDate(new Date(weekStartDate().getTime()-i*7*86400000));var we=new Date(ws);we.setDate(we.getDate()+6);we.setHours(23,59,59);var v=0;filt.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;});var wn=Math.ceil((ws.getTime()-new Date(ws.getFullYear(),0,1).getTime())/604800000)+1;out.push({label:"W"+wn,value:v});}return out;
-  }
-  if(range==="month"){
-    var out=[],mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    for(var i=17;i>=0;i--){var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime(),me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime(),v=0;filt.forEach(function(r){var t2=new Date(normDate(r.date)+"T12:00:00").getTime();if(t2>=ms&&t2<=me)v+=Number(r.amount)||0;});var dm=new Date(ms);out.push({label:mn[dm.getMonth()],value:v});}return out;
-  }
+  if(range==="day"){var out=[];for(var i=59;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);var ds=dateKey(d),v=0;filt.forEach(function(r){if(normDate(r.date)===ds)v+=Number(r.amount)||0;});out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v});}return out;}
+  if(range==="week"){var out=[];for(var i=25;i>=0;i--){var ws=weekStartDate(new Date(weekStartDate().getTime()-i*7*86400000));var we=new Date(ws);we.setDate(we.getDate()+6);we.setHours(23,59,59);var v=0;filt.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;});var wn=Math.ceil((ws.getTime()-new Date(ws.getFullYear(),0,1).getTime())/604800000)+1;out.push({label:"W"+wn,value:v});}return out;}
+  if(range==="month"){var out=[],mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];for(var i=17;i>=0;i--){var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime(),me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime(),v=0;filt.forEach(function(r){var t2=new Date(normDate(r.date)+"T12:00:00").getTime();if(t2>=ms&&t2<=me)v+=Number(r.amount)||0;});var dm=new Date(ms);out.push({label:mn[dm.getMonth()],value:v});}return out;}
   if(range==="year"){var map={};filt.forEach(function(r){var y=(normDate(r.date)||"").split("-")[0];if(y)map[y]=(map[y]||0)+(Number(r.amount)||0);});return Object.keys(map).sort().map(function(y){return{label:y,value:map[y]};});}
   return[];
 }
@@ -795,13 +887,7 @@ function renderChart(key,range){
   if(!data||data.every(function(d){return d.value===0;})){scroll.innerHTML='<div class="chart-empty">No data yet</div>';return;}
   var skill=SKILLS.find(function(s){return s.key===key;}),goal=skill.goal||0,isMin=skill.unit==="min";
   var maxV=Math.max.apply(null,data.map(function(d){return d.value;}).concat([goal||1,1])),chartH=118;
-  scroll.innerHTML='<div class="bar-group">'+data.map(function(d){
-    var h=d.value>0?Math.max(Math.round(d.value/maxV*chartH),3):0;
-    var met=goal>0&&d.value>=goal,has=d.value>0;
-    var bg=met?"linear-gradient(0deg,#A77693,#c490ae)":has?"linear-gradient(0deg,#174871,#2260a0)":"rgba(255,255,255,0.04)";
-    var vl=d.value>0?(isMin?fmtMin(d.value):d.value):"";
-    return'<div class="bar-item"><div class="bar-val">'+vl+'</div><div class="bar-col" style="height:'+h+'px;background:'+bg+'"></div><div class="bar-lbl">'+d.label+'</div></div>';
-  }).join('')+'</div>';
+  scroll.innerHTML='<div class="bar-group">'+data.map(function(d){var h=d.value>0?Math.max(Math.round(d.value/maxV*chartH),3):0;var met=goal>0&&d.value>=goal,has=d.value>0;var bg=met?"linear-gradient(0deg,#A77693,#c490ae)":has?"linear-gradient(0deg,#174871,#2260a0)":"rgba(255,255,255,0.04)";var vl=d.value>0?(isMin?fmtMin(d.value):d.value):"";return'<div class="bar-item"><div class="bar-val">'+vl+'</div><div class="bar-col" style="height:'+h+'px;background:'+bg+'"></div><div class="bar-lbl">'+d.label+'</div></div>';}).join('')+'</div>';
   if(goal>0){var goalH=Math.round(goal/maxV*chartH)+26;var gl=document.createElement("div");gl.className="goal-line";gl.style.bottom=goalH+"px";var glbl=document.createElement("div");glbl.className="goal-lbl";glbl.textContent="goal";gl.appendChild(glbl);wrap.appendChild(gl);}
   setTimeout(function(){scroll.scrollLeft=scroll.scrollWidth;},80);
 }
@@ -809,29 +895,23 @@ function renderChart(key,range){
 function renderCalendar(key,year,month,byDay,goal,unit){
   var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
   document.getElementById("cal-month-lbl").textContent=MN[month]+" "+year;
-  var todS=cairoToday(),first=new Date(year,month,1).getDay();
-  var offset=(first+1)%7; // Week starts Saturday
+  var todS=cairoToday(),first=new Date(year,month,1).getDay(),offset=(first+1)%7;
   var days=new Date(year,month+1,0).getDate(),isMin=unit==="min";
   var html="";
   ["S","S","M","T","W","T","F"].forEach(function(d){html+="<div class='cal-head'>"+d+"</div>";});
   for(var i=0;i<offset;i++)html+="<div class='cal-cell empty'></div>";
-  for(var day=1;day<=days;day++){
-    var ds=year+"-"+p2(month+1)+"-"+p2(day),v=byDay[ds]||0,isToday=ds===todS;
-    var cls="cal-cell";if(isToday)cls+=" cal-today";if(goal>0&&v>=goal)cls+=" cal-met";else if(v>0)cls+=" cal-partial";
-    var valStr=v>0?(isMin?fmtMin(v):v):"";
-    html+="<div class='"+cls+"'><span class='cal-day-num'>"+day+"</span>"+(valStr?"<span class='cal-day-val'>"+valStr+"</span>":"")+"</div>";
-  }
+  for(var day=1;day<=days;day++){var ds=year+"-"+p2(month+1)+"-"+p2(day),v=byDay[ds]||0,isToday=ds===todS;var cls="cal-cell";if(isToday)cls+=" cal-today";if(goal>0&&v>=goal)cls+=" cal-met";else if(v>0)cls+=" cal-partial";var valStr=v>0?(isMin?fmtMin(v):v):"";html+="<div class='"+cls+"'><span class='cal-day-num'>"+day+"</span>"+(valStr?"<span class='cal-day-val'>"+valStr+"</span>":"")+"</div>";}
   document.getElementById("cal-grid").innerHTML=html;
 }
 
 function shiftCal(dir){
   detailCalM+=dir;if(detailCalM>11){detailCalM=0;detailCalY++;}if(detailCalM<0){detailCalM=11;detailCalY--;}
-  if(detailKey){var rows=loadPlayerCache(dashSelectedName());var totals=computeTotals(rows);var t=totals[detailKey]||{byDay:{}};var skill=SKILLS.find(function(s){return s.key===detailKey;});renderCalendar(detailKey,detailCalY,detailCalM,t.byDay,detailKey==="typing_score"?1:skill.goal,skill.unit);}
+  if(detailKey){var rows=loadPlayerCache(SESSION.name);var totals=computeTotals(rows);var t=totals[detailKey]||{byDay:{}};var skill=SKILLS.find(function(s){return s.key===detailKey;});renderCalendar(detailKey,detailCalY,detailCalM,t.byDay,detailKey==="typing_score"?1:skill.goal,skill.unit);}
 }
 </script>
 
 <!-- ══════════════════════════════════════════
-     PAGE: LEAGUE (CSS+HTML+JS)
+     PAGE: LEAGUE
 ══════════════════════════════════════════ -->
 <style>
 #page-league{background:var(--bg)}
@@ -846,7 +926,7 @@ function shiftCal(dir){
 .timer-sep{font-family:var(--f-brand);font-size:20px;font-weight:700;color:rgba(232,193,64,0.4);margin-bottom:12px}
 .league-body{max-width:900px;margin:0 auto;padding:18px 22px 90px}
 .standings-list{display:flex;flex-direction:column;gap:7px;margin-bottom:24px}
-.st-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;transition:border-color .2s}
+.st-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
 .st-row.gold{border-color:rgba(232,193,64,0.4);background:rgba(232,193,64,0.06)}
 .st-row.silver{border-color:rgba(192,192,200,0.35);background:rgba(192,192,200,0.04)}
 .st-row.bronze{border-color:rgba(205,127,50,0.35);background:rgba(205,127,50,0.04)}
@@ -858,7 +938,6 @@ function shiftCal(dir){
 .st-bar-wrap{flex:2;min-width:70px;max-width:260px}
 .st-bar-track{height:5px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
 .st-bar-fill{height:100%;border-radius:100px;transition:width .9s}
-/* Skill leaders 3+2 */
 .skill-top{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
 .skill-bot{display:flex;justify-content:center;gap:8px;margin-bottom:24px}
 .skill-bot .lcard{max-width:calc(33.33% - 5px);width:calc(33.33% - 5px)}
@@ -869,9 +948,7 @@ function shiftCal(dir){
 .lcard-trophy{font-size:14px;flex-shrink:0}
 .lcard-name{font-size:14px;font-weight:800;color:#fff}
 .lcard-amount{font-size:20px;font-weight:800;color:var(--mauve-hi);line-height:1}
-.lcard-unit{font-size:9px;font-weight:500;color:var(--dim)}
 .lcard-none{font-size:11px;color:var(--very-dim)}
-/* History */
 .history-list{display:flex;flex-direction:column;gap:7px}
 .hist-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
 .hist-week{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);min-width:70px;flex-shrink:0}
@@ -879,15 +956,10 @@ function shiftCal(dir){
 .hist-name{font-size:14px;font-weight:700;color:#fff;flex:1}
 .hist-xp{font-size:12px;font-weight:700;color:#e8c840;white-space:nowrap}
 .hist-empty{text-align:center;color:var(--very-dim);font-size:12px;padding:18px 0}
-.dash-error{text-align:center;padding:44px 22px;color:var(--dim);font-size:14px;line-height:2;display:none}
-.dash-error.show{display:block}
-.dash-error strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
-@media(max-width:750px){
-  .league-body{padding:16px 14px 90px}
-  .skill-top{grid-template-columns:repeat(2,1fr)}
-  .skill-bot .lcard{max-width:calc(50% - 4px);width:calc(50% - 4px)}
-  .timer-wrap{gap:10px;padding:10px 14px}.timer-num{font-size:18px}
-}
+.league-error-box{text-align:center;padding:44px 22px;color:var(--dim);font-size:14px;line-height:2;display:none}
+.league-error-box.show{display:block}
+.league-error-box strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
+@media(max-width:750px){.league-body{padding:16px 14px 90px}.skill-top{grid-template-columns:repeat(2,1fr)}.skill-bot .lcard{max-width:calc(50% - 4px);width:calc(50% - 4px)}.timer-wrap{gap:10px;padding:10px 14px}.timer-num{font-size:18px}}
 @media(max-width:480px){.skill-top{grid-template-columns:1fr 1fr}.skill-bot{flex-direction:column;align-items:center}.skill-bot .lcard{max-width:100%;width:100%}}
 </style>
 
@@ -898,12 +970,12 @@ function shiftCal(dir){
       <button class="nav-link" onclick="goTo('log')">Log</button>
       <button class="nav-link" onclick="goTo('dash')">Dashboard</button>
       <button class="nav-link active">League</button>
-      <button class="btn-icon" id="btn-league-refresh" onclick="fetchLeagueData()" title="Refresh league">
+      <button class="btn-icon" id="btn-league-refresh" onclick="fetchLeagueData()" title="Refresh">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
   </nav>
-  <div class="loading-overlay" id="league-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching league data…</div></div>
+  <div class="loading-overlay" id="league-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching league…</div></div>
   <div class="league-hero">
     <div class="league-tag">⚔ Weekly Competition</div>
     <h1 class="league-title">WEEKLY<br><em>LEAGUE</em></h1>
@@ -918,7 +990,7 @@ function shiftCal(dir){
     </div>
   </div>
   <div class="league-body">
-    <div class="dash-error" id="league-error"><strong>Could not load data</strong>Press ↺ to retry.</div>
+    <div class="league-error-box" id="league-error"><strong>Could not load data</strong>Press ↺ to retry.</div>
     <div id="league-content" style="display:none">
       <div class="sec-label">⚔ Weekly Standings</div>
       <div class="standings-list" id="standings-list"></div>
@@ -935,7 +1007,7 @@ function shiftCal(dir){
 /* LEAGUE JS */
 var leagueTimerIv=null;
 function startLeagueTimer(){
-  function tick(){var now=getCairoNow(),end=leagueEndDate(),diff=end.getTime()-now.getTime();if(diff<=0){diff=0;}var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);document.getElementById("t-d").textContent=p2(d);document.getElementById("t-h").textContent=p2(h);document.getElementById("t-m").textContent=p2(m);document.getElementById("t-s").textContent=p2(s);}
+  function tick(){var now=getCairoNow(),end=leagueEndDate(),diff=Math.max(0,end.getTime()-now.getTime());var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);document.getElementById("t-d").textContent=p2(d);document.getElementById("t-h").textContent=p2(h);document.getElementById("t-m").textContent=p2(m);document.getElementById("t-s").textContent=p2(s);}
   if(leagueTimerIv)clearInterval(leagueTimerIv);tick();leagueTimerIv=setInterval(tick,1000);
 }
 
@@ -943,12 +1015,11 @@ async function fetchLeagueData(){
   var btn=document.getElementById("btn-league-refresh"),loading=document.getElementById("league-loading");
   btn.classList.add("spinning");loading.classList.add("show");
   try{
-    var res=await fetch(API_URL+"?action=fetchLeague",{method:"GET",mode:"cors"});
-    var data=await res.json();
+    var data = await apiFetchLeague(); // ← JSONP
     if(data&&data.rows){saveLeagueCache(data);renderLeague(data);}else throw new Error("bad");
   }catch(e){
     if(leagueCache.rows&&leagueCache.rows.length)renderLeague(leagueCache);
-    else{document.getElementById("league-error").style.display="block";document.getElementById("league-content").style.display="none";}
+    else{document.getElementById("league-error").classList.add("show");document.getElementById("league-content").style.display="none";}
   }finally{btn.classList.remove("spinning");loading.classList.remove("show");}
 }
 
@@ -962,12 +1033,11 @@ function renderLeague(data){
     playerWeek[p].xp+=(XP_WEIGHTS[sk]||0)*v;
     if(playerWeek[p][sk]!==undefined)playerWeek[p][sk]+=v;
   });
-  var sorted=Object.keys(playerWeek).filter(function(p){return playerWeek[p].xp>0;}).sort(function(a,b){return playerWeek[b].xp-playerWeek[a].xp;});
-  var maxXP=sorted.length>0?Math.max(playerWeek[sorted[0]].xp,1):1;
-  // Section 1
+  var sorted=PLAYERS.slice().sort(function(a,b){return playerWeek[b].xp-playerWeek[a].xp;});
+  var maxXP=Math.max.apply(null,sorted.map(function(p){return playerWeek[p].xp||0;}));if(maxXP<1)maxXP=1;
   var sl=document.getElementById("standings-list");sl.innerHTML="";
-  if(sorted.length===0){sl.innerHTML='<div class="hist-empty">No data this week yet.</div>';}
-  sorted.forEach(function(p,i){
+  if(sorted.every(function(p){return playerWeek[p].xp===0;})){sl.innerHTML='<div class="hist-empty">No data this week yet.</div>';}
+  else sorted.forEach(function(p,i){
     var xp=playerWeek[p].xp,pct=Math.min(Math.round(xp/maxXP*100),100);
     var medals=["🥇","🥈","🥉"];var medal=medals[i]||"";
     var rowCls="st-row"+(i===0?" gold":i===1?" silver":i===2?" bronze":"");
@@ -977,46 +1047,37 @@ function renderLeague(data){
     row.innerHTML="<div class='"+posCls+"'>"+(i+1)+"</div><div class='st-medal'>"+medal+"</div><div class='st-name'>"+p+"</div><div class='st-bar-wrap'><div class='st-bar-track'><div class='st-bar-fill' style='width:"+pct+"%;background:"+barCol+"'></div></div></div><div class='st-xp'>"+xp.toLocaleString()+" XP</div>";
     sl.appendChild(row);
   });
-  // Section 2: skill leaders (3+2)
   var leagueSkills=SKILLS.filter(function(s){return s.key!=="typing_score";});
-  var topEl=document.getElementById("skill-top"),botEl=document.getElementById("skill-bot");
-  topEl.innerHTML="";botEl.innerHTML="";
+  var topEl=document.getElementById("skill-top"),botEl=document.getElementById("skill-bot");topEl.innerHTML="";botEl.innerHTML="";
   leagueSkills.forEach(function(s,i){
-    var bestP="",bestV=0;
-    Object.keys(playerWeek).forEach(function(p){if(playerWeek[p][s.key]>bestV){bestV=playerWeek[p][s.key];bestP=p;}});
+    var bestP="",bestV=0;PLAYERS.forEach(function(p){if(playerWeek[p][s.key]>bestV){bestV=playerWeek[p][s.key];bestP=p;}});
     var dispV=bestP?(s.unit==="min"?fmtMin(bestV):bestV.toLocaleString()+" "+s.unit):"";
     var card=document.createElement("div");card.className="lcard";
-    card.innerHTML="<div class='lcard-top'><span class='lcard-icon'>"+skillSVG(s.key,14)+"</span><span class='lcard-skill'>"+s.name+"</span><span class='lcard-trophy'>"+(bestP?"🏆":"")+"</span></div>"+
-      (bestP?"<div class='lcard-name'>"+bestP+"</div><div class='lcard-amount'>"+dispV+"</div>":"<div class='lcard-none'>No data yet</div>");
+    card.innerHTML="<div class='lcard-top'><span class='lcard-icon'>"+skillSVG(s.key,14)+"</span><span class='lcard-skill'>"+s.name+"</span><span class='lcard-trophy'>"+(bestP?"🏆":"")+"</span></div>"+(bestP?"<div class='lcard-name'>"+bestP+"</div><div class='lcard-amount'>"+dispV+"</div>":"<div class='lcard-none'>No data yet</div>");
     if(i<3)topEl.appendChild(card);else botEl.appendChild(card);
   });
-  // Section 3: past champions
   var hl=document.getElementById("history-list");hl.innerHTML="";
   var curWkMs=weekStartDate().getTime(),pastChamps=[];
   for(var w=1;w<=10;w++){
     var wsDate=weekStartDate(new Date(curWkMs-w*7*86400000));
-    var ws=wsDate.getTime(),we=new Date(wsDate);we.setDate(we.getDate()+6);we.setHours(23,59,59);var weMs=we.getTime();
+    var ws=wsDate.getTime(),weDate=new Date(wsDate);weDate.setDate(weDate.getDate()+6);weDate.setHours(23,59,59);var weMs=weDate.getTime();
     var wkXP={};
     allRows.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms<ws||ms>weMs)return;var p=r.name,sk=r.skill,v=Number(r.amount)||0;wkXP[p]=(wkXP[p]||0)+(XP_WEIGHTS[sk]||0)*v;});
     var ps=Object.keys(wkXP);if(ps.length===0)continue;
     var champ=ps.sort(function(a,b){return wkXP[b]-wkXP[a];})[0];
     var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][wsDate.getMonth()];
-    var weDate=new Date(wsDate);weDate.setDate(weDate.getDate()+6);
-    pastChamps.push({label:mn+" "+wsDate.getDate()+"–"+weDate.getDate(),name:champ,xp:wkXP[champ]});
+    var endDate=new Date(wsDate);endDate.setDate(endDate.getDate()+6);
+    pastChamps.push({label:mn+" "+wsDate.getDate()+"–"+endDate.getDate(),name:champ,xp:wkXP[champ]});
   }
   if(pastChamps.length===0)hl.innerHTML='<div class="hist-empty">No completed weeks yet.</div>';
-  pastChamps.forEach(function(h){
-    var row=document.createElement("div");row.className="hist-row";
-    row.innerHTML="<div class='hist-week'>"+h.label+"</div><div class='hist-trophy'>👑</div><div class='hist-name'>"+h.name+"</div><div class='hist-xp'>"+h.xp.toLocaleString()+" XP</div>";
-    hl.appendChild(row);
-  });
+  pastChamps.forEach(function(h){var row=document.createElement("div");row.className="hist-row";row.innerHTML="<div class='hist-week'>"+h.label+"</div><div class='hist-trophy'>👑</div><div class='hist-name'>"+h.name+"</div><div class='hist-xp'>"+h.xp.toLocaleString()+" XP</div>";hl.appendChild(row);});
   document.getElementById("league-content").style.display="block";
-  document.getElementById("league-error").style.display="none";
+  document.getElementById("league-error").classList.remove("show");
 }
 </script>
 
 <!-- ══════════════════════════════════════════
-     MODALS (CSS+HTML+JS)
+     MODALS
 ══════════════════════════════════════════ -->
 <div class="modal-overlay" id="info-modal" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="modal-box">
@@ -1031,7 +1092,6 @@ function renderLeague(data){
     <div class="modal-note">Daily ideal ≈ <strong style="color:var(--mauve-hi)">318 XP</strong> · Conqueror ≈ 150 days.</div>
   </div>
 </div>
-
 <div class="modal-overlay" id="rank-modal" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="rank-modal-box">
     <button class="modal-close" onclick="document.getElementById('rank-modal').classList.remove('show')">✕</button>
@@ -1039,18 +1099,11 @@ function renderLeague(data){
     <div id="rank-modal-list" style="display:flex;flex-direction:column;gap:3px;margin-top:12px"></div>
   </div>
 </div>
-
 <script>
 function openInfoModal(){document.getElementById("info-modal").classList.add("show");}
 function openRankModal(){
   var list=document.getElementById("rank-modal-list");list.innerHTML="";
-  OVERALL_LEVELS.forEach(function(lv,i){
-    var nxt=OVERALL_LEVELS[i+1],needed=nxt?nxt.startXP-lv.startXP:0;
-    var pts=lv.label.split(" "),tier=pts[0],sub=pts.slice(1).join(" ")||"";
-    var row=document.createElement("div");row.className="rm-row";
-    row.innerHTML="<div>"+rankBadgeSVG(tier,sub,30)+"</div><div style='flex:1'><div class='rm-name' style='color:"+lv.col+"'>"+lv.label+"</div><div class='rm-xp'>"+lv.startXP.toLocaleString()+" XP"+(nxt?" → "+nxt.startXP.toLocaleString():"+")+"</div></div><div class='rm-pts'>"+(needed?"+"+needed.toLocaleString()+" XP":"MAX")+"</div>";
-    list.appendChild(row);
-  });
+  OVERALL_LEVELS.forEach(function(lv,i){var nxt=OVERALL_LEVELS[i+1],needed=nxt?nxt.startXP-lv.startXP:0;var pts=lv.label.split(" "),tier=pts[0],sub=pts.slice(1).join(" ")||"";var row=document.createElement("div");row.className="rm-row";row.innerHTML="<div>"+rankBadgeSVG(tier,sub,30)+"</div><div style='flex:1'><div class='rm-name' style='color:"+lv.col+"'>"+lv.label+"</div><div class='rm-xp'>"+lv.startXP.toLocaleString()+" XP"+(nxt?" → "+nxt.startXP.toLocaleString():"+")+"</div></div><div class='rm-pts'>"+(needed?"+"+needed.toLocaleString()+" XP":"MAX")+"</div>";list.appendChild(row);});
   document.getElementById("rank-modal").classList.add("show");
 }
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){["info-modal","rank-modal"].forEach(function(id){document.getElementById(id).classList.remove("show");});}});
@@ -1060,30 +1113,44 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape"){["info-moda
      PAGE NAVIGATION & INIT
 ══════════════════════════════════════════ -->
 <script>
-var currentPage="log";
-var PAGES=["log","dash","skill","league"];
+var currentPage = "log";
+var PAGES = ["log","dash","skill","league"];
 
 function goTo(page){
-  if(page===currentPage)return;
+  if(page===currentPage) return;
   currentPage=page;
-  PAGES.forEach(function(p){var el=document.getElementById("page-"+p);if(el)el.classList.toggle("hidden",p!==page);});
+  PAGES.forEach(function(p){
+    var el=document.getElementById("page-"+p);
+    if(el) el.classList.toggle("hidden", p!==page);
+  });
   if(page==="dash"){
-    buildDashDropdown();
-    var name=dashSelectedName();
-    document.getElementById("dash-player-label").textContent=name;
-    var cached=loadPlayerCache(name);
-    if(cached.length>0)renderDashboard(cached);else fetchPlayerData();
+    document.getElementById("dash-player-label").textContent=SESSION.name;
+    var cached=loadPlayerCache(SESSION.name);
+    if(cached.length>0) renderDashboard(cached);
+    else fetchPlayerData();
   }
-  if(page==="skill")renderSkillDetail();
-  if(page==="league"){startLeagueTimer();if(leagueCache.rows&&leagueCache.rows.length>0)renderLeague(leagueCache);else fetchLeagueData();}
+  if(page==="skill") renderSkillDetail();
+  if(page==="league"){
+    startLeagueTimer();
+    if(leagueCache.rows&&leagueCache.rows.length>0) renderLeague(leagueCache);
+    else fetchLeagueData();
+  }
 }
 
-document.addEventListener("DOMContentLoaded",function(){
+document.addEventListener("DOMContentLoaded", function(){
+  // 1. Init SESSION (restore last player from localStorage)
+  SESSION.init();
+
+  // 2. Load caches
   loadLeagueCache();
-  // Build name dropdowns
-  buildNameDropdown();
-  buildDashDropdown();
-  setToday();updateUnit();
+
+  // 3. Build dropdowns with correct player selected
+  buildNameDropdown();          // Log page dropdown
+  // Note: no dashboard dropdown — removed by design
+
+  // 4. Set today's date
+  setToday();
+  updateUnit();
 });
 </script>
 </body>
