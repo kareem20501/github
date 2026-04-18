@@ -6,74 +6,18 @@
 <title>KRESTO — Language Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@300;400;500;600;700;800&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
 
-<!-- ══════════════════════════════════════════
-     ▌MANUAL CONFIG — edit only this section
-══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════
+     ▌ MANUAL CONFIG — edit only here
+══════════════════════════════════════ -->
 <script>
 var API_URL = "https://script.google.com/macros/s/AKfycbwgnKrzVlLswLfiKlkvLepAIPwB_NOgul0NhjPL1BiAl0yQVw5L1smiZrrWDo6NrAOWnQ/exec";
-var PLAYERS = ["Kareem", "Salama", "Mazen", "MO khaled"];
-var LAST_PLAYER_KEY = "kresto_last_player"; // localStorage key for memory
+var PLAYERS = ["Kareem", "Ahmed", "Sara"];
 </script>
+<!-- ══════════════════════════════════════ -->
 
-<!-- ══════════════════════════════════════════
-     ▌JSONP ENGINE — fixes Google Apps Script CORS
-     fetch+cors fails because Apps Script does a 302
-     redirect before responding. JSONP uses <script>
-     tags which bypass CORS entirely.
-══════════════════════════════════════════ -->
-<script>
-var _cbCounter = 0;
-
-function jsonpCall(params) {
-  return new Promise(function(resolve, reject) {
-    var cbName = "__jcb_" + (++_cbCounter) + "_" + Date.now();
-    var timer, script;
-
-    window[cbName] = function(data) {
-      clearTimeout(timer);
-      try { document.head.removeChild(script); } catch(e) {}
-      delete window[cbName];
-      resolve(data);
-    };
-
-    timer = setTimeout(function() {
-      try { document.head.removeChild(script); } catch(e) {}
-      delete window[cbName];
-      reject(new Error("Timeout"));
-    }, 20000);
-
-    script = document.createElement("script");
-    script.onerror = function() {
-      clearTimeout(timer);
-      try { document.head.removeChild(script); } catch(e) {}
-      delete window[cbName];
-      reject(new Error("Network error"));
-    };
-    script.src = API_URL + "?" + params + "&callback=" + cbName;
-    document.head.appendChild(script);
-  });
-}
-
-// ── Clean API wrappers ─────────────────────
-function apiSave(name, date, skill, amount) {
-  var p = "action=save"
-    + "&name="   + encodeURIComponent(name)
-    + "&date="   + encodeURIComponent(date)
-    + "&skill="  + encodeURIComponent(skill)
-    + "&amount=" + encodeURIComponent(amount);
-  return jsonpCall(p);
-}
-function apiFetch(name) {
-  return jsonpCall("action=fetch&name=" + encodeURIComponent(name));
-}
-function apiFetchLeague() {
-  return jsonpCall("action=fetchLeague");
-}
-</script>
-
-<!-- ══════════════════════════════════════════
+<!-- ══════════════════════════════════════
      GLOBAL STYLES & RESET
-══════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -81,7 +25,7 @@ function apiFetchLeague() {
   --navy:#174871;--navy-deep:#0F2D4D;
   --bg:#0a1e2e;--surface:rgba(23,72,113,0.45);--surface2:rgba(23,72,113,0.75);
   --border:rgba(167,118,147,0.22);--border2:rgba(167,118,147,0.5);
-  --text:#FFFFFF;--text2:#F2F3F4;--text3:#DED1C6;
+  --text:#fff;--text2:#F2F3F4;--text3:#DED1C6;
   --dim:rgba(222,209,198,0.55);--very-dim:rgba(222,209,198,0.32);
   --grad-mauve:linear-gradient(135deg,#A77693,#174871);
   --grad-bar:linear-gradient(90deg,#A77693,#c490ae,#F2F3F4);
@@ -94,13 +38,13 @@ button{cursor:pointer;font-family:var(--f-body)}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:rgba(167,118,147,0.4);border-radius:4px}
 .page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;transition:opacity .35s,transform .35s;z-index:1}
-.page.hidden{opacity:0;pointer-events:none;transform:translateX(22px)}
+.page.hidden{opacity:0;pointer-events:none;transform:translateX(20px)}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 
-<!-- ══════════════════════════════════════════
-     JS: SKILL DEFINITIONS & RANK SYSTEM
-══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════
+     JS: SKILL DEFS & RANK TABLES
+══════════════════════════════════════ -->
 <script>
 var SKILLS=[
   {key:"new_words",    name:"New Words",    goal:30, unit:"words",  xpW:3},
@@ -110,72 +54,66 @@ var SKILLS=[
   {key:"pages_read",   name:"Reading",      goal:3,  unit:"pages",  xpW:15},
   {key:"typing_score", name:"Touch Typing", goal:1,  unit:"session",xpW:0}
 ];
-var XP_WEIGHTS={new_words:3,review_words:1,speaking_min:3,listening_min:1,pages_read:15,typing_score:0};
+var XP_W={new_words:3,review_words:1,speaking_min:3,listening_min:1,pages_read:15,typing_score:0};
 var UNIT_HINTS={new_words:"words",review_words:"words",speaking_min:"minutes",listening_min:"minutes",pages_read:"pages",typing_score:"minutes"};
 
-var OVERALL_LEVELS=(function(){
-  var defs=[
-    {label:"Bronze V",col:"#cd7f32",pts:500},{label:"Bronze IV",col:"#cd7f32",pts:500},{label:"Bronze III",col:"#cd7f32",pts:500},{label:"Bronze II",col:"#cd7f32",pts:500},{label:"Bronze I",col:"#cd7f32",pts:500},
-    {label:"Silver V",col:"#c0c8d8",pts:800},{label:"Silver IV",col:"#c0c8d8",pts:800},{label:"Silver III",col:"#c0c8d8",pts:800},{label:"Silver II",col:"#c0c8d8",pts:800},{label:"Silver I",col:"#c0c8d8",pts:800},
-    {label:"Gold V",col:"#e8c840",pts:1200},{label:"Gold IV",col:"#e8c840",pts:1200},{label:"Gold III",col:"#e8c840",pts:1200},{label:"Gold II",col:"#e8c840",pts:1200},{label:"Gold I",col:"#e8c840",pts:1200},
-    {label:"Platinum V",col:"#d0e0f0",pts:1800},{label:"Platinum IV",col:"#d0e0f0",pts:1800},{label:"Platinum III",col:"#d0e0f0",pts:1800},{label:"Platinum II",col:"#d0e0f0",pts:1800},{label:"Platinum I",col:"#d0e0f0",pts:1800},
-    {label:"Diamond V",col:"#80d8ff",pts:2400},{label:"Diamond IV",col:"#80d8ff",pts:2400},{label:"Diamond III",col:"#80d8ff",pts:2400},{label:"Diamond II",col:"#80d8ff",pts:2400},{label:"Diamond I",col:"#80d8ff",pts:2400},
-    {label:"Crown V",col:"#ff9040",pts:1800},{label:"Crown IV",col:"#ff9040",pts:1800},{label:"Crown III",col:"#ff9040",pts:1800},{label:"Crown II",col:"#ff9040",pts:1800},{label:"Crown I",col:"#ff9040",pts:1800},
-    {label:"Ace",col:"#ff6080",pts:1700},{label:"Ace Master",col:"#ff6080",pts:1700},{label:"Ace Dominator",col:"#ff6080",pts:1800},
-    {label:"Conqueror",col:"#b090ff",pts:0}
+// Overall XP — Conqueror ≈ 47,700 XP
+var OL=(function(){
+  var d=[
+    {l:"Bronze V",c:"#cd7f32",p:500},{l:"Bronze IV",c:"#cd7f32",p:500},{l:"Bronze III",c:"#cd7f32",p:500},{l:"Bronze II",c:"#cd7f32",p:500},{l:"Bronze I",c:"#cd7f32",p:500},
+    {l:"Silver V",c:"#c0c8d8",p:800},{l:"Silver IV",c:"#c0c8d8",p:800},{l:"Silver III",c:"#c0c8d8",p:800},{l:"Silver II",c:"#c0c8d8",p:800},{l:"Silver I",c:"#c0c8d8",p:800},
+    {l:"Gold V",c:"#e8c840",p:1200},{l:"Gold IV",c:"#e8c840",p:1200},{l:"Gold III",c:"#e8c840",p:1200},{l:"Gold II",c:"#e8c840",p:1200},{l:"Gold I",c:"#e8c840",p:1200},
+    {l:"Platinum V",c:"#d0e0f0",p:1800},{l:"Platinum IV",c:"#d0e0f0",p:1800},{l:"Platinum III",c:"#d0e0f0",p:1800},{l:"Platinum II",c:"#d0e0f0",p:1800},{l:"Platinum I",c:"#d0e0f0",p:1800},
+    {l:"Diamond V",c:"#80d8ff",p:2400},{l:"Diamond IV",c:"#80d8ff",p:2400},{l:"Diamond III",c:"#80d8ff",p:2400},{l:"Diamond II",c:"#80d8ff",p:2400},{l:"Diamond I",c:"#80d8ff",p:2400},
+    {l:"Crown V",c:"#ff9040",p:1800},{l:"Crown IV",c:"#ff9040",p:1800},{l:"Crown III",c:"#ff9040",p:1800},{l:"Crown II",c:"#ff9040",p:1800},{l:"Crown I",c:"#ff9040",p:1800},
+    {l:"Ace",c:"#ff6080",p:1700},{l:"Ace Master",c:"#ff6080",p:1700},{l:"Ace Dominator",c:"#ff6080",p:1800},
+    {l:"Conqueror",c:"#b090ff",p:0}
   ];
-  var cx=0;defs.forEach(function(d){d.startXP=cx;cx+=d.pts;});return defs;
+  var cx=0;d.forEach(function(x){x.sx=cx;cx+=x.p;});return d;
 })();
 
-var SKILL_LEVELS=(function(){
-  return[
-    {label:"Bronze V",col:"#cd7f32",d:0},{label:"Bronze IV",col:"#cd7f32",d:2},{label:"Bronze III",col:"#cd7f32",d:4},{label:"Bronze II",col:"#cd7f32",d:6},{label:"Bronze I",col:"#cd7f32",d:8},
-    {label:"Silver V",col:"#c0c8d8",d:10},{label:"Silver IV",col:"#c0c8d8",d:13},{label:"Silver III",col:"#c0c8d8",d:16},{label:"Silver II",col:"#c0c8d8",d:19},{label:"Silver I",col:"#c0c8d8",d:22},
-    {label:"Gold V",col:"#e8c840",d:26},{label:"Gold IV",col:"#e8c840",d:31},{label:"Gold III",col:"#e8c840",d:36},{label:"Gold II",col:"#e8c840",d:41},{label:"Gold I",col:"#e8c840",d:46},
-    {label:"Platinum V",col:"#d0e0f0",d:53},{label:"Platinum IV",col:"#d0e0f0",d:60},{label:"Platinum III",col:"#d0e0f0",d:67},{label:"Platinum II",col:"#d0e0f0",d:74},{label:"Platinum I",col:"#d0e0f0",d:81},
-    {label:"Diamond V",col:"#80d8ff",d:90},{label:"Diamond IV",col:"#80d8ff",d:98},{label:"Diamond III",col:"#80d8ff",d:106},{label:"Diamond II",col:"#80d8ff",d:114},{label:"Diamond I",col:"#80d8ff",d:122},
-    {label:"Crown V",col:"#ff9040",d:130},{label:"Crown IV",col:"#ff9040",d:134},{label:"Crown III",col:"#ff9040",d:138},{label:"Crown II",col:"#ff9040",d:141},{label:"Crown I",col:"#ff9040",d:144},
-    {label:"Ace",col:"#ff6080",d:147},{label:"Ace Master",col:"#ff6080",d:148.5},{label:"Ace Dominator",col:"#ff6080",d:149.5},
-    {label:"Conqueror",col:"#b090ff",d:150}
-  ];
+var SL=(function(){
+  var r=[
+    {l:"Bronze V",c:"#cd7f32",d:0},{l:"Bronze IV",c:"#cd7f32",d:2},{l:"Bronze III",c:"#cd7f32",d:4},{l:"Bronze II",c:"#cd7f32",d:6},{l:"Bronze I",c:"#cd7f32",d:8},
+    {l:"Silver V",c:"#c0c8d8",d:10},{l:"Silver IV",c:"#c0c8d8",d:13},{l:"Silver III",c:"#c0c8d8",d:16},{l:"Silver II",c:"#c0c8d8",d:19},{l:"Silver I",c:"#c0c8d8",d:22},
+    {l:"Gold V",c:"#e8c840",d:26},{l:"Gold IV",c:"#e8c840",d:31},{l:"Gold III",c:"#e8c840",d:36},{l:"Gold II",c:"#e8c840",d:41},{l:"Gold I",c:"#e8c840",d:46},
+    {l:"Platinum V",c:"#d0e0f0",d:53},{l:"Platinum IV",c:"#d0e0f0",d:60},{l:"Platinum III",c:"#d0e0f0",d:67},{l:"Platinum II",c:"#d0e0f0",d:74},{l:"Platinum I",c:"#d0e0f0",d:81},
+    {l:"Diamond V",c:"#80d8ff",d:90},{l:"Diamond IV",c:"#80d8ff",d:98},{l:"Diamond III",c:"#80d8ff",d:106},{l:"Diamond II",c:"#80d8ff",d:114},{l:"Diamond I",c:"#80d8ff",d:122},
+    {l:"Crown V",c:"#ff9040",d:130},{l:"Crown IV",c:"#ff9040",d:134},{l:"Crown III",c:"#ff9040",d:138},{l:"Crown II",c:"#ff9040",d:141},{l:"Crown I",c:"#ff9040",d:144},
+    {l:"Ace",c:"#ff6080",d:147},{l:"Ace Master",c:"#ff6080",d:148.5},{l:"Ace Dominator",c:"#ff6080",d:149.5},
+    {l:"Conqueror",c:"#b090ff",d:150}
+  ];return r;
 })();
 
-var RANK_TIERS=[
-  {tier:"Bronze",col:"#cd7f32",subs:["V","IV","III","II","I"]},
-  {tier:"Silver",col:"#c0c8d8",subs:["V","IV","III","II","I"]},
-  {tier:"Gold",col:"#e8c840",subs:["V","IV","III","II","I"]},
-  {tier:"Platinum",col:"#d0e0f0",subs:["V","IV","III","II","I"]},
-  {tier:"Diamond",col:"#80d8ff",subs:["V","IV","III","II","I"]},
-  {tier:"Crown",col:"#ff9040",subs:["V","IV","III","II","I"]},
-  {tier:"Ace",col:"#ff6080",subs:["","Master","Dominator"]},
-  {tier:"Conqueror",col:"#b090ff",subs:[""]}
+var TIERS=[
+  {t:"Bronze",c:"#cd7f32",s:["V","IV","III","II","I"]},
+  {t:"Silver",c:"#c0c8d8",s:["V","IV","III","II","I"]},
+  {t:"Gold",c:"#e8c840",s:["V","IV","III","II","I"]},
+  {t:"Platinum",c:"#d0e0f0",s:["V","IV","III","II","I"]},
+  {t:"Diamond",c:"#80d8ff",s:["V","IV","III","II","I"]},
+  {t:"Crown",c:"#ff9040",s:["V","IV","III","II","I"]},
+  {t:"Ace",c:"#ff6080",s:["","Master","Dominator"]},
+  {t:"Conqueror",c:"#b090ff",s:[""]}
 ];
 
-function getOverallRankIdx(xp){for(var i=OVERALL_LEVELS.length-1;i>=0;i--){if(xp>=OVERALL_LEVELS[i].startXP)return i;}return 0;}
-function getSkillRankIdx(nd){for(var i=SKILL_LEVELS.length-1;i>=0;i--){if(nd>=SKILL_LEVELS[i].d)return i;}return 0;}
+function oriRank(xp){for(var i=OL.length-1;i>=0;i--){if(xp>=OL[i].sx)return i;}return 0;}
+function skRank(nd){for(var i=SL.length-1;i>=0;i--){if(nd>=SL[i].d)return i;}return 0;}
 </script>
 
-<!-- ══════════════════════════════════════════
-     JS: SVG LIBRARY
-══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════
+     JS: SVG BADGES & ICONS
+══════════════════════════════════════ -->
 <script>
-function rankBadgeSVG(tier,sub,size){
+function badge(tier,sub,size){
   size=size||28;
   var g={Bronze:{c1:"#cd7f32",c2:"#7d3c0a",c3:"#e8a857",bg:"#3d1500"},Silver:{c1:"#c0c0d8",c2:"#606090",c3:"#e8e8f5",bg:"#1a1a3a"},Gold:{c1:"#ffd700",c2:"#a07800",c3:"#fff176",bg:"#2d1800"},Platinum:{c1:"#4fc3f7",c2:"#0277bd",c3:"#b3e5fc",bg:"#041830"},Diamond:{c1:"#9575cd",c2:"#6a1b9a",c3:"#e1bee7",bg:"#100020"},Crown:{c1:"#e91e63",c2:"#880e4f",c3:"#fce4ec",bg:"#1a002a"},Ace:{c1:"#ff5722",c2:"#bf360c",c3:"#ffca28",bg:"#1a0500"},Conqueror:{c1:"#ffc200",c2:"#a07800",c3:"#fffde7",bg:"#0d0b00"}}[tier]||{c1:"#cd7f32",c2:"#7d3c0a",c3:"#e8a857",bg:"#3d1500"};
   var id="b"+(tier||"").slice(0,3)+(sub||"").replace(/ /g,"");
-  var defs='<defs><radialGradient id="'+id+'s" cx="40%" cy="35%" r="65%"><stop offset="0%" stop-color="'+g.c3+'"/><stop offset="45%" stop-color="'+g.c1+'"/><stop offset="100%" stop-color="'+g.bg+'"/></radialGradient></defs>';
+  var df='<defs><radialGradient id="'+id+'g" cx="40%" cy="35%" r="65%"><stop offset="0%" stop-color="'+g.c3+'"/><stop offset="45%" stop-color="'+g.c1+'"/><stop offset="100%" stop-color="'+g.bg+'"/></radialGradient></defs>';
   var inner="";
   if(tier==="Ace"){
-    inner='<rect x="12" y="10" width="76" height="90" rx="8" fill="'+g.c3+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
-      '<text x="50" y="65" text-anchor="middle" font-family="Cinzel,serif" font-size="28" font-weight="900" fill="'+g.c2+'">A</text>'+
-      '<text x="20" y="28" font-size="10" fill="'+g.c2+'" font-weight="700">♠</text>'+
-      (sub?'<text x="50" y="82" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.c2+'">'+sub.toUpperCase()+'</text>':'');
+    inner='<rect x="12" y="10" width="76" height="90" rx="8" fill="'+g.c3+'" stroke="'+g.c2+'" stroke-width="1.5"/><text x="50" y="65" text-anchor="middle" font-family="Cinzel,serif" font-size="28" font-weight="900" fill="'+g.c2+'">A</text><text x="20" y="28" font-size="10" fill="'+g.c2+'" font-weight="700">♠</text>'+(sub?'<text x="50" y="82" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.c2+'">'+sub.toUpperCase()+'</text>':'');
   }else if(tier==="Conqueror"){
-    inner='<path d="M50 5 L88 22 L88 58 Q88 88 50 100 Q12 88 12 58 L12 22 Z" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
-      '<path d="M50 9 L84 25 L84 57 Q84 85 50 96 Q16 85 16 57 L16 25 Z" fill="url(#'+id+'s)"/>'+
-      '<path d="M30 22 L30 12 L37 17 L43 8 L50 16 L57 8 L63 17 L70 12 L70 22 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>'+
-      '<rect x="28" y="22" width="44" height="6" rx="1.5" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/>'+
-      '<text x="50" y="62" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="900" fill="'+g.c3+'">C</text>';
+    inner='<path d="M50 5 L88 22 L88 58 Q88 88 50 100 Q12 88 12 58 L12 22 Z" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="1.5"/><path d="M50 9 L84 25 L84 57 Q84 85 50 96 Q16 85 16 57 L16 25 Z" fill="url(#'+id+'g)"/><path d="M30 22 L30 12 L37 17 L43 8 L50 16 L57 8 L63 17 L70 12 L70 22 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/><rect x="28" y="22" width="44" height="6" rx="1.5" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/><text x="50" y="62" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="900" fill="'+g.c3+'">C</text>';
   }else{
     var t=sub||"";
     var emb={
@@ -186,208 +124,154 @@ function rankBadgeSVG(tier,sub,size){
       Diamond:'<path d="M50 30 L66 46 L50 82 L34 46 Z" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/><path d="M50 30 L66 46 L50 56 L34 46 Z" fill="'+g.c1+'66" stroke="'+g.c3+'" stroke-width="0.8"/><text x="50" y="76" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.c3+'">'+t+'</text>',
       Crown:'<path d="M30 65 L30 50 L37 57 L43 45 L50 55 L57 45 L63 57 L70 50 L70 65 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/><rect x="28" y="65" width="44" height="7" rx="1" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/><text x="50" y="83" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+t+'</text>'
     }[tier]||'<text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" fill="'+g.c3+'">'+t+'</text>';
-    inner='<ellipse cx="50" cy="60" rx="47" ry="52" fill="'+g.c1+'18"/>'+
-      '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="'+g.bg+'" stroke="'+g.bg+'"/>'+
-      '<path d="M50 10 L83 27 L83 59 Q83 87 50 99 Q17 87 17 59 L17 27 Z" fill="url(#'+id+'s)"/>'+
-      '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/>'+
-      emb+
-      '<circle cx="23" cy="30" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/>'+
-      '<circle cx="77" cy="30" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/>'+
-      '<circle cx="23" cy="88" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/>'+
-      '<circle cx="77" cy="88" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/>'+
-      '<rect x="18" y="104" width="64" height="11" rx="3" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="0.6"/>'+
-      '<text x="50" y="113" text-anchor="middle" font-family="Cinzel,serif" font-size="6" font-weight="700" fill="'+g.c1+'" letter-spacing="1">'+tier.toUpperCase()+'</text>';
+    inner='<ellipse cx="50" cy="60" rx="47" ry="52" fill="'+g.c1+'18"/><path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="'+g.bg+'"/><path d="M50 10 L83 27 L83 59 Q83 87 50 99 Q17 87 17 59 L17 27 Z" fill="url(#'+id+'g)"/><path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/>'+emb+'<circle cx="23" cy="30" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/><circle cx="77" cy="30" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/><circle cx="23" cy="88" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/><circle cx="77" cy="88" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/><rect x="18" y="104" width="64" height="11" rx="3" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="0.6"/><text x="50" y="113" text-anchor="middle" font-family="Cinzel,serif" font-size="6" font-weight="700" fill="'+g.c1+'" letter-spacing="1">'+tier.toUpperCase()+'</text>';
   }
-  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 118" xmlns="http://www.w3.org/2000/svg">'+defs+inner+'</svg>';
+  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 118" xmlns="http://www.w3.org/2000/svg">'+df+inner+'</svg>';
 }
 
-function skillSVG(key,size){
+function icon(key,size){
   size=size||18;
   var p={new_words:'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',review_words:'M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15',speaking_min:'M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8',listening_min:'M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z',pages_read:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2zM8 8h8M8 12h6',typing_score:'M2 7a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zM6 11h.01M10 11h.01M14 11h.01M18 11h.01M6 15h.01M10 15h4M18 15h.01'}[key]||'';
   return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="'+p+'"/></svg>';
 }
 </script>
 
-<!-- ══════════════════════════════════════════
-     JS: SESSION — single source of truth for current player
-══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════
+     JS: DATE & DATA UTILITIES
+     Week starts Saturday everywhere
+══════════════════════════════════════ -->
 <script>
-// ── Active player (single source of truth) ──────────────────
-// All pages read from SESSION.name — never from their own selectors
-var SESSION = {
-  name: "",
-
-  // init: restore last player from localStorage, fallback to first
-  init: function() {
-    var saved = "";
-    try { saved = localStorage.getItem(LAST_PLAYER_KEY) || ""; } catch(e) {}
-    // Validate saved name is still in PLAYERS list
-    if (saved && PLAYERS.indexOf(saved) !== -1) {
-      this.name = saved;
-    } else {
-      this.name = PLAYERS[0] || "";
-    }
-  },
-
-  // Set active player + persist to localStorage
-  set: function(name) {
-    if (!name || PLAYERS.indexOf(name) === -1) return;
-    this.name = name;
-    try { localStorage.setItem(LAST_PLAYER_KEY, name); } catch(e) {}
-    // Sync ALL dropdowns to the new name
-    ["l-name", "dash-name"].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.value = name;
-    });
-    // Update dashboard label
-    var lbl = document.getElementById("dash-player-label");
-    if (lbl) lbl.textContent = name;
-  }
-};
-</script>
-
-<!-- ══════════════════════════════════════════
-     JS: DATE / DATA UTILITIES
-══════════════════════════════════════════ -->
-<script>
-function getCairoNow(){var n=new Date();return new Date(n.getTime()+n.getTimezoneOffset()*60000+7200000);}
-function cairoToday(){var c=getCairoNow();return c.getFullYear()+"-"+p2(c.getMonth()+1)+"-"+p2(c.getDate());}
+// Cairo = UTC+2 (no DST)
+function cairoNow(){var n=new Date();return new Date(n.getTime()+n.getTimezoneOffset()*60000+7200000);}
+function today(){var c=cairoNow();return c.getFullYear()+"-"+p2(c.getMonth()+1)+"-"+p2(c.getDate());}
 function p2(n){return String(n).padStart(2,"0");}
-function normDate(s){if(!s)return"";var a=s.split("-");return a.length!==3?s:a[0]+"-"+p2(a[1])+"-"+p2(a[2]);}
-function dateKey(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());}
+function normD(s){if(!s)return"";var a=s.split("-");return a.length!==3?s:a[0]+"-"+p2(a[1])+"-"+p2(a[2]);}
+function dkey(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());}
 function fmtMin(v){if(!v)return"0m";if(v<60)return v+"m";return v+"m ("+Math.round(v/60*10)/10+"h)";}
 
-function weekStartDate(from){
-  var c=from?new Date(from):getCairoNow();
-  var dy=c.getDay();c.setDate(c.getDate()-((dy+1)%7));c.setHours(0,0,0,0);return c;
+// Saturday = start (dy+1)%7 → Sat=0, Sun=1 … Fri=6
+function weekStart(from){
+  var c=from?new Date(from):cairoNow();
+  c.setDate(c.getDate()-((c.getDay()+1)%7));c.setHours(0,0,0,0);return c;
 }
-function leagueEndDate(){
-  var n=getCairoNow(),dy=n.getDay(),daysToFri=dy===5?0:(5-dy+7)%7;
-  var f=new Date(n);f.setDate(f.getDate()+daysToFri);f.setHours(23,59,59,999);return f;
+function leagueEnd(){
+  var n=cairoNow(),dy=n.getDay(),diff=(5-dy+7)%7;
+  var f=new Date(n);f.setDate(f.getDate()+diff);f.setHours(23,59,59,999);return f;
 }
 
 function computeTotals(rows){
-  var todS=cairoToday(),wkMs=weekStartDate().getTime(),moMs=new Date(getCairoNow().getFullYear(),getCairoNow().getMonth(),1).getTime();
+  var todS=today(),wMs=weekStart().getTime(),mMs=new Date(cairoNow().getFullYear(),cairoNow().getMonth(),1).getTime();
   var t={};SKILLS.forEach(function(s){t[s.key]={today:0,week:0,month:0,all:0,byDay:{}};});
   rows.forEach(function(r){
     var sk=r.skill,v=Number(r.amount)||0;if(!sk||!t[sk]||!v)return;
-    var ds=normDate(r.date);if(!ds)return;
+    var ds=normD(r.date);if(!ds)return;
     var ms=new Date(ds+"T12:00:00").getTime();
-    t[sk].all+=v;if(ms>=moMs)t[sk].month+=v;if(ms>=wkMs)t[sk].week+=v;
+    t[sk].all+=v;if(ms>=mMs)t[sk].month+=v;if(ms>=wMs)t[sk].week+=v;
     if(ds===todS)t[sk].today+=v;t[sk].byDay[ds]=(t[sk].byDay[ds]||0)+v;
   });return t;
 }
-function calcStreak(byDay,goal,todS){
-  if(!goal)return 0;var s=0,c=getCairoNow();
+
+function streak(byDay,goal,todS){
+  if(!goal)return 0;var s=0,c=cairoNow();
   if(!byDay[todS]||byDay[todS]<goal)c.setDate(c.getDate()-1);
-  for(var i=0;i<9999;i++){var k=dateKey(c);if(byDay[k]&&byDay[k]>=goal){s++;c.setDate(c.getDate()-1);}else break;}
+  for(var i=0;i<9999;i++){var k=dkey(c);if(byDay[k]&&byDay[k]>=goal){s++;c.setDate(c.getDate()-1);}else break;}
   return s;
 }
-function getTotalXP(t){return SKILLS.reduce(function(s,sk){return s+(sk.xpW>0?(t[sk.key]?t[sk.key].all:0)*sk.xpW:0);},0);}
+function totalXP(tots){return SKILLS.reduce(function(s,sk){return s+(sk.xpW>0?(tots[sk.key]?tots[sk.key].all:0)*sk.xpW:0);},0);}
 
-// ── Per-player cache (separate key per player) ───────────────
-function cacheKey(name){return"kresto_data_"+name.toLowerCase().replace(/\s+/g,"_");}
-var playerCache={};
+// Per-player localStorage cache
+function ck(name){return"lt_"+name.toLowerCase().replace(/ /g,"_")+"_v5";}
+var _cache={};
+function getCache(name){if(!_cache[name]){try{var r=localStorage.getItem(ck(name));_cache[name]=r?JSON.parse(r):[];}catch(e){_cache[name]=[];}}return _cache[name];}
+function setCache(name,rows){try{localStorage.setItem(ck(name),JSON.stringify(rows));}catch(e){}_cache[name]=rows;}
 
-function loadPlayerCache(name){
-  if(!playerCache[name]){
-    try{var r=localStorage.getItem(cacheKey(name));if(r)playerCache[name]=JSON.parse(r);}catch(e){}
-  }
-  return playerCache[name]||[];
-}
-function savePlayerCache(name,rows){
-  try{localStorage.setItem(cacheKey(name),JSON.stringify(rows));}catch(e){}
-  playerCache[name]=rows;
-}
-
-var leagueCacheKey="kresto_league_v3";
-var leagueCache={rows:[],players:[]};
-function loadLeagueCache(){try{var r=localStorage.getItem(leagueCacheKey);if(r)leagueCache=JSON.parse(r);}catch(e){}}
-function saveLeagueCache(d){try{localStorage.setItem(leagueCacheKey,JSON.stringify(d));}catch(e){}leagueCache=d;}
+var _leagueCache={rows:[],players:[]};
+function getLeagueCache(){try{var r=localStorage.getItem("lt_league_v3");if(r)_leagueCache=JSON.parse(r);}catch(e){}return _leagueCache;}
+function setLeagueCache(d){try{localStorage.setItem("lt_league_v3",JSON.stringify(d));}catch(e){}_leagueCache=d;}
 </script>
 
-<!-- ══════════════════════════════════════════
-     SHARED NAV CSS
-══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════
+     SHARED NAV & UTILITY CSS
+══════════════════════════════════════ -->
 <style>
-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 26px;height:54px;background:rgba(10,30,46,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:54px;background:rgba(10,30,46,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
 .nav-logo{font-family:var(--f-brand);font-size:17px;font-weight:900;letter-spacing:3px;text-transform:uppercase;background:linear-gradient(90deg,#F2F3F4,#c490ae,#A77693);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 8px rgba(167,118,147,0.5))}
 .nav-right{display:flex;gap:5px;align-items:center}
 .nav-link{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);background:none;border:none;padding:5px 11px;border-radius:7px;transition:all .2s}
 .nav-link:hover,.nav-link.active{color:#fff;background:rgba(167,118,147,0.15)}
-.nav-btn{padding:5px 13px;border:1px solid var(--border2);border-radius:7px;background:transparent;color:var(--mauve-hi);font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;transition:all .2s}
+.nav-btn{padding:5px 12px;border:1px solid var(--border2);border-radius:7px;background:transparent;color:var(--mauve-hi);font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;transition:all .2s}
 .nav-btn:hover{background:rgba(167,118,147,0.12)}
 .btn-icon{background:none;border:1px solid var(--border);border-radius:7px;color:var(--dim);padding:5px 8px;display:flex;align-items:center;transition:all .2s}
 .btn-icon:hover{border-color:var(--border2);color:#fff}
 .btn-icon.spinning svg{animation:spin .7s linear infinite}
-.loading-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,30,46,0.9);backdrop-filter:blur(10px);flex-direction:column;align-items:center;justify-content:center;gap:14px}
-.loading-overlay.show{display:flex}
-.spin-ring{width:38px;height:38px;border-radius:50%;border:2px solid rgba(167,118,147,0.2);border-top-color:var(--mauve-hi);animation:spin .8s linear infinite}
-.spin-lbl{font-size:11px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim)}
-.sec-label{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--beige);margin-bottom:12px;margin-top:24px;display:flex;align-items:center;gap:8px}
-.sec-label:first-child{margin-top:0}
-.sec-label::after{content:'';flex:1;height:1px;background:rgba(222,209,198,0.18)}
-.info-btn{background:none;border:1px solid rgba(222,209,198,0.3);border-radius:50%;width:18px;height:18px;color:var(--beige);font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;line-height:1}
-.info-btn:hover{background:rgba(222,209,198,0.1);border-color:var(--beige);color:#fff}
-.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(10,30,46,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center}
-.modal-overlay.show{display:flex}
-.modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:22px 24px;max-width:300px;width:90%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
-.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);font-size:18px;line-height:1;transition:color .2s}
-.modal-close:hover{color:#fff}
-.modal-title{font-family:var(--f-title);font-size:14px;font-weight:700;color:var(--mauve-hi);letter-spacing:1px;margin-bottom:14px}
-.modal-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text3)}
-.modal-row:last-of-type{border:none}
-.modal-xp{color:#fff;font-weight:800;font-size:14px;font-family:var(--f-title)}
-.modal-note{margin-top:12px;font-size:11px;color:var(--dim);line-height:1.8;border-top:1px solid var(--border);padding-top:12px}
-.rank-modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:20px 18px;max-width:440px;width:95%;position:relative;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
-.rm-row{display:flex;align-items:center;gap:10px;padding:5px 7px;border-radius:7px}
-.rm-row:hover{background:rgba(167,118,147,0.08)}
-.rm-name{font-size:12px;font-weight:700;flex:1}
-.rm-xp{font-size:10px;color:var(--dim)}
-.rm-pts{font-size:11px;font-weight:700;color:var(--mauve-hi);white-space:nowrap}
-@media(max-width:750px){nav{padding:0 12px}.sec-label{margin-top:18px}}
+.overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,30,46,0.9);backdrop-filter:blur(10px);flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.overlay.show{display:flex}
+.spin-ring{width:36px;height:36px;border-radius:50%;border:2px solid rgba(167,118,147,0.2);border-top-color:var(--mauve-hi);animation:spin .8s linear infinite}
+.spin-lbl{font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim)}
+.sec{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--beige);margin-bottom:11px;margin-top:22px;display:flex;align-items:center;gap:8px}
+.sec:first-child{margin-top:0}.sec::after{content:'';flex:1;height:1px;background:rgba(222,209,198,0.18)}
+.ibtn{background:none;border:1px solid rgba(222,209,198,0.3);border-radius:50%;width:18px;height:18px;color:var(--beige);font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;line-height:1}
+.ibtn:hover{background:rgba(222,209,198,0.1);border-color:var(--beige);color:#fff}
+/* modals */
+.moverlay{position:fixed;inset:0;z-index:300;background:rgba(10,30,46,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center}
+.moverlay.show{display:flex}
+.mbox{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:20px 22px;max-width:295px;width:90%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.mcls{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--dim);font-size:18px;line-height:1}
+.mcls:hover{color:#fff}
+.mtitle{font-family:var(--f-title);font-size:13px;font-weight:700;color:var(--mauve-hi);letter-spacing:1px;margin-bottom:12px}
+.mrow{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3)}
+.mrow:last-of-type{border:none}
+.mxp{color:#fff;font-weight:800;font-size:13px;font-family:var(--f-title)}
+.mnote{margin-top:11px;font-size:11px;color:var(--dim);line-height:1.8;border-top:1px solid var(--border);padding-top:11px}
+.rmbox{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:18px 16px;max-width:430px;width:95%;position:relative;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.rmrow{display:flex;align-items:center;gap:9px;padding:4px 6px;border-radius:6px}
+.rmrow:hover{background:rgba(167,118,147,0.08)}
+.rmname{font-size:11px;font-weight:700;flex:1}
+.rmxp{font-size:10px;color:var(--dim)}
+.rmpts{font-size:10px;font-weight:700;color:var(--mauve-hi);white-space:nowrap}
+.err{text-align:center;padding:40px 20px;color:var(--dim);font-size:14px;line-height:2;display:none}
+.err.show{display:block}.err strong{color:var(--beige);display:block;font-size:15px;margin-bottom:8px}
+@media(max-width:600px){nav{padding:0 12px}}
 </style>
 
-<!-- ══════════════════════════════════════════
+<!-- ══════════════════════════════════════
      PAGE: LOG
-══════════════════════════════════════════ -->
+     CSS + HTML + JS
+══════════════════════════════════════ -->
 <style>
-.log-hero{padding:38px 26px 22px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 115%,rgba(167,118,147,0.16),transparent 65%)}
-.log-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
-.log-title{font-family:var(--f-title);font-size:clamp(26px,5vw,50px);font-weight:700;text-transform:uppercase;line-height:.92;margin-bottom:10px;color:#fff}
+/* LOG */
+.log-hero{padding:36px 24px 20px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 115%,rgba(167,118,147,0.16),transparent 65%)}
+.log-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:9px}
+.log-title{font-family:var(--f-title);font-size:clamp(24px,5vw,48px);font-weight:700;text-transform:uppercase;line-height:.92;margin-bottom:9px;color:#fff}
 .log-title em{font-style:normal;color:var(--mauve-hi)}
-.log-sub{font-size:13px;color:var(--text3);max-width:360px;margin:0 auto;line-height:1.8}
-.log-body{max-width:520px;margin:0 auto;padding:22px 20px 80px}
-.lfield{display:flex;flex-direction:column;gap:5px;margin-bottom:0}
-.lfield label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
-.log-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:15px;font-weight:500;color:#fff;outline:none;transition:all .2s;-moz-appearance:textfield}
-.log-input::-webkit-inner-spin-button{-webkit-appearance:none}
-.log-input::placeholder{color:rgba(222,209,198,0.2);font-size:14px}
-.log-input:focus{border-color:var(--mauve-hi);background:var(--surface2)}
-select.log-input{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23A77693' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-color:var(--surface);cursor:pointer}
-select.log-input option{background:#0F2D4D;color:#fff}
-select.log-input:focus{border-color:var(--mauve-hi);background-color:var(--surface2)}
-input[type="number"].log-input{font-size:22px;font-weight:700}
-input[type="date"].log-input{color-scheme:dark}
-.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.log-footer{margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.btn-clear{background:none;border:1px solid var(--border);border-radius:8px;padding:9px 13px;color:var(--dim);font-size:12px;letter-spacing:1px;transition:all .2s}
-.btn-clear:hover{border-color:var(--border2);color:#fff}
-#log-status{flex:1;min-height:40px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;display:flex;align-items:center;transition:all .3s}
-#log-status.ok{background:rgba(167,118,147,0.15);color:var(--mauve-hi);border:1px solid var(--border2)}
-#log-status.err{background:rgba(200,60,60,0.12);color:#ff9090;border:1px solid rgba(200,60,60,0.3)}
-#log-status.busy{background:rgba(222,209,198,0.08);color:var(--beige);border:1px solid rgba(222,209,198,0.22)}
-.btn-save{padding:9px 22px;background:var(--grad-mauve);border:1px solid var(--border2);border-radius:8px;color:#fff;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;transition:all .2s;box-shadow:0 4px 16px rgba(167,118,147,0.22)}
-.btn-save:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 24px rgba(167,118,147,0.38)}
-.btn-save:disabled{opacity:.4;cursor:not-allowed}
-.unit-hint{text-align:center;font-size:10px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:3px}
-.log-copyright{margin-top:18px;text-align:center;font-size:11px;color:var(--very-dim);line-height:1.8}
-.log-copyright .brand{color:var(--mauve-hi);font-weight:600}
-@media(max-width:750px){
-  .log-body{padding:18px 14px 80px;text-align:center}
-  .fields-grid{grid-template-columns:1fr}
-  .log-footer{flex-direction:column;align-items:stretch}
-  .btn-save,.btn-clear{width:100%;justify-content:center}
+.log-body{max-width:510px;margin:0 auto;padding:20px 20px 80px}
+.fi{display:flex;flex-direction:column;gap:5px}
+.fi label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.inp{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 14px;font-size:15px;font-weight:500;color:#fff;outline:none;transition:all .2s;font-family:var(--f-body)}
+.inp:focus{border-color:var(--mauve-hi);background:var(--surface2)}
+.inp::placeholder{color:rgba(222,209,198,0.2);font-size:14px}
+select.inp{appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23A77693' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+select.inp option{background:#0F2D4D;color:#fff}
+input[type="number"].inp{font-size:22px;font-weight:700;-moz-appearance:textfield}
+input[type="number"].inp::-webkit-inner-spin-button{-webkit-appearance:none}
+input[type="date"].inp{color-scheme:dark}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.unit-hint{font-size:10px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;text-align:center;margin-top:3px}
+.log-footer{margin-top:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.bclear{background:none;border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--dim);font-size:12px;letter-spacing:1px;transition:all .2s}
+.bclear:hover{border-color:var(--border2);color:#fff}
+#log-st{flex:1;min-height:40px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;display:flex;align-items:center;transition:all .3s}
+#log-st.ok{background:rgba(167,118,147,0.15);color:var(--mauve-hi);border:1px solid var(--border2)}
+#log-st.err{background:rgba(200,60,60,0.12);color:#ff9090;border:1px solid rgba(200,60,60,0.3)}
+#log-st.busy{background:rgba(222,209,198,0.08);color:var(--beige);border:1px solid rgba(222,209,198,0.22)}
+.bsave{padding:9px 20px;background:var(--grad-mauve);border:1px solid var(--border2);border-radius:8px;color:#fff;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;transition:all .2s;box-shadow:0 4px 14px rgba(167,118,147,0.2)}
+.bsave:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 22px rgba(167,118,147,0.36)}
+.bsave:disabled{opacity:.4;cursor:not-allowed}
+.copyright{margin-top:16px;text-align:center;font-size:11px;color:var(--very-dim);line-height:1.8}
+.copyright .brand{color:var(--mauve-hi);font-weight:600}
+@media(max-width:600px){
+  .log-body{padding:16px 14px 80px}.g2{grid-template-columns:1fr}
+  .log-footer{flex-direction:column;align-items:stretch}.bsave,.bclear{width:100%}
 }
 </style>
 
@@ -400,184 +284,185 @@ input[type="date"].log-input{color-scheme:dark}
       <button class="nav-btn" onclick="goTo('league')" style="border-color:rgba(232,193,64,0.35);color:#e8c840">League</button>
     </div>
   </nav>
-
   <div class="log-hero">
     <div class="log-tag">Now Recording</div>
     <h1 class="log-title">DAILY<br><em>ENTRY</em></h1>
-    <p class="log-sub">Select your name and skill, enter your amount</p>
   </div>
-
   <div class="log-body">
-    <div class="sec-label">Player</div>
-    <div class="lfield">
+
+    <!-- Row 1: Name -->
+    <div class="sec">Player</div>
+    <div class="fi">
       <label>Name</label>
-      <!-- onchange → SESSION.set() which syncs all pages -->
-      <select class="log-input" id="l-name" onchange="onLogNameChange()"></select>
+      <select class="inp" id="l-name"></select>
     </div>
 
-    <div class="sec-label" style="margin-top:18px">Date</div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <input type="date" id="l-date" class="log-input" style="flex:1">
-      <button class="btn-clear" onclick="setToday()">Today</button>
+    <!-- Row 2: Date -->
+    <div class="sec" style="margin-top:16px">Date</div>
+    <div style="display:flex;gap:8px">
+      <input type="date" id="l-date" class="inp" style="flex:1">
+      <button class="bclear" onclick="setToday()">Today</button>
     </div>
 
-    <div class="sec-label" style="margin-top:18px">Skill &amp; Amount</div>
-    <div class="fields-grid">
-      <div class="lfield">
+    <!-- Row 3: Skill + Amount -->
+    <div class="sec" style="margin-top:16px">Skill &amp; Amount</div>
+    <div class="g2">
+      <div class="fi">
         <label>Skill</label>
-        <select class="log-input" id="l-skill" onchange="updateUnit()">
-          <option value="new_words">📘  New Words</option>
-          <option value="review_words">🔁  Review Words</option>
-          <option value="speaking_min">🗣️  Speaking</option>
-          <option value="listening_min">🎧  Listening</option>
-          <option value="pages_read">📖  Pages Read</option>
-          <option value="typing_score">⌨️  Touch Typing</option>
+        <select class="inp" id="l-skill" onchange="updateUnit()">
+          <option value="new_words">📘 New Words</option>
+          <option value="review_words">🔁 Review Words</option>
+          <option value="speaking_min">🗣️ Speaking</option>
+          <option value="listening_min">🎧 Listening</option>
+          <option value="pages_read">📖 Pages Read</option>
+          <option value="typing_score">⌨️ Touch Typing</option>
         </select>
       </div>
-      <div class="lfield">
+      <div class="fi">
         <label>Amount</label>
-        <input type="number" id="l-amount" class="log-input" placeholder="0" min="0">
+        <input type="number" id="l-amount" class="inp" placeholder="0" min="0">
       </div>
     </div>
     <div class="unit-hint" id="unit-hint">words</div>
 
+    <!-- Footer -->
     <div class="log-footer">
-      <button class="btn-clear" onclick="logClear()">✕ Clear</button>
-      <div id="log-status"></div>
-      <button class="btn-save" id="log-save-btn" onclick="logSave()">⬇ Save Entry</button>
+      <button class="bclear" onclick="logClear()">✕ Clear</button>
+      <div id="log-st"></div>
+      <button class="bsave" id="btn-save" onclick="logSave()">⬇ Save Entry</button>
     </div>
 
-    <div class="log-copyright">
+    <div class="copyright">
       <div class="brand">Made by 𝐾𝐴𝑅𝐸𝐸𝑀ッ</div>
-      <div>© 2026 Kareem Mohamed &nbsp;·&nbsp; All rights reserved.</div>
+      <div>© 2026 Kareem Mohamed · All rights reserved.</div>
     </div>
   </div>
 </div>
 
 <script>
-/* LOG JS */
-function buildNameDropdown(){
-  var sel=document.getElementById("l-name");
+/* ── LOG JS ── */
+function buildNameSel(selId){
+  var sel=document.getElementById(selId);if(!sel)return;
   sel.innerHTML="";
-  PLAYERS.forEach(function(p){
-    var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);
-  });
-  // Set to session player
-  sel.value=SESSION.name;
+  PLAYERS.forEach(function(p){var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});
 }
-
-// When player changed in Log page → update SESSION (global source of truth)
-function onLogNameChange(){
-  SESSION.set(document.getElementById("l-name").value);
-}
-
-function setToday(){document.getElementById("l-date").value=cairoToday();}
+function logName(){return document.getElementById("l-name").value;}
+function setToday(){document.getElementById("l-date").value=today();}
 function updateUnit(){document.getElementById("unit-hint").textContent=UNIT_HINTS[document.getElementById("l-skill").value]||"";}
-function setStatus(msg,type){var el=document.getElementById("log-status");el.textContent=msg;el.className=""+(type?" "+type:"");el.style.border=msg?"":"none";}
+function logSt(msg,type){var el=document.getElementById("log-st");el.textContent=msg;el.className="log-st"+(type?" "+type:"");el.style.border=msg?"":"none";}
 
 async function logSave(){
-  var name = SESSION.name;   // ← always from SESSION, not from a stale variable
-  var date  = document.getElementById("l-date").value;
-  var skill = document.getElementById("l-skill").value;
+  // ── Collect all 4 fields ──
+  var name   = logName();
+  var date   = document.getElementById("l-date").value.trim();
+  var skill  = document.getElementById("l-skill").value.trim();
   var amount = parseInt(document.getElementById("l-amount").value) || 0;
 
-  if(!name) { setStatus("No player selected.","err"); return; }
-  if(!date)  { setStatus("Please pick a date.","err"); return; }
-  if(amount<=0){ setStatus("Amount must be > 0.","err"); return; }
+  // ── Validate ──
+  if(!name)              {logSt("Select a player.","err");return;}
+  if(!date)              {logSt("Pick a date.","err");return;}
+  if(amount <= 0)        {logSt("Amount must be > 0.","err");return;}
 
-  var btn=document.getElementById("log-save-btn");
-  btn.disabled=true;
-  setStatus("Saving…","busy");
+  var btn=document.getElementById("btn-save");btn.disabled=true;logSt("Saving…","busy");
 
-  try {
-    // ← JSONP: sends name/date/skill/amount correctly to Apps Script
-    var data = await apiSave(name, date, skill, amount);
-    if(data && data.ok){
-      setStatus("✅  "+skill.replace(/_/g," ")+" — "+amount+" saved","ok");
-      document.getElementById("l-amount").value="";
-      document.getElementById("l-amount").focus();
-    } else {
-      setStatus("❌ "+(data&&data.error?data.error:"Save failed"),"err");
-    }
-  } catch(e) {
-    setStatus("❌ Connection error. Try again.","err");
-  } finally {
+  // ── Build URL with all 4 params ──
+  var url = API_URL
+    + "?action=save"
+    + "&name="   + encodeURIComponent(name)
+    + "&date="   + encodeURIComponent(date)
+    + "&skill="  + encodeURIComponent(skill)
+    + "&amount=" + encodeURIComponent(amount);
+
+  try{
+    // no-cors: we can't read the response but the data is sent
+    await fetch(url, {method:"GET", mode:"no-cors"});
+    logSt("✅  "+name+" — "+skill.replace(/_/g," ")+" — "+amount+" saved","ok");
+    document.getElementById("l-amount").value="";
+    document.getElementById("l-amount").focus();
+  }catch(e){
+    logSt("❌ Network error — check connection.","err");
+  }finally{
     btn.disabled=false;
   }
 }
 
-function logClear(){document.getElementById("l-amount").value="";setStatus("","");document.getElementById("l-amount").focus();}
-document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)&&currentPage==="log")logSave();});
+function logClear(){document.getElementById("l-amount").value="";logSt("","");document.getElementById("l-amount").focus();}
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)&&curPage==="log")logSave();});
 </script>
 
-<!-- ══════════════════════════════════════════
+<!-- ══════════════════════════════════════
      PAGE: DASHBOARD
-══════════════════════════════════════════ -->
+     CSS + HTML + JS
+══════════════════════════════════════ -->
 <style>
-.dash-hero{padding:32px 24px 18px;text-align:center;background:radial-gradient(ellipse 60% 45% at 50% 120%,rgba(167,118,147,0.18),transparent 60%)}
-.dash-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+/* DASHBOARD */
+.dash-hero{padding:28px 22px 16px;text-align:center;background:radial-gradient(ellipse 60% 45% at 50% 120%,rgba(167,118,147,0.18),transparent 60%)}
+.dash-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
 .dash-title{font-family:var(--f-title);font-size:clamp(20px,4vw,44px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff}
 .dash-title em{font-style:normal;color:var(--mauve-hi)}
-.rank-block{max-width:800px;margin:16px auto 0;padding:0 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.rank-badge-wrap{width:54px;height:54px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.rank-info{flex:1}
-.rank-name{font-family:var(--f-title);font-size:20px;font-weight:700;line-height:1;color:#fff}
-.rank-xp{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:3px}
-.rank-bar-wrap{min-width:190px;flex:1;max-width:320px}
-.rank-bar-labels{display:flex;justify-content:space-between;font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-bottom:4px}
-.rank-track{height:6px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
-.rank-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width 1.2s cubic-bezier(.16,1,.3,1);box-shadow:0 0 10px rgba(167,118,147,0.5)}
-.rank-remain{font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-top:4px;text-align:right}
-.rank-remain strong{color:#fff}
-.dash-body{max-width:900px;margin:0 auto;padding:20px 22px 90px}
-.quest-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:24px}
-.quest-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 9px;transition:border-color .2s}
-.quest-card.done{border-color:var(--border2);background:rgba(167,118,147,0.1)}
-.q-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
-.q-icon{display:flex;align-items:center;color:rgba(222,209,198,0.35)}
-.quest-card.done .q-icon{color:var(--mauve-hi)}
-.q-name{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.45);margin-bottom:3px}
-.quest-card.done .q-name{color:var(--mauve-hi)}
-.q-nums{font-size:11px;font-weight:500;color:var(--text3);margin-bottom:5px;line-height:1.4}
-.q-bar{height:3px;background:rgba(167,118,147,0.1);border-radius:100px;overflow:hidden}
-.q-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width .9s}
-.quest-card.done .q-fill{box-shadow:0 0 5px rgba(167,118,147,0.4)}
-.skill-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:24px}
-.skill-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px 12px;transition:all .22s;cursor:pointer;position:relative}
-.skill-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:0 10px 28px rgba(167,118,147,0.14)}
-.skill-card::after{content:'›';position:absolute;top:11px;right:11px;font-size:14px;color:rgba(167,118,147,0.3);transition:color .2s}
-.skill-card:hover::after{color:var(--mauve-hi)}
-.sk-top{display:flex;align-items:center;gap:7px;margin-bottom:9px}
-.sk-svg{display:flex;align-items:center;color:rgba(222,209,198,0.4);flex-shrink:0;transition:color .2s}
-.skill-card:hover .sk-svg{color:var(--mauve-hi)}
-.sk-name{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.65);flex:1;line-height:1.3}
-.sk-badge{display:flex;align-items:center;flex-shrink:0}
-.sk-total{font-size:20px;font-weight:800;color:#fff;margin-bottom:1px;line-height:1}
-.sk-unit{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-bottom:8px}
-.sk-streak-big{font-size:22px;font-weight:800;color:#fff;line-height:1;margin-bottom:2px}
-.sk-streak-lbl{font-size:9px;color:var(--dim);margin-bottom:7px}
-.sk-done-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 7px;border-radius:5px;margin-bottom:7px}
-.sk-done-yes{background:rgba(167,118,147,0.2);color:var(--mauve-hi);border:1px solid var(--border2)}
-.sk-done-no{background:rgba(255,255,255,0.04);color:var(--dim);border:1px solid var(--border)}
-.sk-bar-lbl{display:flex;justify-content:space-between;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
-.sk-track{height:4px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
-.sk-fill{height:100%;border-radius:100px;transition:width 1s}
-.sk-next{font-size:9px;color:var(--dim);margin-top:5px}
-.sk-next strong{color:var(--beige)}
-.rank-road{display:flex;gap:3px;overflow-x:auto;padding-bottom:7px;margin-bottom:24px}
-.rank-road::-webkit-scrollbar{height:3px}
-.tier-col{display:flex;flex-direction:column;min-width:84px;flex:1}
-.tier-head{padding:5px 3px 4px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-align:center;border-radius:5px 5px 0 0;border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:3px}
-.tier-subs{display:flex;flex-direction:column-reverse;gap:2px;padding:2px}
-.tier-sub{padding:4px 3px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:.5px;text-align:center;color:rgba(222,209,198,0.4);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s}
-.tier-sub.current{border-color:var(--border2);animation:tierPulse 2.5s ease infinite}
-.tier-sub.passed{opacity:.6}
-@keyframes tierPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px currentColor}}
-.dash-error{text-align:center;padding:44px 22px;color:var(--dim);font-size:14px;line-height:2;display:none}
-.dash-error.show{display:block}
-.dash-error strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
-@media(max-width:750px){.quest-grid{grid-template-columns:repeat(3,1fr)}.skill-grid{grid-template-columns:repeat(2,1fr)}.rank-block{padding:0 14px}.dash-body{padding:18px 14px 90px}}
-@media(max-width:480px){.quest-grid{grid-template-columns:repeat(2,1fr)}}
+.dash-pbar{max-width:780px;margin:12px auto 0;padding:0 20px;display:flex;align-items:center;gap:10px}
+.dash-pbar select{background:var(--surface);border:1px solid var(--border2);border-radius:9px;padding:8px 28px 8px 14px;font-size:14px;font-weight:600;color:var(--mauve-hi);outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23c490ae' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-family:var(--f-title);letter-spacing:1px;transition:all .2s}
+.dash-pbar select:hover,.dash-pbar select:focus{background-color:var(--surface2)}
+.dash-pbar select option{background:#0F2D4D;color:#fff}
+.rblock{max-width:780px;margin:12px auto 0;padding:0 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.rbadge{width:52px;height:52px;border-radius:11px;border:1px solid var(--border2);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rinfo{flex:1}.rname{font-family:var(--f-title);font-size:19px;font-weight:700;color:#fff}
+.rxp{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:3px}
+.rbarw{min-width:180px;flex:1;max-width:300px}
+.rbarlbls{display:flex;justify-content:space-between;font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-bottom:4px}
+.rtrack{height:5px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.rfill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width 1.2s cubic-bezier(.16,1,.3,1);box-shadow:0 0 9px rgba(167,118,147,0.5)}
+.rrem{font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-top:4px;text-align:right}
+.rrem strong{color:#fff}
+.dash-body{max-width:900px;margin:0 auto;padding:18px 20px 90px}
+/* Quests */
+.qgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:22px}
+.qcard{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 8px;transition:border-color .2s}
+.qcard.done{border-color:var(--border2);background:rgba(167,118,147,0.1)}
+.qtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.qico{display:flex;align-items:center;color:rgba(222,209,198,0.35)}
+.qcard.done .qico{color:var(--mauve-hi)}
+.qname{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.45);margin-bottom:3px}
+.qcard.done .qname{color:var(--mauve-hi)}
+.qnums{font-size:11px;font-weight:500;color:var(--text3);margin-bottom:5px;line-height:1.4}
+.qbar{height:3px;background:rgba(167,118,147,0.1);border-radius:100px;overflow:hidden}
+.qfill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width .9s}
+.qcard.done .qfill{box-shadow:0 0 4px rgba(167,118,147,0.4)}
+/* Skills */
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px}
+.scard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 11px;transition:all .22s;cursor:pointer;position:relative}
+.scard:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(167,118,147,0.12)}
+.scard::after{content:'›';position:absolute;top:10px;right:10px;font-size:14px;color:rgba(167,118,147,0.3);transition:color .2s}
+.scard:hover::after{color:var(--mauve-hi)}
+.sctop{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.scico{display:flex;align-items:center;color:rgba(222,209,198,0.4);flex-shrink:0;transition:color .2s}
+.scard:hover .scico{color:var(--mauve-hi)}
+.scname{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.65);flex:1;line-height:1.3}
+.scbadge{display:flex;align-items:center;flex-shrink:0}
+.sctotal{font-size:20px;font-weight:800;color:#fff;line-height:1}
+.scunit{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-bottom:7px}
+.scstk{font-size:22px;font-weight:800;color:#fff;line-height:1;margin-bottom:2px}
+.scstkl{font-size:9px;color:var(--dim);margin-bottom:7px}
+.scdbadge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 7px;border-radius:5px;margin-bottom:7px}
+.scdbadge.yes{background:rgba(167,118,147,0.2);color:var(--mauve-hi);border:1px solid var(--border2)}
+.scdbadge.no{background:rgba(255,255,255,0.04);color:var(--dim);border:1px solid var(--border)}
+.scbl{display:flex;justify-content:space-between;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
+.sctrack{height:4px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.scfill{height:100%;border-radius:100px;transition:width 1s}
+.scnxt{font-size:9px;color:var(--dim);margin-top:5px}
+.scnxt strong{color:var(--beige)}
+/* Rank road */
+.rroad{display:flex;gap:3px;overflow-x:auto;padding-bottom:7px;margin-bottom:22px}
+.rroad::-webkit-scrollbar{height:3px}
+.tcol{display:flex;flex-direction:column;min-width:82px;flex:1}
+.thead{padding:5px 3px 4px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-align:center;border-radius:5px 5px 0 0;border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:3px}
+.tsubs{display:flex;flex-direction:column-reverse;gap:2px;padding:2px}
+.tsub{padding:4px 3px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:.5px;text-align:center;color:rgba(222,209,198,0.4);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s}
+.tsub.cur{border-color:var(--border2);animation:tp 2.5s ease infinite}
+.tsub.past{opacity:.6}
+@keyframes tp{0%,100%{box-shadow:none}50%{box-shadow:0 0 10px currentColor}}
+@media(max-width:750px){.qgrid{grid-template-columns:repeat(3,1fr)}.sgrid{grid-template-columns:repeat(2,1fr)}.rblock,.dash-pbar{padding:0 14px}.dash-body{padding:16px 14px 90px}}
+@media(max-width:480px){.qgrid{grid-template-columns:repeat(2,1fr)}}
 </style>
 
 <div id="page-dash" class="page hidden">
@@ -587,195 +472,202 @@ document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||
       <button class="nav-link" onclick="goTo('log')">← Log</button>
       <button class="nav-link active">Dashboard</button>
       <button class="nav-link" onclick="goTo('league')">League</button>
-      <button class="btn-icon" id="btn-refresh" onclick="fetchPlayerData()" title="Refresh">
+      <button class="btn-icon" id="btn-ref" onclick="fetchPlayer()" title="Refresh my data">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
   </nav>
-  <div class="loading-overlay" id="dash-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching data…</div></div>
+  <div class="overlay" id="dash-load"><div class="spin-ring"></div><div class="spin-lbl">Fetching…</div></div>
   <div class="dash-hero">
     <div class="dash-tag">Language Conqueror System</div>
-    <!-- name shown here comes from SESSION, no separate dropdown -->
-    <h1 class="dash-title">YOUR PROGRESS,<br><em id="dash-player-label">—</em></h1>
+    <h1 class="dash-title">YOUR PROGRESS,<br><em id="dash-pname">—</em></h1>
   </div>
-  <div class="rank-block">
-    <div class="rank-badge-wrap" id="rank-badge-svg"></div>
-    <div class="rank-info"><div class="rank-name" id="rank-name">—</div><div class="rank-xp" id="rank-xp">0 XP Total</div></div>
-    <div class="rank-bar-wrap">
-      <div class="rank-bar-labels"><span id="rb-from">—</span><span id="rb-to">—</span></div>
-      <div class="rank-track"><div class="rank-fill" id="rank-fill" style="width:0%"></div></div>
-      <div class="rank-remain" id="rank-remain"><strong>—</strong> xp to next</div>
+  <div class="dash-pbar">
+    <select id="dash-name" onchange="onDashName()"></select>
+  </div>
+  <div class="rblock">
+    <div class="rbadge" id="rbadge"></div>
+    <div class="rinfo"><div class="rname" id="rname">—</div><div class="rxp" id="rxp">0 XP Total</div></div>
+    <div class="rbarw">
+      <div class="rbarlbls"><span id="rfrom">—</span><span id="rto">—</span></div>
+      <div class="rtrack"><div class="rfill" id="rfill" style="width:0%"></div></div>
+      <div class="rrem" id="rrem"><strong>—</strong> xp to next</div>
     </div>
   </div>
   <div class="dash-body">
-    <div class="dash-error" id="dash-error"><strong>Could not load data</strong>Press ↺ to retry.</div>
-    <div id="dash-content" style="display:none">
-      <div class="sec-label">Today's Quests</div>
-      <div class="quest-grid" id="quest-grid"></div>
-      <div class="sec-label">Skill Overview <button class="info-btn" onclick="openInfoModal()">i</button></div>
-      <div class="skill-grid" id="skill-grid"></div>
-      <div class="sec-label">Rank Progression <button class="info-btn" onclick="openRankModal()">i</button></div>
-      <div class="rank-road" id="rank-road"></div>
+    <div class="err" id="dash-err"><strong>Could not load data</strong>Press ↺ to retry.</div>
+    <div id="dash-con" style="display:none">
+      <div class="sec">Today's Quests</div>
+      <div class="qgrid" id="qgrid"></div>
+      <div class="sec">Skill Overview <button class="ibtn" onclick="openInfo()">i</button></div>
+      <div class="sgrid" id="sgrid"></div>
+      <div class="sec">Rank Progression <button class="ibtn" onclick="openRank()">i</button></div>
+      <div class="rroad" id="rroad"></div>
     </div>
   </div>
 </div>
 
 <script>
-/* DASHBOARD JS — reads SESSION.name, no own dropdown */
-async function fetchPlayerData(){
-  var name = SESSION.name;
-  if(!name) return;
-  var btn=document.getElementById("btn-refresh"),loading=document.getElementById("dash-loading");
-  btn.classList.add("spinning"); loading.classList.add("show");
-  try{
-    var data = await apiFetch(name);  // ← JSONP
-    if(Array.isArray(data)){
-      savePlayerCache(name, data);
-      renderDashboard(data);
-    } else throw new Error("bad response");
-  } catch(e) {
-    var cached = loadPlayerCache(name);
-    if(cached.length>0) renderDashboard(cached);
-    else {
-      document.getElementById("dash-error").classList.add("show");
-      document.getElementById("dash-content").style.display="none";
-    }
-  } finally {
-    btn.classList.remove("spinning"); loading.classList.remove("show");
-  }
+/* ── DASHBOARD JS ── */
+function buildDashSel(){
+  var sel=document.getElementById("dash-name");if(!sel)return;sel.innerHTML="";
+  PLAYERS.forEach(function(p){var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});
+  // mirror log selection
+  var ln=logName();if(ln)sel.value=ln;
+}
+function dashName(){return document.getElementById("dash-name").value;}
+function onDashName(){
+  var n=dashName();document.getElementById("dash-pname").textContent=n;
+  var c=getCache(n);if(c.length>0)renderDash(c);else fetchPlayer();
 }
 
-function renderDashboard(rows){
-  var name=SESSION.name;
-  document.getElementById("dash-player-label").textContent=name;
-  var totals=computeTotals(rows),xp=getTotalXP(totals),todS=cairoToday();
+async function fetchPlayer(){
+  var btn=document.getElementById("btn-ref"),load=document.getElementById("dash-load");
+  var name=dashName();if(!name)return;
+  btn.classList.add("spinning");load.classList.add("show");
+  try{
+    var res=await fetch(API_URL+"?action=fetch&name="+encodeURIComponent(name),{method:"GET",mode:"cors"});
+    var data=await res.json();
+    if(Array.isArray(data)){setCache(name,data);renderDash(data);}else throw 0;
+  }catch(e){
+    var c=getCache(name);if(c.length>0)renderDash(c);
+    else{document.getElementById("dash-err").classList.add("show");document.getElementById("dash-con").style.display="none";}
+  }finally{btn.classList.remove("spinning");load.classList.remove("show");}
+}
+
+function renderDash(rows){
+  var name=dashName();document.getElementById("dash-pname").textContent=name;
+  var tots=computeTotals(rows),xp=totalXP(tots),todS=today();
   // Rank hero
-  var i=getOverallRankIdx(xp),cur=OVERALL_LEVELS[i],nxt=OVERALL_LEVELS[i+1];
-  var pct=nxt?Math.min(Math.round((xp-cur.startXP)/(nxt.startXP-cur.startXP)*100),100):100;
-  var pts=cur.label.split(" "),tier=pts[0],sub=pts.slice(1).join(" ")||"";
-  document.getElementById("rank-badge-svg").innerHTML=rankBadgeSVG(tier,sub,46);
-  document.getElementById("rank-name").textContent=cur.label;
-  document.getElementById("rank-xp").textContent=xp.toLocaleString()+" XP Total";
-  document.getElementById("rb-from").textContent=cur.label;
-  document.getElementById("rb-to").textContent=nxt?nxt.label:"MAX";
-  setTimeout(function(){document.getElementById("rank-fill").style.width=pct+"%";},80);
-  document.getElementById("rank-remain").innerHTML=nxt?"<strong>"+(nxt.startXP-xp).toLocaleString()+"</strong> xp to next":"<strong>⚔️ Conqueror</strong>";
+  var i=oriRank(xp),cur=OL[i],nxt=OL[i+1];
+  var pct=nxt?Math.min(Math.round((xp-cur.sx)/(nxt.sx-cur.sx)*100),100):100;
+  var tp=cur.l.split(" ");
+  document.getElementById("rbadge").innerHTML=badge(tp[0],tp.slice(1).join(" ")||"",44);
+  document.getElementById("rname").textContent=cur.l;
+  document.getElementById("rxp").textContent=xp.toLocaleString()+" XP Total";
+  document.getElementById("rfrom").textContent=cur.l;document.getElementById("rto").textContent=nxt?nxt.l:"MAX";
+  setTimeout(function(){document.getElementById("rfill").style.width=pct+"%";},80);
+  document.getElementById("rrem").innerHTML=nxt?"<strong>"+(nxt.sx-xp).toLocaleString()+"</strong> xp to next":"<strong>⚔️ Conqueror</strong>";
   // Quests
-  var qg=document.getElementById("quest-grid");qg.innerHTML="";
+  var qg=document.getElementById("qgrid");qg.innerHTML="";
   SKILLS.forEach(function(s){
-    var t=totals[s.key]||{today:0,byDay:{}};var done,pct2,nums;
-    if(s.key==="typing_score"){done=t.today>0;pct2=done?100:0;var stk=calcStreak(t.byDay,1,todS);nums=(done?"Done":"—")+(stk>0?" 🔥"+stk+"d":"");}
+    var t=tots[s.key]||{today:0,byDay:{}};var done,pct2,nums;
+    if(s.key==="typing_score"){done=t.today>0;pct2=done?100:0;var stk=streak(t.byDay,1,todS);nums=(done?"Done":"—")+(stk>0?" 🔥"+stk+"d":"");}
     else{done=t.today>=s.goal;pct2=Math.min(Math.round(t.today/s.goal*100),100);nums=s.unit==="min"?fmtMin(t.today)+" / "+fmtMin(s.goal):t.today+" / "+s.goal+" "+s.unit;}
-    var d=document.createElement("div");d.className="quest-card"+(done?" done":"");
-    d.innerHTML="<div class='q-top'><span class='q-icon'>"+skillSVG(s.key,14)+"</span><span style='font-size:11px'>"+(done?"✅":"○")+"</span></div><div class='q-name'>"+s.name+"</div><div class='q-nums'>"+nums+"</div><div class='q-bar'><div class='q-fill' style='width:"+pct2+"%'></div></div>";
+    var d=document.createElement("div");d.className="qcard"+(done?" done":"");
+    d.innerHTML="<div class='qtop'><span class='qico'>"+icon(s.key,13)+"</span><span style='font-size:11px'>"+(done?"✅":"○")+"</span></div><div class='qname'>"+s.name+"</div><div class='qnums'>"+nums+"</div><div class='qbar'><div class='qfill' style='width:"+pct2+"%'></div></div>";
     qg.appendChild(d);
   });
   // Skill cards
-  var sg=document.getElementById("skill-grid");sg.innerHTML="";
+  var sg=document.getElementById("sgrid");sg.innerHTML="";
   SKILLS.forEach(function(s){
-    var t=totals[s.key]||{all:0,today:0,byDay:{}};
-    var d=document.createElement("div");d.className="skill-card";
-    d.onclick=(function(k){return function(){openSkillDetail(k);};})(s.key);
+    var t=tots[s.key]||{all:0,today:0,byDay:{}};
+    var d=document.createElement("div");d.className="scard";
+    d.onclick=(function(k){return function(){openDetail(k);};})(s.key);
     if(s.key==="typing_score"){
-      var stk=calcStreak(t.byDay,1,todS),doneT=t.today>0;
-      d.innerHTML="<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,17)+"</span><span class='sk-name'>"+s.name+"</span></div><div class='sk-streak-big'>"+stk+"</div><div class='sk-streak-lbl'>day streak</div><div class='sk-done-badge "+(doneT?"sk-done-yes":"sk-done-no")+"'>"+(doneT?"Done":"Not Yet")+"</div><div class='sk-bar-lbl'><span>Consistency</span><span>"+Math.min(stk,30)+" / 30d</span></div><div class='sk-track'><div class='sk-fill' style='width:"+Math.min(Math.round(stk/30*100),100)+"%;background:var(--mauve-hi)'></div></div><div class='sk-next'>Practice every day</div>";
+      var stk=streak(t.byDay,1,todS),doneT=t.today>0;
+      d.innerHTML="<div class='sctop'><span class='scico'>"+icon(s.key,16)+"</span><span class='scname'>"+s.name+"</span></div><div class='scstk'>"+stk+"</div><div class='scstkl'>day streak</div><div class='scdbadge "+(doneT?"yes":"no")+"'>"+(doneT?"Done":"Not Yet")+"</div><div class='scbl'><span>Consistency</span><span>"+Math.min(stk,30)+" / 30d</span></div><div class='sctrack'><div class='scfill' style='width:"+Math.min(Math.round(stk/30*100),100)+"%;background:var(--mauve-hi)'></div></div><div class='scnxt'>Practice every day</div>";
     }else{
-      var norm=t.all/s.goal,si=getSkillRankIdx(norm),sr=SKILL_LEVELS[si],snxt=SKILL_LEVELS[Math.min(si+1,SKILL_LEVELS.length-1)];
-      var skPct=(snxt&&snxt!==sr)?Math.min(Math.round((norm-sr.d)/(snxt.d-sr.d)*100),100):100;
-      var rem=(snxt&&snxt!==sr)?Math.max(0,Math.round((snxt.d-norm)*s.goal)).toLocaleString():0;
-      var stk=calcStreak(t.byDay,s.goal,todS),stkT=stk>=3?"🔥"+stk+"d":stk>0?stk+"d":"";
+      var nd=t.all/s.goal,si=skRank(nd),sr=SL[si],sn=SL[Math.min(si+1,SL.length-1)];
+      var sp=(sn&&sn!==sr)?Math.min(Math.round((nd-sr.d)/(sn.d-sr.d)*100),100):100;
+      var rm=(sn&&sn!==sr)?Math.max(0,Math.round((sn.d-nd)*s.goal)).toLocaleString():0;
+      var stk=streak(t.byDay,s.goal,todS),stkT=stk>=3?"🔥"+stk+"d":stk>0?stk+"d":"";
       var tot=s.unit==="min"?fmtMin(t.all):t.all.toLocaleString();
-      var lp=sr.label.split(" "),lt=lp[0],ls=lp.slice(1).join(" ")||"";
-      d.innerHTML="<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,17)+"</span><span class='sk-name'>"+s.name+"</span><span class='sk-badge'>"+rankBadgeSVG(lt,ls,19)+"</span></div><div class='sk-total'>"+tot+"</div><div class='sk-unit'>"+s.unit+" total "+(stkT?"&nbsp;"+stkT:"")+"</div><div class='sk-bar-lbl'><span>"+sr.label+"</span><span>"+skPct+"%</span></div><div class='sk-track'><div class='sk-fill' style='width:"+skPct+"%;background:linear-gradient(90deg,"+sr.col+"88,"+sr.col+")'></div></div>"+((snxt&&snxt!==sr)?"<div class='sk-next'><strong>"+rem+"</strong> pts → "+snxt.label+"</div>":"<div class='sk-next'>✨ Max Rank</div>");
+      var lp=sr.l.split(" ");
+      d.innerHTML="<div class='sctop'><span class='scico'>"+icon(s.key,16)+"</span><span class='scname'>"+s.name+"</span><span class='scbadge'>"+badge(lp[0],lp.slice(1).join(" ")||"",18)+"</span></div><div class='sctotal'>"+tot+"</div><div class='scunit'>"+s.unit+" total "+(stkT?"&nbsp;"+stkT:"")+"</div><div class='scbl'><span>"+sr.l+"</span><span>"+sp+"%</span></div><div class='sctrack'><div class='scfill' style='width:"+sp+"%;background:linear-gradient(90deg,"+sr.c+"88,"+sr.c+")'></div></div>"+((sn&&sn!==sr)?"<div class='scnxt'><strong>"+rm+"</strong> → "+sn.l+"</div>":"<div class='scnxt'>✨ Max Rank</div>");
     }
     sg.appendChild(d);
   });
   // Rank road
-  var rr=document.getElementById("rank-road");rr.innerHTML="";
-  var ci=getOverallRankIdx(xp);
-  RANK_TIERS.forEach(function(r){
-    var col=document.createElement("div");col.className="tier-col";
-    var h=document.createElement("div");h.className="tier-head";h.style.cssText="color:"+r.col+";border-bottom-color:"+r.col+"66;background:"+r.col+"18";
-    h.innerHTML=rankBadgeSVG(r.tier,"V",11)+"<span>"+r.tier+"</span>";col.appendChild(h);
-    var subs=document.createElement("div");subs.className="tier-subs";
-    r.subs.forEach(function(s){
-      var label=s?r.tier+" "+s:r.tier,li=OVERALL_LEVELS.findIndex(function(l){return l.label===label;});
-      var sub=document.createElement("div");sub.className="tier-sub"+(li===ci?" current":li<ci?" passed":"");sub.textContent=label;
-      if(li===ci){sub.style.color=r.col;sub.style.borderColor=r.col+"88";sub.style.background=r.col+"22";}
-      if(li<ci){sub.style.color=r.col+"88";}
+  var rr=document.getElementById("rroad");rr.innerHTML="";
+  var ci=oriRank(xp);
+  TIERS.forEach(function(r){
+    var col=document.createElement("div");col.className="tcol";
+    var h=document.createElement("div");h.className="thead";h.style.cssText="color:"+r.c+";border-bottom-color:"+r.c+"66;background:"+r.c+"18";
+    h.innerHTML=badge(r.t,"V",11)+"<span>"+r.t+"</span>";col.appendChild(h);
+    var subs=document.createElement("div");subs.className="tsubs";
+    r.s.forEach(function(s){
+      var label=s?r.t+" "+s:r.t,li=OL.findIndex(function(l){return l.l===label;});
+      var sub=document.createElement("div");sub.className="tsub"+(li===ci?" cur":li<ci?" past":"");sub.textContent=label;
+      if(li===ci){sub.style.color=r.c;sub.style.borderColor=r.c+"88";sub.style.background=r.c+"22";}
+      if(li<ci){sub.style.color=r.c+"88";}
       subs.appendChild(sub);
     });
     col.appendChild(subs);rr.appendChild(col);
   });
-  document.getElementById("dash-content").style.display="block";
-  document.getElementById("dash-error").classList.remove("show");
+  document.getElementById("dash-con").style.display="block";
+  document.getElementById("dash-err").classList.remove("show");
 }
 </script>
 
-<!-- ══════════════════════════════════════════
+<!-- ══════════════════════════════════════
      PAGE: SKILL DETAIL
-══════════════════════════════════════════ -->
+     CSS + HTML + JS (week starts Sat)
+══════════════════════════════════════ -->
 <style>
 #page-skill{background:var(--bg)}
-.sd-hero{padding:26px 22px;background:var(--grad-hero);border-bottom:1px solid var(--border)}
-.sd-hero-inner{max-width:660px;margin:0 auto;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-.sd-rank-big{flex-shrink:0;width:82px;height:82px;border-radius:16px;border:1px solid var(--border2);background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center}
-.sd-right{flex:1;display:flex;flex-direction:column;gap:5px}
-.sd-icon-name{display:flex;align-items:center;gap:9px}
-.sd-skill-icon{display:flex;align-items:center;color:var(--mauve-hi)}
-.sd-skill-name{font-family:var(--f-title);font-size:24px;font-weight:700;color:#fff}
-.sd-rank-label{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
-.sd-total-row{font-size:13px;color:var(--text3)}
-.sd-total-row strong{color:#fff;font-size:19px;font-weight:800}
-.sd-body{max-width:660px;margin:0 auto;padding:22px 20px 90px}
-.streak-box{margin-bottom:18px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
-.streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
-.streak-lbl{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
-.streak-count{display:flex;align-items:baseline;gap:4px}
-.streak-num{font-family:var(--f-title);font-size:24px;font-weight:700;color:#fff}
-.streak-unit{font-size:11px;font-weight:600;color:var(--dim)}
-.streak-track{position:relative;height:11px;background:rgba(255,255,255,0.05);border-radius:100px;overflow:visible}
-.streak-fill{height:11px;border-radius:100px;background:var(--grad-bar);transition:width 1.2s cubic-bezier(.16,1,.3,1);position:relative;min-width:5px;box-shadow:0 0 12px rgba(167,118,147,0.6)}
-.streak-flame{position:absolute;right:-10px;top:-13px;font-size:20px;filter:drop-shadow(0 0 7px rgba(255,140,50,.7))}
-.streak-miles{display:flex;justify-content:space-between;margin-top:8px;font-size:9px;font-weight:600;letter-spacing:1px;color:var(--dim)}
-.chart-box{margin-bottom:18px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
-.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.chart-title{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
-.chart-tabs{display:flex;gap:4px}
-.chart-tab{background:none;border:1px solid var(--border);border-radius:5px;padding:4px 9px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);transition:all .2s}
-.chart-tab.active{background:rgba(167,118,147,0.18);border-color:var(--border2);color:#fff}
-.chart-tab:hover:not(.active){border-color:var(--border2);color:var(--text3)}
-.chart-wrap{position:relative;height:175px;overflow:hidden}
-.chart-scroll{overflow-x:auto;height:100%;scrollbar-width:thin;scrollbar-color:rgba(167,118,147,0.3) transparent}
-.chart-scroll::-webkit-scrollbar{height:3px}
-.bar-group{display:inline-flex;gap:5px;align-items:flex-end;height:100%;padding:20px 6px 26px;position:relative;min-width:100%}
-.bar-item{display:flex;flex-direction:column;align-items:center;min-width:25px;height:100%;justify-content:flex-end}
-.bar-val{font-size:8px;font-weight:700;color:var(--text3);margin-bottom:3px;white-space:nowrap;text-align:center}
-.bar-col{width:15px;border-radius:4px 4px 0 0;min-height:3px;transition:height .5s cubic-bezier(.16,1,.3,1)}
-.bar-lbl{font-size:8px;font-weight:600;color:var(--dim);letter-spacing:.5px;margin-top:5px;white-space:nowrap}
-.goal-line{position:absolute;left:0;right:0;border-top:1.5px dashed rgba(196,144,174,0.5);pointer-events:none;z-index:2}
-.goal-lbl{position:absolute;right:4px;top:-15px;font-size:8px;font-weight:700;color:var(--mauve-hi)}
-.chart-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:var(--dim)}
-.cal-box{padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
-.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
-.cal-title{font-family:var(--f-title);font-size:15px;font-weight:700;color:#fff}
-.cal-nav-btns{display:flex;gap:5px}
-.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 11px;color:var(--text3);font-size:14px;line-height:1;transition:all .2s}
-.cal-nav-btn:hover{border-color:var(--border2);color:#fff}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cal-head{text-align:center;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);padding-bottom:7px}
-.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;font-size:10px;font-weight:600;color:rgba(222,209,198,0.35);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s;gap:1px;padding:2px 1px}
-.cal-cell.empty{background:none;border:none}
-.cal-cell.cal-today{border-color:rgba(167,118,147,0.5);color:var(--beige)}
-.cal-cell.cal-met{background:rgba(167,118,147,0.5);border-color:var(--mauve-hi);color:#fff;font-weight:800;box-shadow:0 0 9px rgba(167,118,147,0.4)}
-.cal-cell.cal-partial{background:rgba(167,118,147,0.15);border-color:rgba(167,118,147,0.35);color:var(--mauve-hi)}
-.cal-day-num{font-size:10px;font-weight:700;line-height:1}
-.cal-day-val{font-size:7px;font-weight:600;line-height:1;opacity:.85}
-.cal-cell.cal-met .cal-day-val{color:rgba(255,255,255,0.9)}
-.cal-legend{display:flex;gap:13px;margin-top:9px;justify-content:flex-end}
-.cal-legend-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--dim)}
-.cal-legend-dot{width:8px;height:8px;border-radius:3px}
-@media(max-width:750px){.sd-hero-inner{flex-direction:column;text-align:center}.sd-rank-big{margin:0 auto}.sd-body{padding:18px 14px 90px}}
+.sdhero{padding:24px 20px;background:var(--grad-hero);border-bottom:1px solid var(--border)}
+.sdinner{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.sdleft{flex-shrink:0;width:78px;height:78px;border-radius:16px;border:1px solid var(--border2);background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center}
+.sdright{flex:1;display:flex;flex-direction:column;gap:4px}
+.sdrow{display:flex;align-items:center;gap:8px}
+.sdico{display:flex;align-items:center;color:var(--mauve-hi)}
+.sdname{font-family:var(--f-title);font-size:22px;font-weight:700;color:#fff}
+.sdrl{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
+.sdtot{font-size:13px;color:var(--text3)}
+.sdtot strong{color:#fff;font-size:18px;font-weight:800}
+.sdbody{max-width:640px;margin:0 auto;padding:20px 18px 90px}
+/* streak */
+.stbox{margin-bottom:16px;padding:15px 17px;background:var(--surface);border:1px solid var(--border);border-radius:13px}
+.stmeta{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.stlbl{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
+.stcnt{display:flex;align-items:baseline;gap:4px}
+.stnum{font-family:var(--f-title);font-size:24px;font-weight:700;color:#fff}
+.stunit{font-size:11px;font-weight:600;color:var(--dim)}
+.sttrack{position:relative;height:11px;background:rgba(255,255,255,0.05);border-radius:100px;overflow:visible}
+.stfill{height:11px;border-radius:100px;background:var(--grad-bar);transition:width 1.2s cubic-bezier(.16,1,.3,1);position:relative;min-width:5px;box-shadow:0 0 11px rgba(167,118,147,0.6)}
+.stflame{position:absolute;right:-10px;top:-13px;font-size:20px;filter:drop-shadow(0 0 7px rgba(255,140,50,.7))}
+.stmiles{display:flex;justify-content:space-between;margin-top:8px;font-size:9px;font-weight:600;letter-spacing:1px;color:var(--dim)}
+/* chart */
+.chbox{margin-bottom:16px;padding:15px 17px;background:var(--surface);border:1px solid var(--border);border-radius:13px}
+.chhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.chtitle{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
+.chtabs{display:flex;gap:3px}
+.chtab{background:none;border:1px solid var(--border);border-radius:5px;padding:4px 9px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);transition:all .2s}
+.chtab.active{background:rgba(167,118,147,0.18);border-color:var(--border2);color:#fff}
+.chtab:hover:not(.active){border-color:var(--border2);color:var(--text3)}
+.chwrap{position:relative;height:170px;overflow:hidden}
+.chscroll{overflow-x:auto;height:100%;scrollbar-width:thin;scrollbar-color:rgba(167,118,147,0.3) transparent}
+.chscroll::-webkit-scrollbar{height:3px}
+.bargrp{display:inline-flex;gap:5px;align-items:flex-end;height:100%;padding:20px 6px 26px;position:relative;min-width:100%}
+.bitem{display:flex;flex-direction:column;align-items:center;min-width:24px;height:100%;justify-content:flex-end}
+.bval{font-size:8px;font-weight:700;color:var(--text3);margin-bottom:3px;white-space:nowrap;text-align:center}
+.bcol{width:14px;border-radius:4px 4px 0 0;min-height:3px;transition:height .5s cubic-bezier(.16,1,.3,1)}
+.blbl{font-size:8px;font-weight:600;color:var(--dim);letter-spacing:.5px;margin-top:5px;white-space:nowrap}
+.gline{position:absolute;left:0;right:0;border-top:1.5px dashed rgba(196,144,174,0.5);pointer-events:none;z-index:2}
+.glbl{position:absolute;right:4px;top:-15px;font-size:8px;font-weight:700;color:var(--mauve-hi)}
+.chempty{display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:var(--dim)}
+/* calendar */
+.calbox{padding:15px 17px;background:var(--surface);border:1px solid var(--border);border-radius:13px}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.caltitle{font-family:var(--f-title);font-size:15px;font-weight:700;color:#fff}
+.calnav{display:flex;gap:5px}
+.calnb{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text3);font-size:14px;line-height:1;transition:all .2s}
+.calnb:hover{border-color:var(--border2);color:#fff}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.calh{text-align:center;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);padding-bottom:7px}
+.calcel{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;font-size:10px;font-weight:600;color:rgba(222,209,198,0.35);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s;gap:1px;padding:2px 1px}
+.calcel.empty{background:none;border:none}
+.calcel.ctod{border-color:rgba(167,118,147,0.5);color:var(--beige)}
+.calcel.cmet{background:rgba(167,118,147,0.5);border-color:var(--mauve-hi);color:#fff;font-weight:800;box-shadow:0 0 9px rgba(167,118,147,0.4)}
+.calcel.cpar{background:rgba(167,118,147,0.15);border-color:rgba(167,118,147,0.35);color:var(--mauve-hi)}
+.cdn{font-size:10px;font-weight:700;line-height:1}
+.cdv{font-size:7px;font-weight:600;line-height:1;opacity:.85}
+.calcel.cmet .cdv{color:rgba(255,255,255,0.9)}
+.calleg{display:flex;gap:12px;margin-top:9px;justify-content:flex-end}
+.calleg-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--dim)}
+.calleg-dot{width:8px;height:8px;border-radius:3px}
+@media(max-width:600px){.sdinner{flex-direction:column;text-align:center}.sdleft{margin:0 auto}.sdbody{padding:16px 13px 90px}}
 </style>
 
 <div id="page-skill" class="page hidden">
@@ -783,184 +675,178 @@ function renderDashboard(rows){
     <div class="nav-logo">KRESTO</div>
     <div class="nav-right"><button class="nav-link" onclick="goTo('dash')">← Dashboard</button></div>
   </nav>
-  <div class="sd-hero">
-    <div class="sd-hero-inner">
-      <div class="sd-rank-big" id="sd-rank-big"></div>
-      <div class="sd-right">
-        <div class="sd-icon-name"><div class="sd-skill-icon" id="sd-icon"></div><div class="sd-skill-name" id="sd-name">—</div></div>
-        <div class="sd-rank-label" id="sd-rank-label">—</div>
-        <div class="sd-total-row" id="sd-total-row">—</div>
+  <div class="sdhero">
+    <div class="sdinner">
+      <div class="sdleft" id="sd-badge"></div>
+      <div class="sdright">
+        <div class="sdrow"><div class="sdico" id="sd-ico"></div><div class="sdname" id="sd-name">—</div></div>
+        <div class="sdrl" id="sd-rl">—</div>
+        <div class="sdtot" id="sd-tot">—</div>
       </div>
     </div>
   </div>
-  <div class="sd-body">
-    <div class="streak-box">
-      <div class="streak-meta"><div class="streak-lbl">🔥 Streak</div><div class="streak-count"><span class="streak-num" id="sd-streak-n">0</span><span class="streak-unit">days</span></div></div>
-      <div class="streak-track"><div class="streak-fill" id="sd-streak-fill" style="width:0%"><span class="streak-flame">🔥</span></div></div>
-      <div class="streak-miles" id="sd-streak-miles"></div>
+  <div class="sdbody">
+    <div class="stbox">
+      <div class="stmeta"><div class="stlbl">🔥 Streak</div><div class="stcnt"><span class="stnum" id="st-n">0</span><span class="stunit">days</span></div></div>
+      <div class="sttrack"><div class="stfill" id="st-fill" style="width:0%"><span class="stflame">🔥</span></div></div>
+      <div class="stmiles" id="st-miles"></div>
     </div>
-    <div class="chart-box">
-      <div class="chart-header">
-        <div class="chart-title">History</div>
-        <div class="chart-tabs">
-          <button class="chart-tab active" onclick="setChartRange('day')">Day</button>
-          <button class="chart-tab" onclick="setChartRange('week')">Week</button>
-          <button class="chart-tab" onclick="setChartRange('month')">Month</button>
-          <button class="chart-tab" onclick="setChartRange('year')">Year</button>
+    <div class="chbox">
+      <div class="chhead">
+        <div class="chtitle">History</div>
+        <div class="chtabs">
+          <button class="chtab active" onclick="setRange('day')">Day</button>
+          <button class="chtab" onclick="setRange('week')">Week</button>
+          <button class="chtab" onclick="setRange('month')">Month</button>
+          <button class="chtab" onclick="setRange('year')">Year</button>
         </div>
       </div>
-      <div class="chart-wrap" id="chart-wrap"><div class="chart-scroll" id="chart-scroll"><div class="chart-empty">No data yet</div></div></div>
+      <div class="chwrap" id="ch-wrap"><div class="chscroll" id="ch-scroll"><div class="chempty">No data yet</div></div></div>
     </div>
-    <div class="cal-box">
-      <div class="cal-header"><div class="cal-title" id="cal-month-lbl">—</div><div class="cal-nav-btns"><button class="cal-nav-btn" onclick="shiftCal(-1)">‹</button><button class="cal-nav-btn" onclick="shiftCal(1)">›</button></div></div>
-      <div class="cal-grid" id="cal-grid"></div>
-      <div class="cal-legend">
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(167,118,147,.5);border:1px solid var(--mauve-hi)"></div>Goal met</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(167,118,147,.15);border:1px solid rgba(167,118,147,.35)"></div>Partial</div>
+    <div class="calbox">
+      <div class="calhead"><div class="caltitle" id="cal-lbl">—</div><div class="calnav"><button class="calnb" onclick="shiftCal(-1)">‹</button><button class="calnb" onclick="shiftCal(1)">›</button></div></div>
+      <div class="calgrid" id="cal-grid"></div>
+      <div class="calleg">
+        <div class="calleg-item"><div class="calleg-dot" style="background:rgba(167,118,147,.5);border:1px solid var(--mauve-hi)"></div>Goal met</div>
+        <div class="calleg-item"><div class="calleg-dot" style="background:rgba(167,118,147,.15);border:1px solid rgba(167,118,147,.35)"></div>Partial</div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-/* SKILL DETAIL JS — reads from SESSION.name cache */
-var detailKey=null,detailRange="day",detailCalY,detailCalM;
+/* ── SKILL DETAIL JS ── */
+var dtKey=null,dtRange="day",dtCY,dtCM;
 
-function openSkillDetail(key){
-  detailKey=key;var now=getCairoNow();detailCalY=now.getFullYear();detailCalM=now.getMonth();
-  detailRange="day";renderSkillDetail();goTo("skill");
-}
+function openDetail(key){dtKey=key;var n=cairoNow();dtCY=n.getFullYear();dtCM=n.getMonth();dtRange="day";renderDetail();goTo("skill");}
 
-function renderSkillDetail(){
-  if(!detailKey)return;
-  var skill=SKILLS.find(function(s){return s.key===detailKey;});
-  var rows=loadPlayerCache(SESSION.name);  // ← always SESSION.name
-  var totals=computeTotals(rows),t=totals[detailKey]||{all:0,today:0,byDay:{}};
-  var todS=cairoToday(),isTyping=detailKey==="typing_score";
-  if(isTyping){
-    document.getElementById("sd-rank-big").innerHTML=rankBadgeSVG("Bronze","V",65);
-    document.getElementById("sd-icon").innerHTML=skillSVG(detailKey,24);
-    document.getElementById("sd-name").textContent=skill.name;
-    document.getElementById("sd-rank-label").textContent="Consistency Tracker";
-    document.getElementById("sd-rank-label").style.color="var(--beige)";
-    document.getElementById("sd-total-row").innerHTML='Sessions: <strong>'+t.all+'</strong>';
+function renderDetail(){
+  if(!dtKey)return;
+  var sk=SKILLS.find(function(s){return s.key===dtKey;});
+  var rows=getCache(dashName()),tots=computeTotals(rows),t=tots[dtKey]||{all:0,today:0,byDay:{}};
+  var todS=today(),isT=dtKey==="typing_score";
+  if(isT){
+    document.getElementById("sd-badge").innerHTML=badge("Bronze","V",62);
+    document.getElementById("sd-ico").innerHTML=icon(dtKey,22);
+    document.getElementById("sd-name").textContent=sk.name;
+    document.getElementById("sd-rl").textContent="Consistency Tracker";
+    document.getElementById("sd-rl").style.color="var(--beige)";
+    document.getElementById("sd-tot").innerHTML='Sessions: <strong>'+t.all+'</strong>';
   }else{
-    var norm=t.all/skill.goal,si=getSkillRankIdx(norm),sr=SKILL_LEVELS[si];
-    var lp=sr.label.split(" "),lt=lp[0],ls=lp.slice(1).join(" ")||"";
-    document.getElementById("sd-rank-big").innerHTML=rankBadgeSVG(lt,ls,65);
-    document.getElementById("sd-icon").innerHTML=skillSVG(detailKey,24);
-    document.getElementById("sd-name").textContent=skill.name;
-    document.getElementById("sd-rank-label").textContent=sr.label;
-    document.getElementById("sd-rank-label").style.color=sr.col;
-    var tot=skill.unit==="min"?fmtMin(t.all):t.all.toLocaleString()+" "+skill.unit;
-    document.getElementById("sd-total-row").innerHTML='Total: <strong>'+tot+'</strong>';
+    var nd=t.all/sk.goal,si=skRank(nd),sr=SL[si],lp=sr.l.split(" ");
+    document.getElementById("sd-badge").innerHTML=badge(lp[0],lp.slice(1).join(" ")||"",62);
+    document.getElementById("sd-ico").innerHTML=icon(dtKey,22);
+    document.getElementById("sd-name").textContent=sk.name;
+    document.getElementById("sd-rl").textContent=sr.l;
+    document.getElementById("sd-rl").style.color=sr.c;
+    document.getElementById("sd-tot").innerHTML='Total: <strong>'+(sk.unit==="min"?fmtMin(t.all):t.all.toLocaleString()+" "+sk.unit)+'</strong>';
   }
-  var sg=isTyping?1:skill.goal,stk=calcStreak(t.byDay,sg,todS);
+  var sg=isT?1:sk.goal,stk=streak(t.byDay,sg,todS);
   var maxS=Math.max(30,Math.ceil((stk+1)/30)*30),pct=Math.min(stk/maxS*100,100);
-  document.getElementById("sd-streak-n").textContent=stk;
-  document.getElementById("sd-streak-miles").innerHTML="<span>0</span><span>"+Math.round(maxS/4)+"d</span><span>"+Math.round(maxS/2)+"d</span><span>"+Math.round(maxS*3/4)+"d</span><span>"+maxS+"d</span>";
-  setTimeout(function(){document.getElementById("sd-streak-fill").style.width=pct+"%";},80);
-  document.querySelectorAll(".chart-tab").forEach(function(b,i){b.classList.toggle("active",["day","week","month","year"][i]===detailRange);});
-  renderChart(detailKey,detailRange);
-  renderCalendar(detailKey,detailCalY,detailCalM,t.byDay,sg,skill.unit);
+  document.getElementById("st-n").textContent=stk;
+  document.getElementById("st-miles").innerHTML="<span>0</span><span>"+Math.round(maxS/4)+"d</span><span>"+Math.round(maxS/2)+"d</span><span>"+Math.round(maxS*3/4)+"d</span><span>"+maxS+"d</span>";
+  setTimeout(function(){document.getElementById("st-fill").style.width=pct+"%";},80);
+  document.querySelectorAll(".chtab").forEach(function(b,i){b.classList.toggle("active",["day","week","month","year"][i]===dtRange);});
+  renderChart(dtKey,dtRange);
+  renderCal(dtKey,dtCY,dtCM,t.byDay,sg,sk.unit);
 }
 
-function setChartRange(range){
-  detailRange=range;
-  document.querySelectorAll(".chart-tab").forEach(function(b,i){b.classList.toggle("active",["day","week","month","year"][i]===range);});
-  if(detailKey)renderChart(detailKey,range);
-}
+function setRange(r){dtRange=r;document.querySelectorAll(".chtab").forEach(function(b,i){b.classList.toggle("active",["day","week","month","year"][i]===r);});if(dtKey)renderChart(dtKey,r);}
 
 function groupData(key,range){
-  var rows=loadPlayerCache(SESSION.name); // ← SESSION.name
-  var filt=rows.filter(function(r){return r.skill===key;}),now=getCairoNow();
-  if(range==="day"){var out=[];for(var i=59;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);var ds=dateKey(d),v=0;filt.forEach(function(r){if(normDate(r.date)===ds)v+=Number(r.amount)||0;});out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v});}return out;}
-  if(range==="week"){var out=[];for(var i=25;i>=0;i--){var ws=weekStartDate(new Date(weekStartDate().getTime()-i*7*86400000));var we=new Date(ws);we.setDate(we.getDate()+6);we.setHours(23,59,59);var v=0;filt.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;});var wn=Math.ceil((ws.getTime()-new Date(ws.getFullYear(),0,1).getTime())/604800000)+1;out.push({label:"W"+wn,value:v});}return out;}
-  if(range==="month"){var out=[],mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];for(var i=17;i>=0;i--){var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime(),me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime(),v=0;filt.forEach(function(r){var t2=new Date(normDate(r.date)+"T12:00:00").getTime();if(t2>=ms&&t2<=me)v+=Number(r.amount)||0;});var dm=new Date(ms);out.push({label:mn[dm.getMonth()],value:v});}return out;}
-  if(range==="year"){var map={};filt.forEach(function(r){var y=(normDate(r.date)||"").split("-")[0];if(y)map[y]=(map[y]||0)+(Number(r.amount)||0);});return Object.keys(map).sort().map(function(y){return{label:y,value:map[y]};});}
+  var rows=getCache(dashName()),filt=rows.filter(function(r){return r.skill===key;}),now=cairoNow();
+  if(range==="day"){var out=[];for(var i=59;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);var ds=dkey(d),v=0;filt.forEach(function(r){if(normD(r.date)===ds)v+=Number(r.amount)||0;});out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v});}return out;}
+  if(range==="week"){var out=[];for(var i=25;i>=0;i--){var ws=weekStart(new Date(weekStart().getTime()-i*7*86400000));var we=new Date(ws);we.setDate(we.getDate()+6);we.setHours(23,59,59);var v=0;filt.forEach(function(r){var ms=new Date(normD(r.date)+"T12:00:00").getTime();if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;});out.push({label:"W"+(Math.ceil((ws.getTime()-new Date(ws.getFullYear(),0,1).getTime())/604800000)+1),value:v});}return out;}
+  if(range==="month"){var out=[],mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];for(var i=17;i>=0;i--){var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime(),me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime(),v=0;filt.forEach(function(r){var t2=new Date(normD(r.date)+"T12:00:00").getTime();if(t2>=ms&&t2<=me)v+=Number(r.amount)||0;});out.push({label:mn[new Date(ms).getMonth()],value:v});}return out;}
+  if(range==="year"){var map={};filt.forEach(function(r){var y=(normD(r.date)||"").split("-")[0];if(y)map[y]=(map[y]||0)+(Number(r.amount)||0);});return Object.keys(map).sort().map(function(y){return{label:y,value:map[y]};});}
   return[];
 }
 
 function renderChart(key,range){
-  var data=groupData(key,range),scroll=document.getElementById("chart-scroll"),wrap=document.getElementById("chart-wrap");
-  Array.from(wrap.querySelectorAll(".goal-line")).forEach(function(e){e.remove();});
-  if(!data||data.every(function(d){return d.value===0;})){scroll.innerHTML='<div class="chart-empty">No data yet</div>';return;}
-  var skill=SKILLS.find(function(s){return s.key===key;}),goal=skill.goal||0,isMin=skill.unit==="min";
-  var maxV=Math.max.apply(null,data.map(function(d){return d.value;}).concat([goal||1,1])),chartH=118;
-  scroll.innerHTML='<div class="bar-group">'+data.map(function(d){var h=d.value>0?Math.max(Math.round(d.value/maxV*chartH),3):0;var met=goal>0&&d.value>=goal,has=d.value>0;var bg=met?"linear-gradient(0deg,#A77693,#c490ae)":has?"linear-gradient(0deg,#174871,#2260a0)":"rgba(255,255,255,0.04)";var vl=d.value>0?(isMin?fmtMin(d.value):d.value):"";return'<div class="bar-item"><div class="bar-val">'+vl+'</div><div class="bar-col" style="height:'+h+'px;background:'+bg+'"></div><div class="bar-lbl">'+d.label+'</div></div>';}).join('')+'</div>';
-  if(goal>0){var goalH=Math.round(goal/maxV*chartH)+26;var gl=document.createElement("div");gl.className="goal-line";gl.style.bottom=goalH+"px";var glbl=document.createElement("div");glbl.className="goal-lbl";glbl.textContent="goal";gl.appendChild(glbl);wrap.appendChild(gl);}
+  var data=groupData(key,range),scroll=document.getElementById("ch-scroll"),wrap=document.getElementById("ch-wrap");
+  Array.from(wrap.querySelectorAll(".gline")).forEach(function(e){e.remove();});
+  if(!data||data.every(function(d){return d.value===0;})){scroll.innerHTML='<div class="chempty">No data yet</div>';return;}
+  var sk=SKILLS.find(function(s){return s.key===key;}),goal=sk.goal||0,isMin=sk.unit==="min";
+  var maxV=Math.max.apply(null,data.map(function(d){return d.value;}).concat([goal||1,1])),ch=115;
+  scroll.innerHTML='<div class="bargrp">'+data.map(function(d){
+    var h=d.value>0?Math.max(Math.round(d.value/maxV*ch),3):0;
+    var bg=(goal>0&&d.value>=goal)?"linear-gradient(0deg,#A77693,#c490ae)":d.value>0?"linear-gradient(0deg,#174871,#2260a0)":"rgba(255,255,255,0.04)";
+    var vl=d.value>0?(isMin?fmtMin(d.value):d.value):"";
+    return'<div class="bitem"><div class="bval">'+vl+'</div><div class="bcol" style="height:'+h+'px;background:'+bg+'"></div><div class="blbl">'+d.label+'</div></div>';
+  }).join('')+'</div>';
+  if(goal>0){var gl=document.createElement("div");gl.className="gline";gl.style.bottom=(Math.round(goal/maxV*ch)+26)+"px";var glbl=document.createElement("div");glbl.className="glbl";glbl.textContent="goal";gl.appendChild(glbl);wrap.appendChild(gl);}
   setTimeout(function(){scroll.scrollLeft=scroll.scrollWidth;},80);
 }
 
-function renderCalendar(key,year,month,byDay,goal,unit){
+function renderCal(key,year,month,byDay,goal,unit){
   var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
-  document.getElementById("cal-month-lbl").textContent=MN[month]+" "+year;
-  var todS=cairoToday(),first=new Date(year,month,1).getDay(),offset=(first+1)%7;
-  var days=new Date(year,month+1,0).getDate(),isMin=unit==="min";
+  document.getElementById("cal-lbl").textContent=MN[month]+" "+year;
+  var todS=today(),first=new Date(year,month,1).getDay(),offset=(first+1)%7,days=new Date(year,month+1,0).getDate(),isMin=unit==="min";
   var html="";
-  ["S","S","M","T","W","T","F"].forEach(function(d){html+="<div class='cal-head'>"+d+"</div>";});
-  for(var i=0;i<offset;i++)html+="<div class='cal-cell empty'></div>";
-  for(var day=1;day<=days;day++){var ds=year+"-"+p2(month+1)+"-"+p2(day),v=byDay[ds]||0,isToday=ds===todS;var cls="cal-cell";if(isToday)cls+=" cal-today";if(goal>0&&v>=goal)cls+=" cal-met";else if(v>0)cls+=" cal-partial";var valStr=v>0?(isMin?fmtMin(v):v):"";html+="<div class='"+cls+"'><span class='cal-day-num'>"+day+"</span>"+(valStr?"<span class='cal-day-val'>"+valStr+"</span>":"")+"</div>";}
+  ["S","S","M","T","W","T","F"].forEach(function(d){html+="<div class='calh'>"+d+"</div>";});
+  for(var i=0;i<offset;i++)html+="<div class='calcel empty'></div>";
+  for(var d=1;d<=days;d++){
+    var ds=year+"-"+p2(month+1)+"-"+p2(d),v=byDay[ds]||0,isToday=ds===todS;
+    var cls="calcel";if(isToday)cls+=" ctod";if(goal>0&&v>=goal)cls+=" cmet";else if(v>0)cls+=" cpar";
+    html+="<div class='"+cls+"'><span class='cdn'>"+d+"</span>"+(v>0?"<span class='cdv'>"+(isMin?fmtMin(v):v)+"</span>":"")+"</div>";
+  }
   document.getElementById("cal-grid").innerHTML=html;
 }
 
-function shiftCal(dir){
-  detailCalM+=dir;if(detailCalM>11){detailCalM=0;detailCalY++;}if(detailCalM<0){detailCalM=11;detailCalY--;}
-  if(detailKey){var rows=loadPlayerCache(SESSION.name);var totals=computeTotals(rows);var t=totals[detailKey]||{byDay:{}};var skill=SKILLS.find(function(s){return s.key===detailKey;});renderCalendar(detailKey,detailCalY,detailCalM,t.byDay,detailKey==="typing_score"?1:skill.goal,skill.unit);}
-}
+function shiftCal(dir){dtCM+=dir;if(dtCM>11){dtCM=0;dtCY++;}if(dtCM<0){dtCM=11;dtCY--;}if(dtKey){var rows=getCache(dashName());var tots=computeTotals(rows);var t=tots[dtKey]||{byDay:{}};var sk=SKILLS.find(function(s){return s.key===dtKey;});renderCal(dtKey,dtCY,dtCM,t.byDay,dtKey==="typing_score"?1:sk.goal,sk.unit);}}
 </script>
 
-<!-- ══════════════════════════════════════════
+<!-- ══════════════════════════════════════
      PAGE: LEAGUE
-══════════════════════════════════════════ -->
+     CSS + HTML + JS
+══════════════════════════════════════ -->
 <style>
 #page-league{background:var(--bg)}
-.league-hero{padding:28px 22px 16px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 120%,rgba(232,193,64,0.14),transparent 60%)}
-.league-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:rgba(232,193,64,0.6);margin-bottom:8px}
-.league-title{font-family:var(--f-title);font-size:clamp(20px,4vw,44px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff;margin-bottom:12px}
-.league-title em{font-style:normal;color:#e8c840}
-.timer-wrap{display:inline-flex;align-items:center;gap:14px;background:rgba(23,72,113,0.5);border:1px solid rgba(232,193,64,0.25);border-radius:13px;padding:12px 20px}
-.timer-block{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px}
-.timer-num{font-family:var(--f-brand);font-size:22px;font-weight:700;color:#e8c840;line-height:1}
-.timer-lbl{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
-.timer-sep{font-family:var(--f-brand);font-size:20px;font-weight:700;color:rgba(232,193,64,0.4);margin-bottom:12px}
-.league-body{max-width:900px;margin:0 auto;padding:18px 22px 90px}
-.standings-list{display:flex;flex-direction:column;gap:7px;margin-bottom:24px}
-.st-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
-.st-row.gold{border-color:rgba(232,193,64,0.4);background:rgba(232,193,64,0.06)}
-.st-row.silver{border-color:rgba(192,192,200,0.35);background:rgba(192,192,200,0.04)}
-.st-row.bronze{border-color:rgba(205,127,50,0.35);background:rgba(205,127,50,0.04)}
-.st-pos{font-family:var(--f-title);font-size:17px;font-weight:700;width:26px;text-align:center;flex-shrink:0;color:var(--dim)}
-.st-pos.p1{color:#e8c840}.st-pos.p2{color:#c0c0d0}.st-pos.p3{color:#cd7f32}
-.st-medal{font-size:18px;flex-shrink:0;width:20px}
-.st-name{font-size:14px;font-weight:700;color:#fff;flex:1;min-width:60px}
-.st-xp{font-size:12px;font-weight:700;color:var(--mauve-hi);white-space:nowrap;margin-left:8px;flex-shrink:0}
-.st-bar-wrap{flex:2;min-width:70px;max-width:260px}
-.st-bar-track{height:5px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
-.st-bar-fill{height:100%;border-radius:100px;transition:width .9s}
-.skill-top{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
-.skill-bot{display:flex;justify-content:center;gap:8px;margin-bottom:24px}
-.skill-bot .lcard{max-width:calc(33.33% - 5px);width:calc(33.33% - 5px)}
-.lcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 11px;display:flex;flex-direction:column;gap:6px}
-.lcard-top{display:flex;align-items:center;gap:7px}
-.lcard-icon{display:flex;align-items:center;color:var(--dim);flex-shrink:0}
-.lcard-skill{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);flex:1}
-.lcard-trophy{font-size:14px;flex-shrink:0}
-.lcard-name{font-size:14px;font-weight:800;color:#fff}
-.lcard-amount{font-size:20px;font-weight:800;color:var(--mauve-hi);line-height:1}
-.lcard-none{font-size:11px;color:var(--very-dim)}
-.history-list{display:flex;flex-direction:column;gap:7px}
-.hist-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
-.hist-week{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);min-width:70px;flex-shrink:0}
-.hist-trophy{font-size:20px;flex-shrink:0}
-.hist-name{font-size:14px;font-weight:700;color:#fff;flex:1}
-.hist-xp{font-size:12px;font-weight:700;color:#e8c840;white-space:nowrap}
-.hist-empty{text-align:center;color:var(--very-dim);font-size:12px;padding:18px 0}
-.league-error-box{text-align:center;padding:44px 22px;color:var(--dim);font-size:14px;line-height:2;display:none}
-.league-error-box.show{display:block}
-.league-error-box strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
-@media(max-width:750px){.league-body{padding:16px 14px 90px}.skill-top{grid-template-columns:repeat(2,1fr)}.skill-bot .lcard{max-width:calc(50% - 4px);width:calc(50% - 4px)}.timer-wrap{gap:10px;padding:10px 14px}.timer-num{font-size:18px}}
-@media(max-width:480px){.skill-top{grid-template-columns:1fr 1fr}.skill-bot{flex-direction:column;align-items:center}.skill-bot .lcard{max-width:100%;width:100%}}
+.lhero{padding:26px 20px 14px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 120%,rgba(232,193,64,0.14),transparent 60%)}
+.ltag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:rgba(232,193,64,0.6);margin-bottom:8px}
+.ltitle{font-family:var(--f-title);font-size:clamp(20px,4vw,42px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff;margin-bottom:12px}
+.ltitle em{font-style:normal;color:#e8c840}
+.twrap{display:inline-flex;align-items:center;gap:12px;background:rgba(23,72,113,0.5);border:1px solid rgba(232,193,64,0.25);border-radius:12px;padding:11px 18px}
+.tblk{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:42px}
+.tnum{font-family:var(--f-brand);font-size:21px;font-weight:700;color:#e8c840;line-height:1}
+.tlbl{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.tsep{font-family:var(--f-brand);font-size:18px;font-weight:700;color:rgba(232,193,64,0.4);margin-bottom:11px}
+.lbody{max-width:880px;margin:0 auto;padding:16px 20px 90px}
+.stlist{display:flex;flex-direction:column;gap:6px;margin-bottom:22px}
+.strow{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.strow.g{border-color:rgba(232,193,64,0.4);background:rgba(232,193,64,0.06)}
+.strow.s{border-color:rgba(192,192,200,0.35);background:rgba(192,192,200,0.04)}
+.strow.b{border-color:rgba(205,127,50,0.35);background:rgba(205,127,50,0.04)}
+.stpos{font-family:var(--f-title);font-size:16px;font-weight:700;width:24px;text-align:center;flex-shrink:0;color:var(--dim)}
+.stpos.p1{color:#e8c840}.stpos.p2{color:#c0c0d0}.stpos.p3{color:#cd7f32}
+.stmed{font-size:17px;flex-shrink:0;width:19px}
+.stname{font-size:14px;font-weight:700;color:#fff;flex:1;min-width:55px}
+.stxp{font-size:12px;font-weight:700;color:var(--mauve-hi);white-space:nowrap;margin-left:7px;flex-shrink:0}
+.stbw{flex:2;min-width:60px;max-width:240px}
+.stbt{height:5px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.stbf{height:100%;border-radius:100px;transition:width .9s}
+/* skill leaders 3+2 */
+.ltop{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:7px}
+.lbot{display:flex;justify-content:center;gap:7px;margin-bottom:22px}
+.lbot .lcard{max-width:calc(33.33% - 5px);width:calc(33.33% - 5px)}
+.lcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 10px;display:flex;flex-direction:column;gap:5px}
+.lctop{display:flex;align-items:center;gap:7px}
+.lcico{display:flex;align-items:center;color:var(--dim);flex-shrink:0}
+.lcsk{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);flex:1}
+.lcn{font-size:14px;font-weight:800;color:#fff}
+.lca{font-size:19px;font-weight:800;color:var(--mauve-hi);line-height:1}
+.lcu{font-size:9px;font-weight:500;color:var(--dim)}
+.lcnone{font-size:11px;color:var(--very-dim)}
+/* history */
+.hlist{display:flex;flex-direction:column;gap:7px}
+.hrow{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.hwk{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);min-width:65px;flex-shrink:0}
+.htroph{font-size:19px;flex-shrink:0}
+.hname{font-size:14px;font-weight:700;color:#fff;flex:1}
+.hxp{font-size:12px;font-weight:700;color:#e8c840;white-space:nowrap}
+.hempty{text-align:center;color:var(--very-dim);font-size:12px;padding:16px 0}
+@media(max-width:600px){.lbody{padding:14px 13px 90px}.ltop{grid-template-columns:repeat(2,1fr)}.lbot .lcard{max-width:calc(50% - 4px);width:calc(50% - 4px)}.twrap{gap:8px;padding:10px 13px}.tnum{font-size:18px}}
+@media(max-width:420px){.lbot{flex-direction:column;align-items:center}.lbot .lcard{max-width:100%;width:100%}}
 </style>
 
 <div id="page-league" class="page hidden">
@@ -970,187 +856,176 @@ function shiftCal(dir){
       <button class="nav-link" onclick="goTo('log')">Log</button>
       <button class="nav-link" onclick="goTo('dash')">Dashboard</button>
       <button class="nav-link active">League</button>
-      <button class="btn-icon" id="btn-league-refresh" onclick="fetchLeagueData()" title="Refresh">
+      <button class="btn-icon" id="btn-lref" onclick="fetchLeague()" title="Refresh league">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
   </nav>
-  <div class="loading-overlay" id="league-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching league…</div></div>
-  <div class="league-hero">
-    <div class="league-tag">⚔ Weekly Competition</div>
-    <h1 class="league-title">WEEKLY<br><em>LEAGUE</em></h1>
-    <div class="timer-wrap">
-      <div class="timer-block"><div class="timer-num" id="t-d">00</div><div class="timer-lbl">Days</div></div>
-      <div class="timer-sep">:</div>
-      <div class="timer-block"><div class="timer-num" id="t-h">00</div><div class="timer-lbl">Hrs</div></div>
-      <div class="timer-sep">:</div>
-      <div class="timer-block"><div class="timer-num" id="t-m">00</div><div class="timer-lbl">Min</div></div>
-      <div class="timer-sep">:</div>
-      <div class="timer-block"><div class="timer-num" id="t-s">00</div><div class="timer-lbl">Sec</div></div>
+  <div class="overlay" id="league-load"><div class="spin-ring"></div><div class="spin-lbl">Fetching league…</div></div>
+  <div class="lhero">
+    <div class="ltag">⚔ Weekly Competition</div>
+    <h1 class="ltitle">WEEKLY<br><em>LEAGUE</em></h1>
+    <div class="twrap">
+      <div class="tblk"><div class="tnum" id="td">00</div><div class="tlbl">Days</div></div>
+      <div class="tsep">:</div>
+      <div class="tblk"><div class="tnum" id="th">00</div><div class="tlbl">Hrs</div></div>
+      <div class="tsep">:</div>
+      <div class="tblk"><div class="tnum" id="tm">00</div><div class="tlbl">Min</div></div>
+      <div class="tsep">:</div>
+      <div class="tblk"><div class="tnum" id="ts">00</div><div class="tlbl">Sec</div></div>
     </div>
   </div>
-  <div class="league-body">
-    <div class="league-error-box" id="league-error"><strong>Could not load data</strong>Press ↺ to retry.</div>
-    <div id="league-content" style="display:none">
-      <div class="sec-label">⚔ Weekly Standings</div>
-      <div class="standings-list" id="standings-list"></div>
-      <div class="sec-label">🏅 Skill Leaders This Week</div>
-      <div class="skill-top" id="skill-top"></div>
-      <div class="skill-bot" id="skill-bot"></div>
-      <div class="sec-label">👑 Past Week Champions</div>
-      <div class="history-list" id="history-list"></div>
+  <div class="lbody">
+    <div class="err" id="league-err"><strong>Could not load data</strong>Press ↺ to retry.</div>
+    <div id="league-con" style="display:none">
+      <div class="sec">⚔ Weekly Standings</div>
+      <div class="stlist" id="stlist"></div>
+      <div class="sec">🏅 Skill Leaders This Week</div>
+      <div class="ltop" id="ltop"></div>
+      <div class="lbot" id="lbot"></div>
+      <div class="sec">👑 Past Week Champions</div>
+      <div class="hlist" id="hlist"></div>
     </div>
   </div>
 </div>
 
 <script>
-/* LEAGUE JS */
-var leagueTimerIv=null;
-function startLeagueTimer(){
-  function tick(){var now=getCairoNow(),end=leagueEndDate(),diff=Math.max(0,end.getTime()-now.getTime());var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);document.getElementById("t-d").textContent=p2(d);document.getElementById("t-h").textContent=p2(h);document.getElementById("t-m").textContent=p2(m);document.getElementById("t-s").textContent=p2(s);}
-  if(leagueTimerIv)clearInterval(leagueTimerIv);tick();leagueTimerIv=setInterval(tick,1000);
+/* ── LEAGUE JS ── */
+var timerIv=null;
+function startTimer(){
+  function tick(){var now=cairoNow(),end=leagueEnd(),diff=Math.max(end.getTime()-now.getTime(),0);var d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);document.getElementById("td").textContent=p2(d);document.getElementById("th").textContent=p2(h);document.getElementById("tm").textContent=p2(m);document.getElementById("ts").textContent=p2(s);}
+  if(timerIv)clearInterval(timerIv);tick();timerIv=setInterval(tick,1000);
 }
 
-async function fetchLeagueData(){
-  var btn=document.getElementById("btn-league-refresh"),loading=document.getElementById("league-loading");
-  btn.classList.add("spinning");loading.classList.add("show");
+async function fetchLeague(){
+  var btn=document.getElementById("btn-lref"),load=document.getElementById("league-load");
+  btn.classList.add("spinning");load.classList.add("show");
   try{
-    var data = await apiFetchLeague(); // ← JSONP
-    if(data&&data.rows){saveLeagueCache(data);renderLeague(data);}else throw new Error("bad");
+    var res=await fetch(API_URL+"?action=fetchLeague",{method:"GET",mode:"cors"});
+    var data=await res.json();
+    if(data&&data.rows){setLeagueCache(data);renderLeague(data);}else throw 0;
   }catch(e){
-    if(leagueCache.rows&&leagueCache.rows.length)renderLeague(leagueCache);
-    else{document.getElementById("league-error").classList.add("show");document.getElementById("league-content").style.display="none";}
-  }finally{btn.classList.remove("spinning");loading.classList.remove("show");}
+    var c=getLeagueCache();if(c.rows&&c.rows.length)renderLeague(c);
+    else{document.getElementById("league-err").style.display="block";document.getElementById("league-con").style.display="none";}
+  }finally{btn.classList.remove("spinning");load.classList.remove("show");}
 }
 
 function renderLeague(data){
-  var allRows=data.rows||[],wkMs=weekStartDate().getTime();
-  var playerWeek={};
-  PLAYERS.forEach(function(p){playerWeek[p]={xp:0};SKILLS.forEach(function(s){playerWeek[p][s.key]=0;});});
-  allRows.forEach(function(r){
-    var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms<wkMs)return;
-    var p=r.name,sk=r.skill,v=Number(r.amount)||0;if(!playerWeek[p])return;
-    playerWeek[p].xp+=(XP_WEIGHTS[sk]||0)*v;
-    if(playerWeek[p][sk]!==undefined)playerWeek[p][sk]+=v;
+  var rows=data.rows||[],wMs=weekStart().getTime();
+  var pw={};PLAYERS.forEach(function(p){pw[p]={xp:0};SKILLS.forEach(function(s){pw[p][s.key]=0;});});
+  rows.forEach(function(r){
+    var ms=new Date(normD(r.date)+"T12:00:00").getTime();if(ms<wMs)return;
+    var p=r.name;if(!pw[p])return;
+    pw[p].xp+=(XP_W[r.skill]||0)*(Number(r.amount)||0);
+    if(pw[p][r.skill]!==undefined)pw[p][r.skill]+=Number(r.amount)||0;
   });
-  var sorted=PLAYERS.slice().sort(function(a,b){return playerWeek[b].xp-playerWeek[a].xp;});
-  var maxXP=Math.max.apply(null,sorted.map(function(p){return playerWeek[p].xp||0;}));if(maxXP<1)maxXP=1;
-  var sl=document.getElementById("standings-list");sl.innerHTML="";
-  if(sorted.every(function(p){return playerWeek[p].xp===0;})){sl.innerHTML='<div class="hist-empty">No data this week yet.</div>';}
-  else sorted.forEach(function(p,i){
-    var xp=playerWeek[p].xp,pct=Math.min(Math.round(xp/maxXP*100),100);
-    var medals=["🥇","🥈","🥉"];var medal=medals[i]||"";
-    var rowCls="st-row"+(i===0?" gold":i===1?" silver":i===2?" bronze":"");
-    var posCls="st-pos"+(i===0?" p1":i===1?" p2":i===2?" p3":"");
-    var barCol=i===0?"linear-gradient(90deg,#e8c840aa,#e8c840)":i===1?"linear-gradient(90deg,#c0c0d088,#c0c0d0)":i===2?"linear-gradient(90deg,#cd7f3288,#cd7f32)":"var(--grad-bar)";
-    var row=document.createElement("div");row.className=rowCls;
-    row.innerHTML="<div class='"+posCls+"'>"+(i+1)+"</div><div class='st-medal'>"+medal+"</div><div class='st-name'>"+p+"</div><div class='st-bar-wrap'><div class='st-bar-track'><div class='st-bar-fill' style='width:"+pct+"%;background:"+barCol+"'></div></div></div><div class='st-xp'>"+xp.toLocaleString()+" XP</div>";
+  var sorted=Object.keys(pw).filter(function(p){return pw[p].xp>0;}).sort(function(a,b){return pw[b].xp-pw[a].xp;});
+  var maxXP=sorted.length>0?Math.max(pw[sorted[0]].xp,1):1;
+  // Standings
+  var sl=document.getElementById("stlist");sl.innerHTML="";
+  if(sorted.length===0){sl.innerHTML='<div class="hempty">No activity this week yet.</div>';}
+  sorted.forEach(function(p,i){
+    var xp=pw[p].xp,pct=Math.min(Math.round(xp/maxXP*100),100);
+    var med=["🥇","🥈","🥉"][i]||"";
+    var rc="strow"+(i===0?" g":i===1?" s":i===2?" b":"");
+    var pc="stpos"+(i===0?" p1":i===1?" p2":i===2?" p3":"");
+    var bc=i===0?"linear-gradient(90deg,#e8c840aa,#e8c840)":i===1?"linear-gradient(90deg,#c0c0d088,#c0c0d0)":i===2?"linear-gradient(90deg,#cd7f3288,#cd7f32)":"var(--grad-bar)";
+    var row=document.createElement("div");row.className=rc;
+    row.innerHTML="<div class='"+pc+"'>"+(i+1)+"</div><div class='stmed'>"+med+"</div><div class='stname'>"+p+"</div><div class='stbw'><div class='stbt'><div class='stbf' style='width:"+pct+"%;background:"+bc+"'></div></div></div><div class='stxp'>"+xp.toLocaleString()+" XP</div>";
     sl.appendChild(row);
   });
-  var leagueSkills=SKILLS.filter(function(s){return s.key!=="typing_score";});
-  var topEl=document.getElementById("skill-top"),botEl=document.getElementById("skill-bot");topEl.innerHTML="";botEl.innerHTML="";
-  leagueSkills.forEach(function(s,i){
-    var bestP="",bestV=0;PLAYERS.forEach(function(p){if(playerWeek[p][s.key]>bestV){bestV=playerWeek[p][s.key];bestP=p;}});
-    var dispV=bestP?(s.unit==="min"?fmtMin(bestV):bestV.toLocaleString()+" "+s.unit):"";
+  // Skill leaders
+  var lskills=SKILLS.filter(function(s){return s.key!=="typing_score";});
+  var tp=document.getElementById("ltop"),bt=document.getElementById("lbot");tp.innerHTML="";bt.innerHTML="";
+  lskills.forEach(function(s,i){
+    var bp="",bv=0;Object.keys(pw).forEach(function(p){if(pw[p][s.key]>bv){bv=pw[p][s.key];bp=p;}});
+    var dv=bp?(s.unit==="min"?fmtMin(bv):bv.toLocaleString()+" "+s.unit):"";
     var card=document.createElement("div");card.className="lcard";
-    card.innerHTML="<div class='lcard-top'><span class='lcard-icon'>"+skillSVG(s.key,14)+"</span><span class='lcard-skill'>"+s.name+"</span><span class='lcard-trophy'>"+(bestP?"🏆":"")+"</span></div>"+(bestP?"<div class='lcard-name'>"+bestP+"</div><div class='lcard-amount'>"+dispV+"</div>":"<div class='lcard-none'>No data yet</div>");
-    if(i<3)topEl.appendChild(card);else botEl.appendChild(card);
+    card.innerHTML="<div class='lctop'><span class='lcico'>"+icon(s.key,13)+"</span><span class='lcsk'>"+s.name+"</span>"+(bp?"<span style='font-size:13px'>🏆</span>":"")+"</div>"+(bp?"<div class='lcn'>"+bp+"</div><div class='lca'>"+dv+"</div>":"<div class='lcnone'>No data yet</div>");
+    if(i<3)tp.appendChild(card);else bt.appendChild(card);
   });
-  var hl=document.getElementById("history-list");hl.innerHTML="";
-  var curWkMs=weekStartDate().getTime(),pastChamps=[];
+  // History
+  var hl=document.getElementById("hlist");hl.innerHTML="";
+  var curW=weekStart().getTime(),champs=[];
   for(var w=1;w<=10;w++){
-    var wsDate=weekStartDate(new Date(curWkMs-w*7*86400000));
-    var ws=wsDate.getTime(),weDate=new Date(wsDate);weDate.setDate(weDate.getDate()+6);weDate.setHours(23,59,59);var weMs=weDate.getTime();
-    var wkXP={};
-    allRows.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms<ws||ms>weMs)return;var p=r.name,sk=r.skill,v=Number(r.amount)||0;wkXP[p]=(wkXP[p]||0)+(XP_WEIGHTS[sk]||0)*v;});
-    var ps=Object.keys(wkXP);if(ps.length===0)continue;
-    var champ=ps.sort(function(a,b){return wkXP[b]-wkXP[a];})[0];
-    var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][wsDate.getMonth()];
-    var endDate=new Date(wsDate);endDate.setDate(endDate.getDate()+6);
-    pastChamps.push({label:mn+" "+wsDate.getDate()+"–"+endDate.getDate(),name:champ,xp:wkXP[champ]});
+    var ws2=weekStart(new Date(curW-w*7*86400000)),wsMs=ws2.getTime();
+    var we2=new Date(ws2);we2.setDate(we2.getDate()+6);we2.setHours(23,59,59);var weMs=we2.getTime();
+    var wxp={};
+    rows.forEach(function(r){var ms=new Date(normD(r.date)+"T12:00:00").getTime();if(ms<wsMs||ms>weMs)return;wxp[r.name]=(wxp[r.name]||0)+(XP_W[r.skill]||0)*(Number(r.amount)||0);});
+    var ps=Object.keys(wxp);if(ps.length===0)continue;
+    var champ=ps.sort(function(a,b){return wxp[b]-wxp[a];})[0];
+    var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][ws2.getMonth()];
+    var we3=new Date(ws2);we3.setDate(we3.getDate()+6);
+    champs.push({lbl:mn+" "+ws2.getDate()+"–"+we3.getDate(),name:champ,xp:wxp[champ]});
   }
-  if(pastChamps.length===0)hl.innerHTML='<div class="hist-empty">No completed weeks yet.</div>';
-  pastChamps.forEach(function(h){var row=document.createElement("div");row.className="hist-row";row.innerHTML="<div class='hist-week'>"+h.label+"</div><div class='hist-trophy'>👑</div><div class='hist-name'>"+h.name+"</div><div class='hist-xp'>"+h.xp.toLocaleString()+" XP</div>";hl.appendChild(row);});
-  document.getElementById("league-content").style.display="block";
-  document.getElementById("league-error").classList.remove("show");
+  if(champs.length===0)hl.innerHTML='<div class="hempty">No completed weeks yet.</div>';
+  champs.forEach(function(h){var row=document.createElement("div");row.className="hrow";row.innerHTML="<div class='hwk'>"+h.lbl+"</div><div class='htroph'>👑</div><div class='hname'>"+h.name+"</div><div class='hxp'>"+h.xp.toLocaleString()+" XP</div>";hl.appendChild(row);});
+  document.getElementById("league-con").style.display="block";
+  document.getElementById("league-err").style.display="none";
 }
 </script>
 
-<!-- ══════════════════════════════════════════
-     MODALS
-══════════════════════════════════════════ -->
-<div class="modal-overlay" id="info-modal" onclick="if(event.target===this)this.classList.remove('show')">
-  <div class="modal-box">
-    <button class="modal-close" onclick="document.getElementById('info-modal').classList.remove('show')">✕</button>
-    <div class="modal-title">Point System</div>
-    <div class="modal-row"><span>📘 New Word</span><span class="modal-xp">3 XP</span></div>
-    <div class="modal-row"><span>🔁 Review Word</span><span class="modal-xp">1 XP</span></div>
-    <div class="modal-row"><span>🗣️ Speaking / min</span><span class="modal-xp">3 XP</span></div>
-    <div class="modal-row"><span>🎧 Listening / min</span><span class="modal-xp">1 XP</span></div>
-    <div class="modal-row"><span>📖 Page read</span><span class="modal-xp">15 XP</span></div>
-    <div class="modal-row"><span>⌨️ Touch Typing</span><span class="modal-xp">streak only</span></div>
-    <div class="modal-note">Daily ideal ≈ <strong style="color:var(--mauve-hi)">318 XP</strong> · Conqueror ≈ 150 days.</div>
+<!-- ══════════════════════════════════════
+     MODALS — Info + Rank
+══════════════════════════════════════ -->
+<div class="moverlay" id="m-info" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="mbox">
+    <button class="mcls" onclick="document.getElementById('m-info').classList.remove('show')">✕</button>
+    <div class="mtitle">Point System</div>
+    <div class="mrow"><span>📘 New Word</span><span class="mxp">3 XP</span></div>
+    <div class="mrow"><span>🔁 Review Word</span><span class="mxp">1 XP</span></div>
+    <div class="mrow"><span>🗣️ Speaking / min</span><span class="mxp">3 XP</span></div>
+    <div class="mrow"><span>🎧 Listening / min</span><span class="mxp">1 XP</span></div>
+    <div class="mrow"><span>📖 Page read</span><span class="mxp">15 XP</span></div>
+    <div class="mrow"><span>⌨️ Touch Typing</span><span class="mxp">streak only</span></div>
+    <div class="mnote">Daily ideal ≈ <strong style="color:var(--mauve-hi)">318 XP</strong> · Conqueror ≈ 150 days.</div>
   </div>
 </div>
-<div class="modal-overlay" id="rank-modal" onclick="if(event.target===this)this.classList.remove('show')">
-  <div class="rank-modal-box">
-    <button class="modal-close" onclick="document.getElementById('rank-modal').classList.remove('show')">✕</button>
-    <div class="modal-title">Rank Progression — XP Required</div>
-    <div id="rank-modal-list" style="display:flex;flex-direction:column;gap:3px;margin-top:12px"></div>
+<div class="moverlay" id="m-rank" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="rmbox">
+    <button class="mcls" onclick="document.getElementById('m-rank').classList.remove('show')">✕</button>
+    <div class="mtitle">Rank Progression — XP Required</div>
+    <div id="rmlist" style="display:flex;flex-direction:column;gap:3px;margin-top:11px"></div>
   </div>
 </div>
 <script>
-function openInfoModal(){document.getElementById("info-modal").classList.add("show");}
-function openRankModal(){
-  var list=document.getElementById("rank-modal-list");list.innerHTML="";
-  OVERALL_LEVELS.forEach(function(lv,i){var nxt=OVERALL_LEVELS[i+1],needed=nxt?nxt.startXP-lv.startXP:0;var pts=lv.label.split(" "),tier=pts[0],sub=pts.slice(1).join(" ")||"";var row=document.createElement("div");row.className="rm-row";row.innerHTML="<div>"+rankBadgeSVG(tier,sub,30)+"</div><div style='flex:1'><div class='rm-name' style='color:"+lv.col+"'>"+lv.label+"</div><div class='rm-xp'>"+lv.startXP.toLocaleString()+" XP"+(nxt?" → "+nxt.startXP.toLocaleString():"+")+"</div></div><div class='rm-pts'>"+(needed?"+"+needed.toLocaleString()+" XP":"MAX")+"</div>";list.appendChild(row);});
-  document.getElementById("rank-modal").classList.add("show");
+function openInfo(){document.getElementById("m-info").classList.add("show");}
+function openRank(){
+  var list=document.getElementById("rmlist");list.innerHTML="";
+  OL.forEach(function(lv,i){
+    var nxt=OL[i+1],need=nxt?nxt.sx-lv.sx:0,tp=lv.l.split(" ");
+    var row=document.createElement("div");row.className="rmrow";
+    row.innerHTML="<div>"+badge(tp[0],tp.slice(1).join(" ")||"",28)+"</div><div style='flex:1'><div class='rmname' style='color:"+lv.c+"'>"+lv.l+"</div><div class='rmxp'>"+lv.sx.toLocaleString()+" XP"+(nxt?" → "+nxt.sx.toLocaleString():"+")+"</div></div><div class='rmpts'>"+(need?"+"+need.toLocaleString()+" XP":"MAX")+"</div>";
+    list.appendChild(row);
+  });
+  document.getElementById("m-rank").classList.add("show");
 }
-document.addEventListener("keydown",function(e){if(e.key==="Escape"){["info-modal","rank-modal"].forEach(function(id){document.getElementById(id).classList.remove("show");});}});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){["m-info","m-rank"].forEach(function(id){document.getElementById(id).classList.remove("show");});}});
 </script>
 
-<!-- ══════════════════════════════════════════
-     PAGE NAVIGATION & INIT
-══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════
+     PAGE NAV & INIT
+══════════════════════════════════════ -->
 <script>
-var currentPage = "log";
-var PAGES = ["log","dash","skill","league"];
+var curPage="log";
+var PAGES=["log","dash","skill","league"];
 
 function goTo(page){
-  if(page===currentPage) return;
-  currentPage=page;
-  PAGES.forEach(function(p){
-    var el=document.getElementById("page-"+p);
-    if(el) el.classList.toggle("hidden", p!==page);
-  });
+  if(page===curPage)return;curPage=page;
+  PAGES.forEach(function(p){var el=document.getElementById("page-"+p);if(el)el.classList.toggle("hidden",p!==page);});
   if(page==="dash"){
-    document.getElementById("dash-player-label").textContent=SESSION.name;
-    var cached=loadPlayerCache(SESSION.name);
-    if(cached.length>0) renderDashboard(cached);
-    else fetchPlayerData();
+    buildDashSel();
+    var n=dashName();document.getElementById("dash-pname").textContent=n;
+    var c=getCache(n);if(c.length>0)renderDash(c);else fetchPlayer();
   }
-  if(page==="skill") renderSkillDetail();
-  if(page==="league"){
-    startLeagueTimer();
-    if(leagueCache.rows&&leagueCache.rows.length>0) renderLeague(leagueCache);
-    else fetchLeagueData();
-  }
+  if(page==="skill")renderDetail();
+  if(page==="league"){startTimer();var lc=getLeagueCache();if(lc.rows&&lc.rows.length>0)renderLeague(lc);else fetchLeague();}
 }
 
-document.addEventListener("DOMContentLoaded", function(){
-  // 1. Init SESSION (restore last player from localStorage)
-  SESSION.init();
-
-  // 2. Load caches
-  loadLeagueCache();
-
-  // 3. Build dropdowns with correct player selected
-  buildNameDropdown();          // Log page dropdown
-  // Note: no dashboard dropdown — removed by design
-
-  // 4. Set today's date
-  setToday();
-  updateUnit();
+document.addEventListener("DOMContentLoaded",function(){
+  buildNameSel("l-name");
+  buildDashSel();
+  setToday();updateUnit();
 });
 </script>
 </body>
