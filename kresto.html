@@ -247,7 +247,19 @@ function skillSVG(key,size){
 function getCairoNow(){var n=new Date();return new Date(n.getTime()+n.getTimezoneOffset()*60000+7200000);}
 function cairoToday(){var c=getCairoNow();return c.getFullYear()+"-"+p2(c.getMonth()+1)+"-"+p2(c.getDate());}
 function p2(n){return String(n).padStart(2,"0");}
-function normDate(s){if(!s)return"";var a=s.split("-");return a.length!==3?s:a[0]+"-"+p2(a[1])+"-"+p2(a[2]);}
+function normDate(s){
+  if(!s)return"";
+  // Handle Date objects
+  if(s instanceof Date){return s.getFullYear()+"-"+p2(s.getMonth()+1)+"-"+p2(s.getDate());}
+  s=String(s).trim();
+  // Already YYYY-MM-DD
+  var a=s.split("-");
+  if(a.length===3&&a[0].length===4)return a[0]+"-"+p2(a[1])+"-"+p2(a[2]);
+  // Try parsing as date string (e.g. "Fri Apr 18 2025...")
+  var d=new Date(s);
+  if(!isNaN(d.getTime()))return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
+  return s;
+}
 function dateKey(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());}
 function fmtMin(v){if(!v)return"0m";if(v<60)return v+"m";return v+"m ("+Math.round(v/60*10)/10+"h)";}
 
@@ -265,10 +277,14 @@ function computeTotals(rows){
   var t={};SKILLS.forEach(function(s){t[s.key]={today:0,week:0,month:0,all:0,byDay:{}};});
   rows.forEach(function(r){
     var sk=r.skill,v=Number(r.amount)||0;if(!sk||!t[sk]||!v)return;
-    var ds=normDate(r.date);if(!ds)return;
-    var ms=new Date(ds+"T12:00:00").getTime();
-    t[sk].all+=v;if(ms>=moMs)t[sk].month+=v;if(ms>=wkMs)t[sk].week+=v;
-    if(ds===todS)t[sk].today+=v;t[sk].byDay[ds]=(t[sk].byDay[ds]||0)+v;
+    // normDate handles both "YYYY-M-D" and "YYYY-MM-DD" formats
+    var ds=normDate(String(r.date||"").trim());if(!ds)return;
+    var ms=new Date(ds+"T12:00:00").getTime();if(isNaN(ms))return;
+    t[sk].all+=v;
+    if(ms>=moMs)t[sk].month+=v;
+    if(ms>=wkMs)t[sk].week+=v;
+    if(ds===todS)t[sk].today+=v;
+    t[sk].byDay[ds]=(t[sk].byDay[ds]||0)+v;
   });return t;
 }
 function calcStreak(byDay,goal,todS){
@@ -391,7 +407,7 @@ select.log-input:focus{border-color:var(--mauve-hi);background-color:var(--surfa
     <div class="nav-logo">KRESTO</div>
     <div class="nav-right">
       <button class="nav-link active">Log</button>
-      <button class="nav-btn" onclick="goTo('dash')">Dashboard →</button>
+      <button class="nav-btn" onclick="goTo('dash')">Dashboard</button>
       <button class="nav-btn" onclick="goTo('league')" style="border-color:rgba(232,193,64,0.35);color:#e8c840">League</button>
     </div>
   </nav>
@@ -593,7 +609,7 @@ document.addEventListener("keydown", function(e) {
   <nav>
     <div class="nav-logo">KRESTO</div>
     <div class="nav-right">
-      <button class="nav-link" onclick="goTo('log')">← Log</button>
+      <button class="nav-link" onclick="goTo('log')">Log</button>
       <button class="nav-link active">Dashboard</button>
       <button class="nav-link" onclick="goTo('league')">League</button>
       <button class="btn-icon" id="btn-refresh" onclick="fetchPlayerData()" title="Refresh">
@@ -637,10 +653,14 @@ async function fetchPlayerData() {
   var loading = document.getElementById("dash-loading");
   btn.classList.add("spinning"); loading.classList.add("show");
   try {
-    var data = await apiFetch(name);   // ← JSONP، يُرجع rows مفلترة بالاسم
+    var data = await apiFetch(name);   // ← JSONP
     if (Array.isArray(data)) {
-      savePlayerCache(name, data);
-      renderDashboard(data);
+      // normalize dates so computeTotals/streak/calendar all work correctly
+      var normalized = data.map(function(r){
+        return {date:normDate(String(r.date||"").trim()), name:String(r.name||"").trim(), skill:String(r.skill||"").trim(), amount:Number(r.amount)||0};
+      });
+      savePlayerCache(name, normalized);
+      renderDashboard(normalized);
     } else throw new Error("bad response");
   } catch(e) {
     var cached = loadPlayerCache(name);
@@ -965,17 +985,16 @@ function shiftCal(dir) {
 .st-bar-wrap{flex:2;min-width:70px;max-width:260px}
 .st-bar-track{height:5px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
 .st-bar-fill{height:100%;border-radius:100px;transition:width .9s}
-.skill-top{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
-.skill-bot{display:flex;justify-content:center;gap:8px;margin-bottom:24px}
-.skill-bot .lcard{max-width:calc(33.33% - 5px);width:calc(33.33% - 5px)}
-.lcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 11px;display:flex;flex-direction:column;gap:6px}
-.lcard-top{display:flex;align-items:center;gap:7px}
-.lcard-icon{display:flex;align-items:center;color:var(--dim);flex-shrink:0}
-.lcard-skill{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);flex:1}
-.lcard-trophy{font-size:14px;flex-shrink:0}
-.lcard-name{font-size:14px;font-weight:800;color:#fff}
-.lcard-amount{font-size:20px;font-weight:800;color:var(--mauve-hi);line-height:1}
-.lcard-none{font-size:11px;color:var(--very-dim)}
+.skill-leaders-list{display:flex;flex-direction:column;gap:7px;margin-bottom:24px}
+.lcard-v{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:14px}
+.lcard-v-left{display:flex;align-items:center;gap:8px;min-width:130px;flex-shrink:0}
+.lcard-v-icon{display:flex;align-items:center;color:var(--dim);flex-shrink:0}
+.lcard-v-skill{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim)}
+.lcard-v-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+.lcard-v-right{flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lcard-v-name{font-size:14px;font-weight:800;color:#fff}
+.lcard-v-amount{font-size:16px;font-weight:800;color:var(--mauve-hi)}
+.lcard-v-none{font-size:11px;color:var(--very-dim)}
 .history-list{display:flex;flex-direction:column;gap:7px}
 .hist-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
 .hist-week{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);min-width:70px;flex-shrink:0}
@@ -986,8 +1005,8 @@ function shiftCal(dir) {
 .league-err{text-align:center;padding:44px 22px;color:var(--dim);font-size:14px;line-height:2;display:none}
 .league-err.show{display:block}
 .league-err strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
-@media(max-width:750px){.league-body{padding:16px 14px 90px}.skill-top{grid-template-columns:repeat(2,1fr)}.skill-bot .lcard{max-width:calc(50% - 4px);width:calc(50% - 4px)}.timer-wrap{gap:10px;padding:10px 14px}.timer-num{font-size:18px}}
-@media(max-width:480px){.skill-top{grid-template-columns:1fr 1fr}.skill-bot{flex-direction:column;align-items:center}.skill-bot .lcard{max-width:100%;width:100%}}
+@media(max-width:750px){.league-body{padding:16px 14px 90px}.timer-wrap{gap:10px;padding:10px 14px}.timer-num{font-size:18px}.lcard-v-left{min-width:100px}}
+@media(max-width:480px){.lcard-v{flex-wrap:wrap}.lcard-v-sep{display:none}}
 </style>
 
 <div id="page-league" class="page hidden">
@@ -1022,8 +1041,7 @@ function shiftCal(dir) {
       <div class="sec-label">⚔ Weekly Standings</div>
       <div class="standings-list" id="standings-list"></div>
       <div class="sec-label">🏅 Skill Leaders This Week</div>
-      <div class="skill-top" id="skill-top"></div>
-      <div class="skill-bot" id="skill-bot"></div>
+      <div class="skill-leaders-list" id="skill-leaders-list"></div>
       <div class="sec-label">👑 Past Week Champions</div>
       <div class="history-list" id="history-list"></div>
     </div>
@@ -1053,8 +1071,13 @@ async function fetchLeagueData() {
   btn.classList.add("spinning"); loading.classList.add("show");
   try {
     var data = await apiFetchLeague();  // ← JSONP
-    if (data && data.rows) { saveLeagueCache(data); renderLeague(data); }
-    else throw new Error("bad response");
+    if (data && data.rows) {
+      // normalize dates in all rows
+      data.rows = data.rows.map(function(r){
+        return {date:normDate(String(r.date||"").trim()), name:String(r.name||"").trim(), skill:String(r.skill||"").trim(), amount:Number(r.amount)||0};
+      });
+      saveLeagueCache(data); renderLeague(data);
+    } else throw new Error("bad response");
   } catch(e) {
     if (_leagueCache.rows && _leagueCache.rows.length) renderLeague(_leagueCache);
     else { document.getElementById("league-err").classList.add("show"); document.getElementById("league-content").style.display="none"; }
@@ -1065,61 +1088,131 @@ async function fetchLeagueData() {
 
 function renderLeague(data) {
   var allRows=data.rows||[], wkMs=weekStartDate().getTime();
+
+  // ── Build per-player weekly totals for CURRENT week ──────────
   var playerWeek={};
-  PLAYERS.forEach(function(p){ playerWeek[p]={xp:0}; SKILLS.forEach(function(s){ playerWeek[p][s.key]=0; }); });
-  allRows.forEach(function(r) {
-    var ms=new Date(normDate(r.date)+"T12:00:00").getTime(); if(ms<wkMs)return;
-    var p=r.name, sk=r.skill, v=Number(r.amount)||0; if(!playerWeek[p])return;
+  PLAYERS.forEach(function(p){
+    playerWeek[p]={xp:0};
+    SKILLS.forEach(function(s){ playerWeek[p][s.key]=0; });
+  });
+  allRows.forEach(function(r){
+    var ds=normDate(String(r.date||"").trim());
+    if(!ds)return;
+    var ms=new Date(ds+"T12:00:00").getTime();
+    if(isNaN(ms)||ms<wkMs)return;
+    var p=r.name, sk=r.skill, v=Number(r.amount)||0;
+    if(!playerWeek[p])return;
     playerWeek[p].xp+=(XP_WEIGHTS[sk]||0)*v;
     if(playerWeek[p][sk]!==undefined) playerWeek[p][sk]+=v;
   });
 
-  var sorted=PLAYERS.slice().sort(function(a,b){ return playerWeek[b].xp-playerWeek[a].xp; });
-  var maxXP=Math.max.apply(null,sorted.map(function(p){ return playerWeek[p].xp||0; })); if(maxXP<1)maxXP=1;
+  // ── SECTION 1: Weekly Standings — only players with XP > 0 ───
+  var active=PLAYERS.filter(function(p){ return playerWeek[p].xp>0; });
+  active.sort(function(a,b){ return playerWeek[b].xp-playerWeek[a].xp; });
+  var maxXP=active.length>0?playerWeek[active[0]].xp:1;
 
-  // Standings
   var sl=document.getElementById("standings-list"); sl.innerHTML="";
-  if(sorted.every(function(p){ return playerWeek[p].xp===0; })){sl.innerHTML='<div class="hist-empty">No data this week yet.</div>';}
-  else sorted.forEach(function(p,i) {
-    var xp=playerWeek[p].xp, pct=Math.min(Math.round(xp/maxXP*100),100);
-    var medals=["🥇","🥈","🥉"]; var medal=medals[i]||"";
-    var rc="st-row"+(i===0?" gold":i===1?" silver":i===2?" bronze":"");
-    var pc="st-pos"+(i===0?" p1":i===1?" p2":i===2?" p3":"");
-    var bc=i===0?"linear-gradient(90deg,#e8c840aa,#e8c840)":i===1?"linear-gradient(90deg,#c0c0d088,#c0c0d0)":i===2?"linear-gradient(90deg,#cd7f3288,#cd7f32)":"var(--grad-bar)";
-    var row=document.createElement("div"); row.className=rc;
-    row.innerHTML="<div class='"+pc+"'>"+(i+1)+"</div><div class='st-medal'>"+medal+"</div><div class='st-name'>"+p+"</div><div class='st-bar-wrap'><div class='st-bar-track'><div class='st-bar-fill' style='width:"+pct+"%;background:"+bc+"'></div></div></div><div class='st-xp'>"+xp.toLocaleString()+" XP</div>";
-    sl.appendChild(row);
-  });
-
-  // Skill leaders
-  var leagueSkills=SKILLS.filter(function(s){ return s.key!=="typing_score"; });
-  var topEl=document.getElementById("skill-top"), botEl=document.getElementById("skill-bot");
-  topEl.innerHTML=""; botEl.innerHTML="";
-  leagueSkills.forEach(function(s,i) {
-    var bestP="", bestV=0;
-    PLAYERS.forEach(function(p){ if(playerWeek[p][s.key]>bestV){bestV=playerWeek[p][s.key];bestP=p;} });
-    var dispV=bestP?(s.unit==="min"?fmtMin(bestV):bestV.toLocaleString()+" "+s.unit):"";
-    var card=document.createElement("div"); card.className="lcard";
-    card.innerHTML="<div class='lcard-top'><span class='lcard-icon'>"+skillSVG(s.key,14)+"</span><span class='lcard-skill'>"+s.name+"</span><span class='lcard-trophy'>"+(bestP?"🏆":"")+"</span></div>"+(bestP?"<div class='lcard-name'>"+bestP+"</div><div class='lcard-amount'>"+dispV+"</div>":"<div class='lcard-none'>No data yet</div>");
-    if(i<3) topEl.appendChild(card); else botEl.appendChild(card);
-  });
-
-  // Past champions
-  var hl=document.getElementById("history-list"); hl.innerHTML="";
-  var curWkMs=weekStartDate().getTime(), pastChamps=[];
-  for(var w=1;w<=10;w++){
-    var wsDate=weekStartDate(new Date(curWkMs-w*7*86400000));
-    var ws=wsDate.getTime(), weDate=new Date(wsDate); weDate.setDate(weDate.getDate()+6); weDate.setHours(23,59,59); var weMs=weDate.getTime();
-    var wkXP={};
-    allRows.forEach(function(r){ var ms=new Date(normDate(r.date)+"T12:00:00").getTime(); if(ms<ws||ms>weMs)return; var p=r.name,sk=r.skill,v=Number(r.amount)||0; wkXP[p]=(wkXP[p]||0)+(XP_WEIGHTS[sk]||0)*v; });
-    var ps=Object.keys(wkXP); if(ps.length===0)continue;
-    var champ=ps.sort(function(a,b){ return wkXP[b]-wkXP[a]; })[0];
-    var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][wsDate.getMonth()];
-    var endDate=new Date(wsDate); endDate.setDate(endDate.getDate()+6);
-    pastChamps.push({label:mn+" "+wsDate.getDate()+"–"+endDate.getDate(), name:champ, xp:wkXP[champ]});
+  if(active.length===0){
+    sl.innerHTML='<div class="hist-empty">No activity this week yet.</div>';
+  } else {
+    active.forEach(function(p,i){
+      var xp=playerWeek[p].xp, pct=Math.min(Math.round(xp/maxXP*100),100);
+      var medals=["🥇","🥈","🥉"]; var medal=medals[i]||"";
+      var rc="st-row"+(i===0?" gold":i===1?" silver":i===2?" bronze":"");
+      var pc="st-pos"+(i===0?" p1":i===1?" p2":i===2?" p3":"");
+      var bc=i===0?"linear-gradient(90deg,#e8c840aa,#e8c840)":
+             i===1?"linear-gradient(90deg,#c0c0d088,#c0c0d0)":
+             i===2?"linear-gradient(90deg,#cd7f3288,#cd7f32)":"var(--grad-bar)";
+      var row=document.createElement("div"); row.className=rc;
+      row.innerHTML="<div class='"+pc+"'>"+(i+1)+"</div>"
+        +"<div class='st-medal'>"+medal+"</div>"
+        +"<div class='st-name'>"+p+"</div>"
+        +"<div class='st-bar-wrap'><div class='st-bar-track'><div class='st-bar-fill' style='width:"+pct+"%;background:"+bc+"'></div></div></div>"
+        +"<div class='st-xp'>"+xp.toLocaleString()+" XP</div>";
+      sl.appendChild(row);
+    });
   }
-  if(pastChamps.length===0) hl.innerHTML='<div class="hist-empty">No completed weeks yet.</div>';
-  pastChamps.forEach(function(h){ var row=document.createElement("div"); row.className="hist-row"; row.innerHTML="<div class='hist-week'>"+h.label+"</div><div class='hist-trophy'>👑</div><div class='hist-name'>"+h.name+"</div><div class='hist-xp'>"+h.xp.toLocaleString()+" XP</div>"; hl.appendChild(row); });
+
+  // ── SECTION 2: Skill Leaders — vertical list ─────────────────
+  var leagueSkills=SKILLS.filter(function(s){ return s.key!=="typing_score"; });
+  var ll=document.getElementById("skill-leaders-list"); ll.innerHTML="";
+  leagueSkills.forEach(function(s){
+    var bestP="", bestV=0;
+    PLAYERS.forEach(function(p){
+      if(playerWeek[p][s.key]>bestV){ bestV=playerWeek[p][s.key]; bestP=p; }
+    });
+    var dispV=bestP?(s.unit==="min"?fmtMin(bestV):bestV.toLocaleString()+" "+s.unit):"";
+    var card=document.createElement("div"); card.className="lcard-v";
+    card.innerHTML="<div class='lcard-v-left'>"
+      +"<span class='lcard-v-icon'>"+skillSVG(s.key,16)+"</span>"
+      +"<span class='lcard-v-skill'>"+s.name+"</span>"
+      +"</div>"
+      +"<div class='lcard-v-sep'></div>"
+      +"<div class='lcard-v-right'>"
+      +(bestP
+        ?"<span class='lcard-v-name'>"+bestP+"</span><span class='lcard-v-amount'>"+dispV+" 🏆</span>"
+        :"<span class='lcard-v-none'>No data yet</span>")
+      +"</div>";
+    ll.appendChild(card);
+  });
+
+  // ── SECTION 3: Past Week Champions — data-driven, strict per-week ──
+  var hl=document.getElementById("history-list"); hl.innerHTML="";
+
+  // Collect all unique week-start dates from data (excluding current week)
+  var weekSet={};
+  allRows.forEach(function(r){
+    var ds=normDate(String(r.date||"").trim());
+    if(!ds)return;
+    var ms=new Date(ds+"T12:00:00").getTime();
+    if(isNaN(ms)||ms>=wkMs)return; // skip current week
+    var ws=weekStartDate(new Date(ms));
+    weekSet[ws.getTime()]=ws;
+  });
+
+  // Sort weeks newest first
+  var weekTimes=Object.keys(weekSet).map(Number).sort(function(a,b){return b-a;});
+
+  if(weekTimes.length===0){
+    hl.innerHTML='<div class="hist-empty">No completed weeks yet.</div>';
+  } else {
+    weekTimes.forEach(function(wt){
+      var wsDate=weekSet[wt];
+      var ws=wsDate.getTime();
+      var weDate=new Date(wsDate); weDate.setDate(weDate.getDate()+6); weDate.setHours(23,59,59,999);
+      var weMs=weDate.getTime();
+
+      // XP strictly within THIS week only
+      var wkXP={};
+      allRows.forEach(function(r){
+        var ds=normDate(String(r.date||"").trim());
+        if(!ds)return;
+        var ms=new Date(ds+"T12:00:00").getTime();
+        if(isNaN(ms)||ms<ws||ms>weMs)return;
+        var p=r.name, sk=r.skill, v=Number(r.amount)||0;
+        wkXP[p]=(wkXP[p]||0)+(XP_WEIGHTS[sk]||0)*v;
+      });
+
+      var ps=Object.keys(wkXP).filter(function(p){ return wkXP[p]>0; });
+      if(ps.length===0)return;
+      ps.sort(function(a,b){ return wkXP[b]-wkXP[a]; });
+      var champ=ps[0];
+
+      var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][wsDate.getMonth()];
+      var endDate=new Date(wsDate); endDate.setDate(endDate.getDate()+6);
+      var label=mn+" "+wsDate.getDate()+"–"+endDate.getDate();
+
+      var row=document.createElement("div"); row.className="hist-row";
+      row.innerHTML="<div class='hist-week'>"+label+"</div>"
+        +"<div class='hist-trophy'>👑</div>"
+        +"<div class='hist-name'>"+champ+"</div>"
+        +"<div class='hist-xp'>"+wkXP[champ].toLocaleString()+" XP</div>";
+      hl.appendChild(row);
+    });
+    if(hl.children.length===0){
+      hl.innerHTML='<div class="hist-empty">No completed weeks yet.</div>';
+    }
+  }
 
   document.getElementById("league-content").style.display="block";
   document.getElementById("league-err").classList.remove("show");
