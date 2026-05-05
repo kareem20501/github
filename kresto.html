@@ -3,1427 +3,1297 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Life Tracker | Path of Progress</title>
+<title>KRESTO — Language Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@300;400;500;600;700;800&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- ══════════════════════════════════════════
+     ▌MANUAL CONFIG — edit only this section
+══════════════════════════════════════════ -->
+<script>
+var API_URL = "https://script.google.com/macros/s/AKfycbx0TjmY5kYrWadZrA3L96ztvvE9YlLInYvLhuSgIvrgd4eHV7U4YXADlqfFME2J5BKp1Q/exec";
+var PLAYERS = ["Kareem", "Salama", "Mazen", "MO khaled", "Amr", "Seifo", "omar", "Eslam", "Eslam E"];
+var LAST_PLAYER_KEY = "kresto_last_player";
+</script>
+
+<!-- ══════════════════════════════════════════
+     ▌JSONP ENGINE
+     Google Apps Script يعمل على 302 redirect
+     فـ fetch+cors يفشل. JSONP يحل المشكلة.
+══════════════════════════════════════════ -->
+<script>
+var _cbCounter = 0;
+
+function jsonpCall(params) {
+  return new Promise(function(resolve, reject) {
+    var cbName = "__jcb_" + (++_cbCounter) + "_" + Date.now();
+    var timer, script;
+
+    window[cbName] = function(data) {
+      clearTimeout(timer);
+      try { document.head.removeChild(script); } catch(e) {}
+      delete window[cbName];
+      resolve(data);
+    };
+
+    timer = setTimeout(function() {
+      try { document.head.removeChild(script); } catch(e) {}
+      delete window[cbName];
+      reject(new Error("Timeout after 20s"));
+    }, 20000);
+
+    script = document.createElement("script");
+    script.onerror = function() {
+      clearTimeout(timer);
+      try { document.head.removeChild(script); } catch(e) {}
+      delete window[cbName];
+      reject(new Error("Network error"));
+    };
+    script.src = API_URL + "?" + params + "&callback=" + cbName;
+    document.head.appendChild(script);
+  });
+}
+
+/* ── API wrappers ─────────────────────────────────────────── */
+
+// حفظ entry — يرسل الـ 4 قيم بالضبط
+function apiSave(name, date, skill, amount) {
+  return jsonpCall(
+    "action=save"
+    + "&name="   + encodeURIComponent(name)
+    + "&date="   + encodeURIComponent(date)
+    + "&skill="  + encodeURIComponent(skill)
+    + "&amount=" + encodeURIComponent(amount)
+  );
+}
+
+// جلب بيانات لاعب واحد (Apps Script يفلتر من صفحة Log)
+function apiFetch(name) {
+  return jsonpCall("action=fetch&name=" + encodeURIComponent(name));
+}
+
+// جلب كل البيانات للـ League
+function apiFetchLeague() {
+  return jsonpCall("action=fetchLeague");
+}
+</script>
+
+<!-- ══════════════════════════════════════════
+     GLOBAL STYLES & RESET
+══════════════════════════════════════════ -->
 <style>
-/* ══════════════════════════════════════════════
-   COLOR SYSTEM — Cristache Palette
-   Silver Bird   #FBF5F0  (near-white cream)
-   Prairie Dune  #FBD5BD  (warm peach)
-   Femininity    #C7C2CE  (lavender grey)
-   Indigo Bloom  #8A83DA  (medium indigo)
-   Royal Wisteria#463699  (deep indigo)
-   Cold Steel    #262335  (near-black bg)
-══════════════════════════════════════════════ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* Core Cristache palette */
-  --silver-bird:#FBF5F0;
-  --prairie-dune:#FBD5BD;
-  --femininity:#C7C2CE;
-  --indigo-bloom:#8A83DA;
-  --royal-wisteria:#463699;
-  --cold-steel:#262335;
-
-  /* Semantic roles */
-  --bg:#262335;
-  --bg-deep:#1C1A28;
-  --surface:rgba(138,131,218,0.10);
-  --surface2:rgba(138,131,218,0.18);
-  --border:rgba(138,131,218,0.22);
-  --border2:rgba(138,131,218,0.55);
-  --text:#FBF5F0;
-  --text2:#FBD5BD;
-  --text3:#C7C2CE;
-  --dim:rgba(251,245,240,0.78);
-  --very-dim:rgba(251,245,240,0.50);
-
-  /* Accent aliases for buttons / highlights */
-  --col-cream:#FBF5F0;
-  --col-gold-lt:#FBD5BD;
-  --col-gold:#8A83DA;
-  --col-amber:#463699;
-  --col-teal:#463699;
-  --col-teal-dark:#1C1A28;
-
-  /* Gradients */
-  --grad-accent:linear-gradient(135deg,#463699,#8A83DA);
-  --grad-bar:linear-gradient(90deg,#463699,#8A83DA,#C7C2CE);
-  --grad-hero:linear-gradient(160deg,#1C1A28 0%,#262335 55%,#463699 100%);
-  --grad-nav:rgba(28,26,40,0.98);
-
-  /* UI */
-  --f-body:'Inter',sans-serif;
-  --f-brand:'Orbitron',sans-serif;
-  --f-title:'Cinzel',serif;
-  --radius-card:14px;
-  --radius-sm:8px;
-  --shadow-glow:0 0 28px rgba(138,131,218,0.22);
-  --shadow-card:0 2px 20px rgba(0,0,0,0.28);
+  --cream:#F2F3F4;--beige:#DED1C6;--mauve:#A77693;--mauve-hi:#c490ae;
+  --navy:#174871;--navy-deep:#0F2D4D;
+  --bg:#0a1e2e;--surface:rgba(23,72,113,0.45);--surface2:rgba(23,72,113,0.75);
+  --border:rgba(167,118,147,0.22);--border2:rgba(167,118,147,0.5);
+  --text:#FFFFFF;--text2:#F2F3F4;--text3:#DED1C6;
+  --dim:rgba(222,209,198,0.55);--very-dim:rgba(222,209,198,0.32);
+  --grad-mauve:linear-gradient(135deg,#A77693,#174871);
+  --grad-bar:linear-gradient(90deg,#A77693,#c490ae,#F2F3F4);
+  --grad-hero:linear-gradient(160deg,#0F2D4D 0%,#174871 55%,#A77693 100%);
+  --f-body:'Inter',sans-serif;--f-brand:'Orbitron',sans-serif;--f-title:'Cinzel',serif;
 }
-
 html,body{height:100%;overflow:hidden}
-body{font-family:var(--f-body);background:var(--bg);color:var(--text);font-size:16px;-webkit-font-smoothing:antialiased}
-button{cursor:pointer;font-family:var(--f-body);border:none;outline:none;background:none}
-input,select{font-family:var(--f-body);outline:none;color:#fff}
+body{font-family:var(--f-body);background:var(--bg);color:var(--text);font-size:15px}
+button{cursor:pointer;font-family:var(--f-body)}
 ::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-thumb{background:rgba(138,131,218,0.35);border-radius:4px}
-::-webkit-scrollbar-track{background:transparent}
-
-@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar-thumb{background:rgba(167,118,147,0.4);border-radius:4px}
+.page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;transition:opacity .35s,transform .35s;z-index:1}
+.page.hidden{opacity:0;pointer-events:none;transform:translateX(22px)}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
-@keyframes toastOut{from{opacity:1;transform:translateX(-50%) translateY(0)}to{opacity:0;transform:translateX(-50%) translateY(20px)}}
-
-/* ── Pages ── */
-.page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;transition:opacity .3s,transform .3s;z-index:1}
-.page.hidden{opacity:0;pointer-events:none;transform:translateX(16px)}
-.page-content{animation:fadeIn .35s ease}
-
-/* ── Shared cards & utils ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:16px;box-shadow:var(--shadow-card)}
-.progress-bar{height:6px;background:rgba(255,255,255,0.07);border-radius:100px;overflow:hidden}
-.progress-fill{height:100%;border-radius:100px;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
-.hidden-scroll{-ms-overflow-style:none;scrollbar-width:none}
-.hidden-scroll::-webkit-scrollbar{display:none}
-
-.sec-label{
-  font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;
-  color:var(--col-gold-lt);margin-bottom:14px;margin-top:26px;
-  display:flex;align-items:center;gap:8px
-}
-.sec-label::after{content:'';flex:1;height:1px;background:rgba(240,168,48,0.22)}
-
-.info-btn{
-  background:none;border:1px solid rgba(237,216,223,0.28);border-radius:50%;
-  width:18px;height:18px;color:var(--col-cream);font-size:10px;font-weight:700;
-  display:inline-flex;align-items:center;justify-content:center;
-  transition:all .2s;cursor:pointer;flex-shrink:0
-}
-.info-btn:hover{background:rgba(237,216,223,0.1);border-color:var(--col-cream);color:#fff}
-
-/* ── Toast Notification (replaces all alert/confirm) ── */
-#toast-container{
-  position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-  z-index:9000;display:flex;flex-direction:column;gap:8px;align-items:center;
-  pointer-events:none
-}
-.toast{
-  background:#1C1A28;border:1px solid var(--border2);border-radius:12px;
-  padding:11px 20px;font-size:13px;font-weight:600;color:#fff;
-  white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,0.45);
-  animation:toastIn .28s ease;pointer-events:auto;max-width:90vw;white-space:normal;text-align:center
-}
-.toast.success{border-color:rgba(100,220,140,0.4);background:#0f1e16}
-.toast.error{border-color:rgba(235,100,80,0.4);background:#200f0f}
-.toast.warn{border-color:rgba(251,213,189,0.4);background:#1e1512}
-
-/* ── Confirm modal (replaces browser confirm()) ── */
-#confirm-overlay{
-  display:none;position:fixed;inset:0;z-index:8000;
-  background:rgba(0,0,0,0.75);backdrop-filter:blur(6px)
-}
-.confirm-box{
-  background:#1C1A28;border:1px solid var(--border2);border-radius:var(--radius-card);
-  padding:24px;width:90%;max-width:360px;
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  animation:fadeIn .2s ease-out
-}
-.confirm-title{font-family:var(--f-title);font-size:17px;color:#fff;margin-bottom:8px}
-.confirm-msg{font-size:13px;color:var(--dim);margin-bottom:20px;line-height:1.5}
-.confirm-btns{display:flex;gap:8px}
-
-/* ── Nav ── */
-nav{
-  position:sticky;top:0;z-index:100;display:flex;align-items:center;
-  justify-content:space-between;padding:0 22px;height:56px;
-  background:var(--grad-nav);backdrop-filter:blur(22px);
-  -webkit-backdrop-filter:blur(22px);border-bottom:1px solid var(--border)
-}
-.nav-logo{
-  font-family:var(--f-brand);font-size:16px;font-weight:900;
-  letter-spacing:2.5px;text-transform:uppercase;
-  background:linear-gradient(90deg,var(--silver-bird),var(--indigo-bloom),var(--royal-wisteria));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  filter:drop-shadow(0 0 12px rgba(138,131,218,0.5))
-}
-.nav-right{display:flex;gap:5px;align-items:center}
-.nav-link{
-  font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--dim);padding:6px 11px;border-radius:7px;transition:all .2s
-}
-.nav-link:hover,.nav-link.active{color:#fff;background:rgba(138,131,218,0.18)}
-
-/* ── Sync dot ── */
-.sync-dot{
-  width:7px;height:7px;border-radius:50%;flex-shrink:0;
-  transition:background .3s;margin-right:2px
-}
-.sync-dot.ok{background:#8A83DA;box-shadow:0 0 6px #8A83DA88}
-.sync-dot.syncing{background:var(--indigo-bloom);animation:spin 1s linear infinite;border-radius:0;clip-path:polygon(50% 0,100% 38%,82% 100%,18% 100%,0 38%)}
-.sync-dot.error{background:#ff6b6b}
-
-/* ── Loading overlay ── */
-#loading-overlay{
-  position:fixed;inset:0;background:var(--bg);z-index:500;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-  transition:opacity .4s
-}
-#loading-overlay.done{opacity:0;pointer-events:none}
-.loading-spinner{
-  width:36px;height:36px;border:2px solid rgba(138,131,218,0.15);
-  border-top-color:var(--indigo-bloom);border-radius:50%;animation:spin .8s linear infinite
-}
-.loading-text{font-family:var(--f-brand);font-size:12px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--indigo-bloom)}
-.loading-sub{font-size:11px;color:var(--dim);letter-spacing:1px}
-
-/* ══════════════════════
-   LOG PAGE — Grid cards
-══════════════════════ */
-.log-skill-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:11px;margin-bottom:8px
-}
-.log-skill-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:13px;
-  padding:16px 14px;transition:border-color .2s,box-shadow .2s,background .2s;
-  display:flex;flex-direction:column;gap:7px;position:relative;overflow:hidden
-}
-.log-skill-card::before{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(138,131,218,0.06),transparent);
-  pointer-events:none
-}
-.log-skill-card.met{
-  border-color:rgba(138,131,218,0.65);
-  background:rgba(138,131,218,0.13);
-  box-shadow:0 0 20px rgba(138,131,218,0.18)
-}
-.log-skill-card-name{
-  font-size:13px;font-weight:700;color:var(--silver-bird);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  display:flex;align-items:center;gap:5px
-}
-.log-skill-card.met .log-skill-card-name{color:#fff}
-.log-skill-card-goal{font-size:12px;color:var(--dim);font-weight:600}
-.log-skill-card-goal.met{color:var(--indigo-bloom);font-weight:700}
-.log-skill-input-wrap{display:flex;align-items:center;gap:5px;margin-top:2px}
-.log-skill-input{
-  flex:1;min-width:0;background:rgba(70,54,153,0.22);
-  border:1px solid rgba(138,131,218,0.30);border-radius:8px;
-  padding:8px 10px;color:#FBF5F0;font-size:16px;font-weight:700;
-  text-align:center;width:100%;transition:border-color .2s;
-  -moz-appearance:textfield
-}
-.log-skill-input::-webkit-inner-spin-button,
-.log-skill-input::-webkit-outer-spin-button{
-  -webkit-appearance:inner-spin-button;
-  opacity:1;
-  background:rgba(138,131,218,0.25);
-  border-left:1px solid rgba(138,131,218,0.30);
-  cursor:pointer;
-  filter:invert(1) hue-rotate(240deg) brightness(1.3)
-}
-.log-skill-input:focus{border-color:var(--border2);background:rgba(70,54,153,0.30)}
-.log-skill-input::placeholder{font-size:13px;font-weight:400;color:var(--very-dim)}
-.log-save-btn{
-  background:var(--royal-wisteria);border:none;border-radius:8px;
-  padding:8px 11px;color:#FBF5F0;font-size:12px;font-weight:700;
-  transition:background .2s;white-space:nowrap;flex-shrink:0
-}
-.log-save-btn:hover{background:var(--indigo-bloom)}
-.log-progress-bar{height:4px;border-radius:100px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:2px}
-.log-progress-fill{height:100%;border-radius:100px;transition:width .6s}
-
-/* ── Dashboard ── */
-.dash-skill-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:13px;
-  padding:14px;cursor:pointer;transition:border-color .2s,transform .18s,box-shadow .2s;
-  box-shadow:var(--shadow-card)
-}
-.dash-skill-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow-glow)}
-.rank-pts-bar{height:6px;background:rgba(255,255,255,0.08);border-radius:100px;overflow:hidden;margin:5px 0 3px}
-.rank-pts-fill{height:100%;border-radius:100px;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
-
-/* ── Overall Level — mobile-first stacked ── */
-.overall-card{
-  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  max-width:820px;margin:0 auto;padding:14px 16px;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius-card);box-shadow:var(--shadow-card)
-}
-.overall-badge-wrap{
-  width:54px;height:54px;border-radius:12px;border:1px solid var(--border2);
-  background:rgba(255,255,255,0.04);display:flex;align-items:center;
-  justify-content:center;flex-shrink:0
-}
-.overall-info{flex:1;min-width:0}
-.overall-bar-wrap{min-width:160px;flex:2;max-width:340px}
-
-/* Rank road — scrolls horizontally, always readable */
-.rank-road-wrap{overflow-x:auto;padding:10px 0 6px;margin-top:8px}
-.rank-road{display:inline-flex;gap:0;align-items:center;padding:4px 8px;white-space:nowrap}
-.rank-point{display:flex;flex-direction:column;align-items:center;min-width:48px;flex-shrink:0}
-.rank-dot{width:11px;height:11px;border-radius:50%;background:var(--surface2);margin:3px 0;border:2px solid var(--border)}
-.rank-dot.current{background:var(--col-gold);border-color:#fff;box-shadow:0 0 10px var(--col-gold)}
-.rank-dot.past{background:var(--col-amber);border-color:rgba(240,168,48,0.5)}
-.rank-name{font-size:8px;font-weight:700;color:var(--dim);text-align:center;line-height:1.2;max-width:48px;white-space:normal}
-.rank-xp-lbl{font-size:7px;color:var(--very-dim);white-space:nowrap}
-.rank-connector{width:18px;height:2px;background:var(--border);align-self:center;flex-shrink:0}
-.rank-connector.past-conn{background:var(--col-amber)}
-
-/* ── Skill Detail ── */
-.sd-hero{padding:22px 20px;background:var(--grad-hero);border-bottom:1px solid var(--border)}
-.sd-hero-inner{max-width:660px;margin:0 auto;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.sd-rank-big{flex-shrink:0;width:76px;height:76px;border-radius:16px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center}
-.sd-right{flex:1;display:flex;flex-direction:column;gap:5px}
-.sd-skill-name{font-family:var(--f-title);font-size:22px;font-weight:700;color:#fff}
-.sd-body{max-width:660px;margin:0 auto;padding:20px 16px 90px}
-
-/* ── Streak ── */
-.streak-box{margin-bottom:16px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card)}
-.streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
-.streak-lbl{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
-.streak-num{font-family:var(--f-title);font-size:26px;font-weight:700;color:#fff}
-.streak-unit{font-size:12px;font-weight:600;color:var(--dim)}
-.streak-track{position:relative;height:10px;background:rgba(255,255,255,0.07);border-radius:100px;overflow:visible}
-.streak-fill{height:10px;border-radius:100px;background:var(--grad-bar);transition:width 1.2s cubic-bezier(.16,1,.3,1);position:relative;min-width:3px;box-shadow:0 0 12px rgba(138,131,218,0.55)}
-.streak-flame{position:absolute;right:-9px;top:-11px;font-size:18px;filter:drop-shadow(0 0 5px rgba(255,140,50,.65))}
-.streak-miles{display:flex;justify-content:space-between;margin-top:7px;font-size:10px;font-weight:600;letter-spacing:1px;color:var(--very-dim)}
-
-/* ── Skill level bar ── */
-.sd-rank-bar-box{margin-bottom:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card)}
-.sd-rank-bar-track{height:8px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
-.sd-rank-bar-fill{height:100%;border-radius:100px;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
-
-/* ── Chart ── */
-.chart-box{margin-bottom:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card)}
-.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.chart-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3)}
-.chart-tabs{display:flex;gap:3px}
-.chart-tab{background:none;border:1px solid var(--border);border-radius:5px;padding:5px 9px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);transition:all .2s}
-.chart-tab.active{background:rgba(138,131,218,0.22);border-color:var(--border2);color:#FBF5F0}
-.chart-tab:hover:not(.active){border-color:rgba(138,131,218,0.4);color:var(--text3)}
-.chart-wrap{position:relative;height:200px;overflow-x:hidden;overflow-y:visible}
-.chart-scroll{overflow-x:auto;height:100%;scrollbar-width:thin;scrollbar-color:rgba(138,131,218,0.30) transparent}
-.chart-scroll::-webkit-scrollbar{height:3px}
-.chart-scroll::-webkit-scrollbar-thumb{background:rgba(138,131,218,0.30);border-radius:3px}
-.bar-group{display:inline-flex;gap:4px;align-items:flex-end;height:100%;padding:28px 8px 32px;min-width:max-content}
-.bar-col-wrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:24px;height:100%;gap:0}
-.bar-val{font-size:8px;font-weight:700;color:var(--text3);margin-bottom:3px;white-space:nowrap;text-align:center;line-height:1;flex-shrink:0}
-.bar-col{width:14px;border-radius:3px 3px 0 0;min-height:2px;flex-shrink:0}
-.bar-lbl-wrap{display:flex;flex-direction:column;align-items:center;margin-top:4px;gap:1px;flex-shrink:0}
-.bar-lbl{font-size:8px;font-weight:600;color:var(--dim);white-space:nowrap}
-.bar-lbl-yr{font-size:7px;font-weight:700;color:rgba(138,131,218,0.70);white-space:nowrap}
-.goal-line{position:absolute;left:0;right:0;border-top:1.5px dashed rgba(138,131,218,0.60);pointer-events:none;z-index:2}
-.goal-lbl{position:absolute;right:6px;top:-13px;font-size:8px;font-weight:700;color:var(--indigo-bloom);background:rgba(28,26,40,0.92);padding:1px 4px;border-radius:3px}
-.chart-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:13px;color:var(--dim)}
-
-/* ── Calendar ── */
-.cal-box{padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card)}
-.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.cal-title{font-family:var(--f-title);font-size:14px;font-weight:700;color:#fff}
-.cal-nav-btns{display:flex;gap:4px}
-.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text3);font-size:14px;line-height:1;transition:all .2s}
-.cal-nav-btn:hover{border-color:var(--border2);color:#fff}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.cal-head{text-align:center;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--very-dim);padding-bottom:7px}
-.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;font-size:10px;font-weight:600;color:rgba(251,245,240,0.32);background:rgba(255,255,255,0.028);border:1px solid rgba(255,255,255,0.05);transition:all .2s;gap:1px;padding:2px}
-.cal-cell.empty{background:none;border:none}
-.cal-cell.cal-today{border-color:rgba(138,131,218,0.6);color:var(--indigo-bloom)}
-.cal-cell.cal-met{background:rgba(138,131,218,0.50);border-color:var(--indigo-bloom);color:#FBF5F0;font-weight:800;box-shadow:0 0 10px rgba(138,131,218,0.40)}
-.cal-cell.cal-partial{background:rgba(138,131,218,0.14);border-color:rgba(138,131,218,0.38);color:var(--indigo-bloom)}
-.cal-day-num{font-size:10px;font-weight:700;line-height:1}
-.cal-day-val{font-size:7px;font-weight:600;line-height:1;opacity:.85}
-.cal-legend{display:flex;gap:12px;margin-top:9px;justify-content:flex-end}
-.cal-legend-item{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--very-dim)}
-.cal-legend-dot{width:8px;height:8px;border-radius:2px}
-
-/* ── Analytics ── */
-.analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:16px}
-.analytics-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:16px;box-shadow:var(--shadow-card);min-width:0;overflow:hidden}
-.analytics-card h4{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--col-gold-lt);margin-bottom:12px}
-.analytics-bar-item{display:flex;align-items:center;gap:7px;margin-bottom:8px;min-width:0}
-.analytics-bar-label{flex:1;font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.analytics-bar-value{font-size:12px;font-weight:600;color:var(--text);min-width:40px;text-align:right;flex-shrink:0}
-.analytics-bar-track{flex:2;height:8px;background:rgba(255,255,255,0.07);border-radius:100px;overflow:hidden;min-width:40px}
-.analytics-bar-fill{height:100%;border-radius:100px;transition:width .8s}
-
-/* Category level card */
-.cat-level-hero{
-  display:flex;gap:16px;flex-wrap:wrap;
-  padding:16px;background:var(--surface);border:1px solid var(--border2);
-  border-radius:var(--radius-card);margin-bottom:16px;
-  box-shadow:var(--shadow-card);align-items:flex-start
-}
-.cat-level-big{font-family:var(--f-title);font-size:44px;font-weight:700;color:#fff;line-height:1;flex-shrink:0}
-.cat-level-details{flex:1;min-width:140px}
-.cat-level-rank{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px}
-.cat-level-xp{font-size:12px;color:var(--dim);margin-bottom:9px}
-.cat-level-bar-track{height:8px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
-.cat-level-bar-fill{height:100%;border-radius:100px;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
-.line-chart-container{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
-.tooltip-box{position:fixed;background:#162324;border:1px solid var(--border2);border-radius:7px;padding:5px 9px;font-size:10px;color:#fff;pointer-events:none;white-space:nowrap;z-index:9999;display:none;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
-.donut-svg{width:160px;height:160px;margin:0 auto;display:block}
-
-/* ── Control ── */
-.control-input{
-  background:rgba(70,54,153,0.20);border:1px solid var(--border);
-  border-radius:var(--radius-sm);padding:9px 12px;color:#FBF5F0;font-size:14px;
-  transition:border-color .2s;-moz-appearance:textfield
-}
-.control-input::-webkit-inner-spin-button,
-.control-input::-webkit-outer-spin-button{
-  -webkit-appearance:inner-spin-button;
-  opacity:1;
-  background:rgba(138,131,218,0.25);
-  border-left:1px solid rgba(138,131,218,0.28);
-  cursor:pointer;
-  filter:invert(1) hue-rotate(240deg) brightness(1.2)
-}
-.control-input:focus{border-color:var(--border2);background:rgba(70,54,153,0.28)}
-.btn-danger{background:rgba(255,80,80,0.14);color:#ff9090;border:1px solid rgba(255,80,80,0.30);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;transition:all .2s}
-.btn-danger:hover{background:rgba(255,80,80,0.26)}
-.btn-sm{background:rgba(138,131,218,0.12);color:var(--silver-bird);border:1px solid var(--border);border-radius:6px;padding:6px 11px;font-size:12px;font-weight:600;transition:all .2s}
-.btn-sm:hover{border-color:var(--border2);color:#fff}
-.btn-primary{background:var(--royal-wisteria);color:#FBF5F0;border:1px solid var(--indigo-bloom);border-radius:6px;padding:7px 15px;font-size:13px;font-weight:600;transition:all .2s}
-.btn-primary:hover{background:var(--indigo-bloom)}
-
-/* ── Emoji picker wider (accepts all emoji) ── */
-.emoji-input{width:60px;font-size:18px;text-align:center;padding:6px 8px}
-
-/* ══════════════════════
-   RESPONSIVE
-══════════════════════ */
-@media(max-width:640px){
-  .log-skill-grid{grid-template-columns:repeat(2,1fr);gap:9px}
-  .log-skill-card{padding:12px 11px}
-  .log-skill-card-name{font-size:12px}
-  .log-skill-input{font-size:17px;padding:8px}
-
-  /* Overall card: stack vertically on mobile */
-  .overall-card{flex-direction:column;align-items:center;text-align:center;gap:10px}
-  .overall-badge-wrap{width:64px;height:64px}
-  .overall-info{width:100%;text-align:center}
-  .overall-bar-wrap{width:100%;max-width:100%;min-width:0}
-
-  .sd-hero-inner{flex-direction:column;text-align:center;gap:12px}
-  .sd-rank-big{margin:0 auto}
-  .sd-body{padding:14px 12px 90px}
-  .sd-skill-name{font-size:20px}
-
-  nav{padding:0 12px}
-  .nav-logo{font-size:13px;letter-spacing:1.5px}
-  .nav-link{padding:5px 8px;font-size:10px}
-
-  /* Analytics — constrain to screen */
-  .analytics-grid{grid-template-columns:1fr}
-  .analytics-card{max-width:100%;overflow:hidden}
-  .cat-level-hero{flex-direction:column;align-items:center;text-align:center}
-  .cat-level-big{font-size:38px}
-  .cat-level-details{min-width:0;width:100%}
-
-  /* Prevent horizontal bleed */
-  .line-chart-container{max-width:calc(100vw - 32px)}
-
-  .sec-label{font-size:10px}
-  body{font-size:15px}
-}
 </style>
-</head>
-<body>
 
-<!-- ══ Toast container ══ -->
-<div id="toast-container"></div>
-
-<!-- ══ Confirm modal ══ -->
-<div id="confirm-overlay">
-  <div class="confirm-box">
-    <div class="confirm-title" id="confirm-title">Are you sure?</div>
-    <div class="confirm-msg" id="confirm-msg"></div>
-    <div class="confirm-btns">
-      <button class="btn-sm" style="flex:1" onclick="resolveConfirm(false)">Cancel</button>
-      <button class="btn-danger" style="flex:1" onclick="resolveConfirm(true)" id="confirm-ok-btn">Delete</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ Loading ══ -->
-<div id="loading-overlay">
-  <div class="loading-spinner"></div>
-  <div class="loading-text">LIFE TRACKER</div>
-  <div class="loading-sub" id="loading-sub">Connecting to database…</div>
-</div>
-
-<!-- ══ PAGE 1 – LOG ══ -->
-<div id="page-log" class="page">
-  <nav>
-    <div class="nav-logo">LIFE TRACKER</div>
-    <div class="nav-right">
-      <div class="sync-dot ok" id="sync-dot"></div>
-      <button class="nav-link active" onclick="navigate('log')">Log</button>
-      <button class="nav-link" onclick="navigate('dashboard')">Dashboard</button>
-      <button class="nav-link" onclick="navigate('control')">⚙️</button>
-    </div>
-  </nav>
-  <div style="max-width:680px;margin:0 auto;padding:18px 16px" class="page-content">
-    <div class="sec-label" style="margin-top:0">Select Date</div>
-    <div style="display:flex;gap:8px;margin-bottom:20px">
-      <input type="date" id="log-date"
-        style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:#fff;font-size:14px"
-        onchange="renderLog()">
-      <button onclick="document.getElementById('log-date').value=getTodayStr();renderLog()"
-        style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--dim);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;transition:all .2s"
-        onmouseover="this.style.borderColor='var(--border2)';this.style.color='#fff'"
-        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'">
-        Today
-      </button>
-    </div>
-    <div id="log-sections"></div>
-  </div>
-</div>
-
-<!-- ══ PAGE 2 – DASHBOARD ══ -->
-<div id="page-dashboard" class="page hidden">
-  <nav>
-    <div class="nav-logo">LIFE TRACKER</div>
-    <div class="nav-right">
-      <div class="sync-dot ok" id="sync-dot-2"></div>
-      <button class="nav-link" onclick="navigate('log')">Log</button>
-      <button class="nav-link active" onclick="navigate('dashboard')">Dashboard</button>
-      <button class="nav-link" onclick="navigate('control')">⚙️</button>
-    </div>
-  </nav>
-  <div style="padding:24px 16px 12px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 115%,rgba(171,105,55,0.18),transparent)">
-    <div style="font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--dim);margin-bottom:7px">Life Progress System</div>
-    <h1 style="font-family:var(--f-title);font-size:clamp(18px,4vw,34px);font-weight:700;text-transform:uppercase;color:#fff">
-      YOUR <em style="font-style:normal;color:var(--col-gold)">JOURNEY</em>
-    </h1>
-  </div>
-  <div style="max-width:920px;margin:0 auto;padding:14px 16px 90px" class="page-content">
-    <div id="overall-level" style="margin-bottom:20px;cursor:pointer" onclick="toggleOverallView()"></div>
-    <div id="dashboard-categories"></div>
-  </div>
-</div>
-
-<!-- ══ PAGE 3 – SKILL DETAIL ══ -->
-<div id="page-skill" class="page hidden">
-  <nav>
-    <div class="nav-logo">LIFE TRACKER</div>
-    <div class="nav-right"><button class="nav-link" onclick="navigate('dashboard')">← Back</button></div>
-  </nav>
-  <div class="sd-hero" id="sd-hero"></div>
-  <div class="sd-body page-content" id="sd-body"></div>
-</div>
-
-<!-- ══ PAGE 4 – ANALYTICS ══ -->
-<div id="page-analytics" class="page hidden">
-  <nav>
-    <div class="nav-logo">LIFE TRACKER</div>
-    <div class="nav-right"><button class="nav-link" onclick="navigate('dashboard')">← Back</button></div>
-  </nav>
-  <div style="max-width:920px;margin:0 auto;padding:18px 16px 90px" class="page-content">
-    <div id="analytics-hero" style="margin-bottom:14px"></div>
-    <div id="analytics-cat-level"></div>
-    <div class="analytics-grid" id="analytics-grid"></div>
-  </div>
-</div>
-
-<!-- ══ PAGE 5 – CONTROL ══ -->
-<div id="page-control" class="page hidden">
-  <nav>
-    <div class="nav-logo">LIFE TRACKER</div>
-    <div class="nav-right">
-      <button class="nav-link" onclick="navigate('log')">Log</button>
-      <button class="nav-link" onclick="navigate('dashboard')">Dashboard</button>
-      <button class="nav-link active" onclick="navigate('control')">⚙️</button>
-    </div>
-  </nav>
-  <div style="max-width:820px;margin:0 auto;padding:18px 16px 90px" class="page-content">
-    <h2 style="font-family:var(--f-title);font-size:21px;color:#fff;margin-bottom:20px">⚙️ Control Panel</h2>
-    <div id="control-content"></div>
-  </div>
-</div>
-
-<!-- Global tooltip -->
-<div class="tooltip-box" id="trend-tooltip"></div>
-
-<!-- ══════════════════════════════════════════════
-     SUPABASE CONFIG
-══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     JS: SESSION — مصدر الحقيقة الوحيد للاعب النشط
+══════════════════════════════════════════ -->
 <script>
-const SUPABASE_URL      = 'https://wqiujbbkhmkzhpfmwetx.supabase.co';    // مثال: https://abcxyz.supabase.co
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxaXVqYmJraG1remhwZm13ZXR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MjcwMjMsImV4cCI6MjA5MzUwMzAyM30.u1Rpw9xdnFrVYEnidrcrMYPQdA32qIPJJBI4LNN-y5c';       // المفتاح يبدأ بـ eyJh...
+var SESSION = {
+  name: "",
 
-/* لا تغير أي شيء تحت هذا السطر */
-let _sb = null; // Supabase client instance
+  init: function() {
+    var saved = "";
+    try { saved = localStorage.getItem(LAST_PLAYER_KEY) || ""; } catch(e) {}
+    this.name = (saved && PLAYERS.indexOf(saved) !== -1) ? saved : (PLAYERS[0] || "");
+  },
+
+  set: function(name) {
+    if (!name || PLAYERS.indexOf(name) === -1) return;
+    this.name = name;
+    try { localStorage.setItem(LAST_PLAYER_KEY, name); } catch(e) {}
+    // مزامنة كل الـ dropdowns
+    var el = document.getElementById("l-name");
+    if (el) el.value = name;
+    var lbl = document.getElementById("dash-player-label");
+    if (lbl) lbl.textContent = name;
+  }
+};
 </script>
 
-<!-- ══════════════════════════════════════════════
-     TOAST + CONFIRM HELPERS
-══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     JS: SKILL DEFS & RANK SYSTEM
+══════════════════════════════════════════ -->
 <script>
-function showToast(msg, type='info', duration=2800){
-  const c=document.getElementById('toast-container');
-  const t=document.createElement('div');
-  t.className='toast '+(type==='success'?'success':type==='error'?'error':type==='warn'?'warn':'');
-  t.textContent=msg;
-  c.appendChild(t);
-  setTimeout(()=>{
-    t.style.animation='toastOut .28s ease forwards';
-    setTimeout(()=>t.remove(), 280);
-  }, duration);
-}
+var SKILLS=[
+  {key:"new_words",    name:"New Words",    goal:30, unit:"words",  xpW:3},
+  {key:"review_words", name:"Review Words", goal:50, unit:"words",  xpW:1},
+  {key:"speaking_min", name:"Speaking",     goal:30, unit:"min",    xpW:3},
+  {key:"listening_min",name:"Listening",    goal:60, unit:"min",    xpW:1},
+  {key:"pages_read",   name:"Reading",      goal:3,  unit:"pages",  xpW:15},
+  {key:"typing_score", name:"Touch Typing", goal:1,  unit:"session",xpW:0}
+];
+var XP_WEIGHTS={new_words:3,review_words:1,speaking_min:3,listening_min:1,pages_read:15,typing_score:0};
+var UNIT_HINTS={new_words:"words",review_words:"words",speaking_min:"minutes",listening_min:"minutes",pages_read:"pages",typing_score:"minutes"};
 
-let _confirmResolve=null;
-function showConfirm(title, msg, okLabel='Delete'){
-  document.getElementById('confirm-title').textContent=title;
-  document.getElementById('confirm-msg').textContent=msg;
-  document.getElementById('confirm-ok-btn').textContent=okLabel;
-  document.getElementById('confirm-overlay').style.display='block';
-  return new Promise(res=>{ _confirmResolve=res; });
-}
-function resolveConfirm(val){
-  document.getElementById('confirm-overlay').style.display='none';
-  if(_confirmResolve){ _confirmResolve(val); _confirmResolve=null; }
-}
-</script>
+var OVERALL_LEVELS=(function(){
+  var defs=[
+    {label:"Bronze V",col:"#cd7f32",pts:500},{label:"Bronze IV",col:"#cd7f32",pts:500},{label:"Bronze III",col:"#cd7f32",pts:500},{label:"Bronze II",col:"#cd7f32",pts:500},{label:"Bronze I",col:"#cd7f32",pts:500},
+    {label:"Silver V",col:"#c0c8d8",pts:800},{label:"Silver IV",col:"#c0c8d8",pts:800},{label:"Silver III",col:"#c0c8d8",pts:800},{label:"Silver II",col:"#c0c8d8",pts:800},{label:"Silver I",col:"#c0c8d8",pts:800},
+    {label:"Gold V",col:"#e8c840",pts:1200},{label:"Gold IV",col:"#e8c840",pts:1200},{label:"Gold III",col:"#e8c840",pts:1200},{label:"Gold II",col:"#e8c840",pts:1200},{label:"Gold I",col:"#e8c840",pts:1200},
+    {label:"Platinum V",col:"#d0e0f0",pts:1800},{label:"Platinum IV",col:"#d0e0f0",pts:1800},{label:"Platinum III",col:"#d0e0f0",pts:1800},{label:"Platinum II",col:"#d0e0f0",pts:1800},{label:"Platinum I",col:"#d0e0f0",pts:1800},
+    {label:"Diamond V",col:"#80d8ff",pts:2400},{label:"Diamond IV",col:"#80d8ff",pts:2400},{label:"Diamond III",col:"#80d8ff",pts:2400},{label:"Diamond II",col:"#80d8ff",pts:2400},{label:"Diamond I",col:"#80d8ff",pts:2400},
+    {label:"Crown V",col:"#ff9040",pts:1800},{label:"Crown IV",col:"#ff9040",pts:1800},{label:"Crown III",col:"#ff9040",pts:1800},{label:"Crown II",col:"#ff9040",pts:1800},{label:"Crown I",col:"#ff9040",pts:1800},
+    {label:"Ace",col:"#ff6080",pts:1700},{label:"Ace Master",col:"#ff6080",pts:1700},{label:"Ace Dominator",col:"#ff6080",pts:1800},
+    {label:"Conqueror",col:"#b090ff",pts:0}
+  ];
+  var cx=0;defs.forEach(function(d){d.startXP=cx;cx+=d.pts;});return defs;
+})();
 
-<!-- ══════════════════════════════════════════════
-     ICON HELPERS
-══════════════════════════════════════════════ -->
-<script>
-function skillSVG(key, size=18){
-  const def='M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 4v4m0 4v.01';
-  const p={
-    ru_new_words:'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
-    ru_speaking:'M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8',
-    ru_listening:'M3 18v-6a9 9 0 0 1 18 0v6',
-    ru_reading:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'
-  };
-  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="${p[key]||def}"/></svg>`;
-}
+var SKILL_LEVELS=(function(){
+  return[
+    {label:"Bronze V",col:"#cd7f32",d:0},{label:"Bronze IV",col:"#cd7f32",d:2},{label:"Bronze III",col:"#cd7f32",d:4},{label:"Bronze II",col:"#cd7f32",d:6},{label:"Bronze I",col:"#cd7f32",d:8},
+    {label:"Silver V",col:"#c0c8d8",d:10},{label:"Silver IV",col:"#c0c8d8",d:13},{label:"Silver III",col:"#c0c8d8",d:16},{label:"Silver II",col:"#c0c8d8",d:19},{label:"Silver I",col:"#c0c8d8",d:22},
+    {label:"Gold V",col:"#e8c840",d:26},{label:"Gold IV",col:"#e8c840",d:31},{label:"Gold III",col:"#e8c840",d:36},{label:"Gold II",col:"#e8c840",d:41},{label:"Gold I",col:"#e8c840",d:46},
+    {label:"Platinum V",col:"#d0e0f0",d:53},{label:"Platinum IV",col:"#d0e0f0",d:60},{label:"Platinum III",col:"#d0e0f0",d:67},{label:"Platinum II",col:"#d0e0f0",d:74},{label:"Platinum I",col:"#d0e0f0",d:81},
+    {label:"Diamond V",col:"#80d8ff",d:90},{label:"Diamond IV",col:"#80d8ff",d:98},{label:"Diamond III",col:"#80d8ff",d:106},{label:"Diamond II",col:"#80d8ff",d:114},{label:"Diamond I",col:"#80d8ff",d:122},
+    {label:"Crown V",col:"#ff9040",d:130},{label:"Crown IV",col:"#ff9040",d:134},{label:"Crown III",col:"#ff9040",d:138},{label:"Crown II",col:"#ff9040",d:141},{label:"Crown I",col:"#ff9040",d:144},
+    {label:"Ace",col:"#ff6080",d:147},{label:"Ace Master",col:"#ff6080",d:148.5},{label:"Ace Dominator",col:"#ff6080",d:149.5},
+    {label:"Conqueror",col:"#b090ff",d:150}
+  ];
+})();
 
-function rankBadgeSVG(tier, sub, size=28){
-  const colors={
-    Bronze: {c1:'#cd7f32',c2:'#7d3c0a',c3:'#e8a857',bg:'#2a1000'},
-    Silver: {c1:'#c0c0d8',c2:'#606090',c3:'#e8e8f5',bg:'#141428'},
-    Gold:   {c1:'#EBA328',c2:'#8a5a00',c3:'#E8C283',bg:'#211400'},
-    Platinum:{c1:'#4fc3f7',c2:'#0277bd',c3:'#b3e5fc',bg:'#041020'},
-    Diamond:{c1:'#9575cd',c2:'#4a148c',c3:'#e1bee7',bg:'#0e0016'},
-    Crown:  {c1:'#e91e63',c2:'#880e4f',c3:'#fce4ec',bg:'#180016'},
-    Ace:    {c1:'#ff5722',c2:'#bf360c',c3:'#EBA328',bg:'#180400'},
-    Conqueror:{c1:'#EBA328',c2:'#8a5a00',c3:'#E8C283',bg:'#0d0a00'}
-  };
-  const g=colors[tier]||colors.Bronze;
-  const id='bg'+Math.random().toString(36).slice(2,8);
-  return `<svg width="${size}" height="${size}" viewBox="0 0 100 118" xmlns="http://www.w3.org/2000/svg">
-    <defs><radialGradient id="${id}" cx="40%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="${g.c3}"/>
-      <stop offset="45%" stop-color="${g.c1}"/>
-      <stop offset="100%" stop-color="${g.bg}"/>
-    </radialGradient></defs>
-    <path d="M50 6L87 24L87 60Q87 90 50 103Q13 90 13 60L13 24Z" fill="${g.bg}"/>
-    <path d="M50 10L83 27L83 59Q83 87 50 99Q17 87 17 59L17 27Z" fill="url(#${id})"/>
-    <path d="M50 6L87 24L87 60Q87 90 50 103Q13 90 13 60L13 24Z" fill="none" stroke="${g.c1}" stroke-width="1.2"/>
-    <text x="50" y="64" text-anchor="middle" font-family="Cinzel,serif" font-size="16" font-weight="900" fill="#fff">${sub||tier.charAt(0)}</text>
-    <rect x="18" y="104" width="64" height="11" rx="3" fill="${g.bg}" stroke="${g.c2}" stroke-width="0.6"/>
-    <text x="50" y="113" text-anchor="middle" font-family="Cinzel,serif" font-size="5.5" font-weight="700" fill="${g.c1}">${tier.toUpperCase()}</text>
-  </svg>`;
-}
-</script>
-
-<!-- ══════════════════════════════════════════════
-     CONSTANTS & MEMORY
-══════════════════════════════════════════════ -->
-<script>
-const XP_PER_SKILL_LEVEL   = 500;
-const XP_PER_CAT_LEVEL     = 1000;
-const XP_PER_OVERALL_LEVEL = 1500;
-const LEVEL_MAX            = 100;
-
-const SKILL_LEVELS=[
-  {label:'Bronze V',tier:'Bronze',col:'#cd7f32'},{label:'Bronze IV',tier:'Bronze',col:'#cd7f32'},
-  {label:'Bronze III',tier:'Bronze',col:'#cd7f32'},{label:'Bronze II',tier:'Bronze',col:'#cd7f32'},
-  {label:'Bronze I',tier:'Bronze',col:'#cd7f32'},
-  {label:'Silver V',tier:'Silver',col:'#c0c8d8'},{label:'Silver IV',tier:'Silver',col:'#c0c8d8'},
-  {label:'Silver III',tier:'Silver',col:'#c0c8d8'},{label:'Silver II',tier:'Silver',col:'#c0c8d8'},
-  {label:'Silver I',tier:'Silver',col:'#c0c8d8'},
-  {label:'Gold V',tier:'Gold',col:'#EBA328'},{label:'Gold IV',tier:'Gold',col:'#EBA328'},
-  {label:'Gold III',tier:'Gold',col:'#EBA328'},{label:'Gold II',tier:'Gold',col:'#EBA328'},
-  {label:'Gold I',tier:'Gold',col:'#EBA328'},
-  {label:'Platinum V',tier:'Platinum',col:'#d0e0f0'},{label:'Platinum IV',tier:'Platinum',col:'#d0e0f0'},
-  {label:'Platinum III',tier:'Platinum',col:'#d0e0f0'},{label:'Platinum II',tier:'Platinum',col:'#d0e0f0'},
-  {label:'Platinum I',tier:'Platinum',col:'#d0e0f0'},
-  {label:'Diamond V',tier:'Diamond',col:'#80d8ff'},{label:'Diamond IV',tier:'Diamond',col:'#80d8ff'},
-  {label:'Diamond III',tier:'Diamond',col:'#80d8ff'},{label:'Diamond II',tier:'Diamond',col:'#80d8ff'},
-  {label:'Diamond I',tier:'Diamond',col:'#80d8ff'},
-  {label:'Crown V',tier:'Crown',col:'#ff9040'},{label:'Crown IV',tier:'Crown',col:'#ff9040'},
-  {label:'Crown III',tier:'Crown',col:'#ff9040'},{label:'Crown II',tier:'Crown',col:'#ff9040'},
-  {label:'Crown I',tier:'Crown',col:'#ff9040'},
-  {label:'Ace',tier:'Ace',col:'#ff6080'},{label:'Ace Master',tier:'Ace',col:'#ff6080'},
-  {label:'Ace Dominator',tier:'Ace',col:'#ff6080'},
-  {label:'Conqueror',tier:'Conqueror',col:'#EBA328'}
+var RANK_TIERS=[
+  {tier:"Bronze",col:"#cd7f32",subs:["V","IV","III","II","I"]},
+  {tier:"Silver",col:"#c0c8d8",subs:["V","IV","III","II","I"]},
+  {tier:"Gold",col:"#e8c840",subs:["V","IV","III","II","I"]},
+  {tier:"Platinum",col:"#d0e0f0",subs:["V","IV","III","II","I"]},
+  {tier:"Diamond",col:"#80d8ff",subs:["V","IV","III","II","I"]},
+  {tier:"Crown",col:"#ff9040",subs:["V","IV","III","II","I"]},
+  {tier:"Ace",col:"#ff6080",subs:["","Master","Dominator"]},
+  {tier:"Conqueror",col:"#b090ff",subs:[""]}
 ];
 
-let CATEGORIES={};
-let SKILLS=[];
-let ENTRIES=[];
+function getOverallRankIdx(xp){for(var i=OVERALL_LEVELS.length-1;i>=0;i--){if(xp>=OVERALL_LEVELS[i].startXP)return i;}return 0;}
+function getSkillRankIdx(nd){for(var i=SKILL_LEVELS.length-1;i>=0;i--){if(nd>=SKILL_LEVELS[i].d)return i;}return 0;}
 </script>
 
-<!-- ══════════════════════════════════════════════
-     SUPABASE DATA LAYER
-══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     JS: SVG LIBRARY
+══════════════════════════════════════════ -->
 <script>
-function setSyncStatus(state){
-  ['sync-dot','sync-dot-2'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.className='sync-dot '+state;
-  });
-}
-
-async function fetchAllFromSupabase(){
-  setSyncStatus('syncing');
-  try{
-    const {data:cats,error:ce}=await _sb.from('categories').select('*').order('created_at');
-    if(ce) throw ce;
-    CATEGORIES={};
-    (cats||[]).forEach(c=>{ CATEGORIES[c.id]={id:c.id,name:c.name,icon:c.icon,color:c.color}; });
-
-    const {data:skills,error:se}=await _sb.from('skills').select('*').order('created_at');
-    if(se) throw se;
-    SKILLS=(skills||[]).map(s=>({key:s.key,cat:s.cat,name:s.name,goal:s.goal,unit:s.unit,xpW:s.xp_w}));
-
-    const {data:entries,error:ee}=await _sb.from('entries').select('date,skill,value');
-    if(ee) throw ee;
-    ENTRIES=(entries||[]).map(e=>({date:e.date,skill:e.skill,value:Number(e.value)}));
-
-    setSyncStatus('ok');
-  } catch(err){
-    console.error('Supabase fetch error:',err);
-    setSyncStatus('error');
-    _loadFromLocalStorage();
+function rankBadgeSVG(tier,sub,size){
+  size=size||28;
+  var g={Bronze:{c1:"#cd7f32",c2:"#7d3c0a",c3:"#e8a857",bg:"#3d1500"},Silver:{c1:"#c0c0d8",c2:"#606090",c3:"#e8e8f5",bg:"#1a1a3a"},Gold:{c1:"#ffd700",c2:"#a07800",c3:"#fff176",bg:"#2d1800"},Platinum:{c1:"#4fc3f7",c2:"#0277bd",c3:"#b3e5fc",bg:"#041830"},Diamond:{c1:"#9575cd",c2:"#6a1b9a",c3:"#e1bee7",bg:"#100020"},Crown:{c1:"#e91e63",c2:"#880e4f",c3:"#fce4ec",bg:"#1a002a"},Ace:{c1:"#ff5722",c2:"#bf360c",c3:"#ffca28",bg:"#1a0500"},Conqueror:{c1:"#ffc200",c2:"#a07800",c3:"#fffde7",bg:"#0d0b00"}}[tier]||{c1:"#cd7f32",c2:"#7d3c0a",c3:"#e8a857",bg:"#3d1500"};
+  var id="b"+(tier||"").slice(0,3)+(sub||"").replace(/ /g,"");
+  var defs='<defs><radialGradient id="'+id+'s" cx="40%" cy="35%" r="65%"><stop offset="0%" stop-color="'+g.c3+'"/><stop offset="45%" stop-color="'+g.c1+'"/><stop offset="100%" stop-color="'+g.bg+'"/></radialGradient></defs>';
+  var inner="";
+  if(tier==="Ace"){
+    inner='<rect x="12" y="10" width="76" height="90" rx="8" fill="'+g.c3+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
+      '<text x="50" y="65" text-anchor="middle" font-family="Cinzel,serif" font-size="28" font-weight="900" fill="'+g.c2+'">A</text>'+
+      '<text x="20" y="28" font-size="10" fill="'+g.c2+'" font-weight="700">♠</text>'+
+      (sub?'<text x="50" y="82" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.c2+'">'+sub.toUpperCase()+'</text>':'');
+  }else if(tier==="Conqueror"){
+    inner='<path d="M50 5 L88 22 L88 58 Q88 88 50 100 Q12 88 12 58 L12 22 Z" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="1.5"/>'+
+      '<path d="M50 9 L84 25 L84 57 Q84 85 50 96 Q16 85 16 57 L16 25 Z" fill="url(#'+id+'s)"/>'+
+      '<path d="M30 22 L30 12 L37 17 L43 8 L50 16 L57 8 L63 17 L70 12 L70 22 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/>'+
+      '<rect x="28" y="22" width="44" height="6" rx="1.5" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/>'+
+      '<text x="50" y="62" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="900" fill="'+g.c3+'">C</text>';
+  }else{
+    var t=sub||"";
+    var emb={
+      Bronze:'<line x1="50" y1="30" x2="50" y2="80" stroke="'+g.bg+'66" stroke-width="1.2"/><line x1="25" y1="55" x2="75" y2="55" stroke="'+g.bg+'66" stroke-width="1.2"/><circle cx="50" cy="55" r="10" fill="none" stroke="'+g.c2+'" stroke-width="1"/><text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+t+'</text>',
+      Silver:'<line x1="50" y1="28" x2="50" y2="82" stroke="'+g.c2+'55" stroke-width="1"/><line x1="18" y1="55" x2="82" y2="55" stroke="'+g.c2+'55" stroke-width="1"/><circle cx="50" cy="55" r="11" fill="none" stroke="'+g.c2+'" stroke-width="1.2"/><text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+t+'</text>',
+      Gold:'<g transform="translate(50,55)" stroke="'+g.c2+'55" stroke-width="0.8"><line x1="0" y1="-24" x2="0" y2="24"/><line x1="-24" y1="0" x2="24" y2="0"/><line x1="-17" y1="-17" x2="17" y2="17"/><line x1="17" y1="-17" x2="-17" y2="17"/></g><circle cx="50" cy="55" r="12" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/><text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="10" font-weight="700" fill="'+g.bg+'">'+t+'</text>',
+      Platinum:'<path d="M50 32 L64 40 L64 56 L50 64 L36 56 L36 40 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/><text x="50" y="54" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+t+'</text>',
+      Diamond:'<path d="M50 30 L66 46 L50 82 L34 46 Z" fill="'+g.c2+'44" stroke="'+g.c1+'" stroke-width="1.2"/><path d="M50 30 L66 46 L50 56 L34 46 Z" fill="'+g.c1+'66" stroke="'+g.c3+'" stroke-width="0.8"/><text x="50" y="76" text-anchor="middle" font-family="Cinzel,serif" font-size="8" font-weight="700" fill="'+g.c3+'">'+t+'</text>',
+      Crown:'<path d="M30 65 L30 50 L37 57 L43 45 L50 55 L57 45 L63 57 L70 50 L70 65 Z" fill="'+g.c1+'" stroke="'+g.c3+'" stroke-width="1"/><rect x="28" y="65" width="44" height="7" rx="1" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.8"/><text x="50" y="83" text-anchor="middle" font-family="Cinzel,serif" font-size="9" font-weight="700" fill="'+g.c3+'">'+t+'</text>'
+    }[tier]||'<text x="50" y="59" text-anchor="middle" font-family="Cinzel,serif" font-size="9" fill="'+g.c3+'">'+t+'</text>';
+    inner='<ellipse cx="50" cy="60" rx="47" ry="52" fill="'+g.c1+'18"/>'+
+      '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="'+g.bg+'" stroke="'+g.bg+'"/>'+
+      '<path d="M50 10 L83 27 L83 59 Q83 87 50 99 Q17 87 17 59 L17 27 Z" fill="url(#'+id+'s)"/>'+
+      '<path d="M50 6 L87 24 L87 60 Q87 90 50 103 Q13 90 13 60 L13 24 Z" fill="none" stroke="'+g.c1+'" stroke-width="1.2"/>'+
+      emb+
+      '<circle cx="23" cy="30" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/>'+
+      '<circle cx="77" cy="30" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/>'+
+      '<circle cx="23" cy="88" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/>'+
+      '<circle cx="77" cy="88" r="2" fill="'+g.c2+'" stroke="'+g.c1+'" stroke-width="0.5"/>'+
+      '<rect x="18" y="104" width="64" height="11" rx="3" fill="'+g.bg+'" stroke="'+g.c2+'" stroke-width="0.6"/>'+
+      '<text x="50" y="113" text-anchor="middle" font-family="Cinzel,serif" font-size="6" font-weight="700" fill="'+g.c1+'" letter-spacing="1">'+tier.toUpperCase()+'</text>';
   }
+  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 118" xmlns="http://www.w3.org/2000/svg">'+defs+inner+'</svg>';
 }
 
-function _loadFromLocalStorage(){
-  try{ CATEGORIES=JSON.parse(localStorage.getItem('lt_categories')||'{}'); }catch(e){ CATEGORIES={}; }
-  try{ SKILLS=JSON.parse(localStorage.getItem('lt_skills')||'[]'); }catch(e){ SKILLS=[]; }
-  try{ ENTRIES=JSON.parse(localStorage.getItem('lt_entries')||'[]'); }catch(e){ ENTRIES=[]; }
-}
-function _saveToLocalStorage(){
-  localStorage.setItem('lt_categories',JSON.stringify(CATEGORIES));
-  localStorage.setItem('lt_skills',JSON.stringify(SKILLS));
-  localStorage.setItem('lt_entries',JSON.stringify(ENTRIES));
-}
-
-async function dbAddCategory(cat){
-  CATEGORIES[cat.id]=cat; _saveToLocalStorage();
-  if(!_sb) return;
-  setSyncStatus('syncing');
-  const {error}=await _sb.from('categories').insert({id:cat.id,name:cat.name,icon:cat.icon,color:cat.color});
-  setSyncStatus(error?'error':'ok');
-  if(error){ console.error(error); showToast('Failed to save category','error'); }
-}
-
-async function dbDeleteCategory(catId){
-  const keys=SKILLS.filter(s=>s.cat===catId).map(s=>s.key);
-  SKILLS=SKILLS.filter(s=>s.cat!==catId);
-  ENTRIES=ENTRIES.filter(e=>!keys.includes(e.skill));
-  delete CATEGORIES[catId]; _saveToLocalStorage();
-  if(!_sb) return;
-  setSyncStatus('syncing');
-  if(keys.length) await _sb.from('entries').delete().in('skill',keys);
-  await _sb.from('skills').delete().eq('cat',catId);
-  const {error}=await _sb.from('categories').delete().eq('id',catId);
-  setSyncStatus(error?'error':'ok');
-}
-
-async function dbAddSkill(skill){
-  SKILLS.push(skill); _saveToLocalStorage();
-  if(!_sb) return;
-  setSyncStatus('syncing');
-  const {error}=await _sb.from('skills').insert({key:skill.key,cat:skill.cat,name:skill.name,goal:skill.goal,unit:skill.unit,xp_w:skill.xpW});
-  setSyncStatus(error?'error':'ok');
-  if(error){ console.error(error); showToast('Failed to save skill','error'); }
-}
-
-async function dbDeleteSkill(skillKey){
-  SKILLS=SKILLS.filter(s=>s.key!==skillKey);
-  ENTRIES=ENTRIES.filter(e=>e.skill!==skillKey);
-  _saveToLocalStorage();
-  if(!_sb) return;
-  setSyncStatus('syncing');
-  await _sb.from('entries').delete().eq('skill',skillKey);
-  const {error}=await _sb.from('skills').delete().eq('key',skillKey);
-  setSyncStatus(error?'error':'ok');
-}
-
-async function dbUpdateSkill(skillKey,field,value){
-  const s=SKILLS.find(s=>s.key===skillKey); if(!s) return;
-  s[field]=value; _saveToLocalStorage();
-  if(!_sb) return;
-  const dbField=field==='xpW'?'xp_w':field;
-  await _sb.from('skills').update({[dbField]:value}).eq('key',skillKey);
-}
-
-/* Entry: accumulative (positive adds, negative subtracts), stored as daily total */
-async function dbSetEntry(date, skillKey, newTotal){
-  ENTRIES=ENTRIES.filter(e=>!(e.date===date&&e.skill===skillKey));
-  const val=Math.max(0,newTotal); // never store negative
-  if(val>0) ENTRIES.push({date,skill:skillKey,value:val});
-  _saveToLocalStorage();
-  if(!_sb) return;
-  setSyncStatus('syncing');
-  await _sb.from('entries').delete().eq('date',date).eq('skill',skillKey);
-  if(val>0){
-    const {error}=await _sb.from('entries').insert({date,skill:skillKey,value:val});
-    setSyncStatus(error?'error':'ok');
-    if(error) console.error(error);
-  } else {
-    setSyncStatus('ok');
-  }
-}
-
-/* Read helpers */
-function calcTotal(skillKey){ return ENTRIES.filter(e=>e.skill===skillKey).reduce((s,e)=>s+e.value,0); }
-function buildDailyMap(skillKey){ const m={}; ENTRIES.filter(e=>e.skill===skillKey).forEach(e=>{ m[e.date]=(m[e.date]||0)+e.value; }); return m; }
-function calcSkillXP(skillKey){ const s=SKILLS.find(s=>s.key===skillKey); if(!s) return 0; return ENTRIES.filter(e=>e.skill===skillKey).reduce((sum,e)=>sum+e.value*(s.xpW||1),0); }
-function calcCategoryXP(catId){ return SKILLS.filter(s=>s.cat===catId).reduce((sum,s)=>sum+calcSkillXP(s.key),0); }
-function calcTotalXP(){ return Object.keys(CATEGORIES).reduce((sum,catId)=>sum+calcCategoryXP(catId),0); }
-function getLast30(){ return Array.from({length:30},(_,i)=>dateFromOffset(29-i)); }
-function getDayTotal(date, skillKey){ return ENTRIES.filter(e=>e.date===date&&e.skill===skillKey).reduce((s,e)=>s+e.value,0); }
-</script>
-
-<!-- ══════════════════════════════════════════════
-     CORE MATH
-══════════════════════════════════════════════ -->
-<script>
-function pad(n){ return String(n).padStart(2,'0'); }
-function getTodayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
-function dateFromOffset(o){ const d=new Date(); d.setDate(d.getDate()-o); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
-
-function xpToLevel(xp,xpPL){ return Math.min(Math.floor(xp/xpPL)+1,LEVEL_MAX); }
-function getRankIdx(level){ return Math.min(Math.floor((level-1)/3),33); }
-function getLevelInfo(xp,xpPL){
-  const level=xpToLevel(xp,xpPL);
-  const ri=getRankIdx(level); const rank=SKILL_LEVELS[ri];
-  const maxed=level>=LEVEL_MAX;
-  const xpInLvl=maxed?xpPL:xp%xpPL;
-  const levelPct=maxed?100:Math.round(xpInLvl/xpPL*100);
-  const xpToNext=maxed?0:Math.round(xpPL-xpInLvl);
-  const rSL=ri*3+1; const rEL=ri===33?LEVEL_MAX:(ri+1)*3;
-  const lInR=level-rSL;
-  const rankPct=maxed?100:Math.min(Math.round((lInR*100+levelPct)/(rEL-rSL+1)),100);
-  const nextRank=ri<33?SKILL_LEVELS[ri+1]:null;
-  return {level,rank,levelPct,xpToNext,xpInLvl,rankPct,nextRank};
-}
-
-function calcStreak(skillKey){
-  const skill=SKILLS.find(s=>s.key===skillKey); if(!skill) return 0;
-  const daily=buildDailyMap(skillKey); const today=getTodayStr();
-  const cur=new Date(today+'T12:00:00');
-  if(!daily[today]||daily[today]<skill.goal) cur.setDate(cur.getDate()-1);
-  let streak=0;
-  for(let i=0;i<3650;i++){
-    const ds=`${cur.getFullYear()}-${pad(cur.getMonth()+1)}-${pad(cur.getDate())}`;
-    if(daily[ds]&&daily[ds]>=skill.goal){ streak++; cur.setDate(cur.getDate()-1); } else break;
-  }
-  return streak;
-}
-
-function buildRankRoad(currentLevel){
-  const ci=getRankIdx(currentLevel);
-  let html='<div class="rank-road">';
-  SKILL_LEVELS.forEach((rank,idx)=>{
-    const isPast=idx<ci; const isCur=idx===ci;
-    const parts=rank.label.split(' ');
-    html+=`<div class="rank-point">
-      <span class="rank-name" style="color:${isCur?rank.col:'var(--very-dim)'};font-weight:${isCur?800:600}">${parts[0]}</span>
-      <span class="rank-name" style="color:${isCur?rank.col:'var(--very-dim)'}">${parts.slice(1).join(' ')||''}</span>
-      <div class="rank-dot${isCur?' current':''}${isPast?' past':''}"></div>
-      <span class="rank-xp-lbl">Lv${idx*3+1}</span>
-    </div>`;
-    if(idx<33) html+=`<div class="rank-connector${isPast?' past-conn':''}"></div>`;
-  });
-  return html+'</div>';
+function skillSVG(key,size){
+  size=size||18;
+  var p={new_words:'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',review_words:'M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15',speaking_min:'M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8',listening_min:'M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z',pages_read:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2zM8 8h8M8 12h6',typing_score:'M2 7a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zM6 11h.01M10 11h.01M14 11h.01M18 11h.01M6 15h.01M10 15h4M18 15h.01'}[key]||'';
+  return'<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="'+p+'"/></svg>';
 }
 </script>
 
-<!-- ══════════════════════════════════════════════
-     NAVIGATION
-══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     JS: DATE & DATA UTILITIES
+══════════════════════════════════════════ -->
 <script>
-let currentPage='log', overallView='badge', detailKey=null, detailRange='day', detailCalY, detailCalM;
-function navigate(page,param){
-  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
-  const pg=document.getElementById('page-'+page); if(pg) pg.classList.remove('hidden');
-  currentPage=page;
-  if(page==='log')       renderLog();
-  if(page==='dashboard') renderDashboard();
-  if(page==='skill'&&param){ detailKey=param; const n=new Date(); detailCalY=n.getFullYear(); detailCalM=n.getMonth(); detailRange='day'; renderSkillDetail(); }
-  if(page==='analytics'&&param) renderAnalytics(param);
-  if(page==='control')   renderControl();
+function getCairoNow(){var n=new Date();return new Date(n.getTime()+n.getTimezoneOffset()*60000+7200000);}
+function cairoToday(){var c=getCairoNow();return c.getFullYear()+"-"+p2(c.getMonth()+1)+"-"+p2(c.getDate());}
+function p2(n){return String(n).padStart(2,"0");}
+function normDate(s){
+  if(!s)return"";
+  // Handle Date objects
+  if(s instanceof Date){return s.getFullYear()+"-"+p2(s.getMonth()+1)+"-"+p2(s.getDate());}
+  s=String(s).trim();
+  // Already YYYY-MM-DD
+  var a=s.split("-");
+  if(a.length===3&&a[0].length===4)return a[0]+"-"+p2(a[1])+"-"+p2(a[2]);
+  // Try parsing as date string (e.g. "Fri Apr 18 2025...")
+  var d=new Date(s);
+  if(!isNaN(d.getTime()))return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
+  return s;
 }
+function dateKey(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());}
+function fmtMin(v){if(!v)return"0m";if(v<60)return v+"m";return v+"m ("+Math.round(v/60*10)/10+"h)";}
+
+function weekStartDate(from){
+  var c=from?new Date(from):getCairoNow();
+  var dy=c.getDay();c.setDate(c.getDate()-((dy+1)%7));c.setHours(0,0,0,0);return c;
+}
+function leagueEndDate(){
+  var n=getCairoNow(),dy=n.getDay(),daysToFri=dy===5?0:(5-dy+7)%7;
+  var f=new Date(n);f.setDate(f.getDate()+daysToFri);f.setHours(23,59,59,999);return f;
+}
+
+function computeTotals(rows){
+  var todS=cairoToday(),wkMs=weekStartDate().getTime(),moMs=new Date(getCairoNow().getFullYear(),getCairoNow().getMonth(),1).getTime();
+  var t={};SKILLS.forEach(function(s){t[s.key]={today:0,week:0,month:0,all:0,byDay:{}};});
+  rows.forEach(function(r){
+    var sk=r.skill,v=Number(r.amount)||0;if(!sk||!t[sk]||!v)return;
+    // normDate handles both "YYYY-M-D" and "YYYY-MM-DD" formats
+    var ds=normDate(String(r.date||"").trim());if(!ds)return;
+    var ms=new Date(ds+"T12:00:00").getTime();if(isNaN(ms))return;
+    t[sk].all+=v;
+    if(ms>=moMs)t[sk].month+=v;
+    if(ms>=wkMs)t[sk].week+=v;
+    if(ds===todS)t[sk].today+=v;
+    t[sk].byDay[ds]=(t[sk].byDay[ds]||0)+v;
+  });return t;
+}
+function calcStreak(byDay,goal,todS){
+  if(!goal)return 0;var s=0,c=getCairoNow();
+  if(!byDay[todS]||byDay[todS]<goal)c.setDate(c.getDate()-1);
+  for(var i=0;i<9999;i++){var k=dateKey(c);if(byDay[k]&&byDay[k]>=goal){s++;c.setDate(c.getDate()-1);}else break;}
+  return s;
+}
+function getTotalXP(t){return SKILLS.reduce(function(s,sk){return s+(sk.xpW>0?(t[sk.key]?t[sk.key].all:0)*sk.xpW:0);},0);}
+
+/* ── Cache منفصل لكل لاعب ──────────────────────────────────── */
+function cacheKey(name){return"kresto_data_"+name.toLowerCase().replace(/\s+/g,"_");}
+var _playerCache={};
+function loadPlayerCache(name){
+  if(!_playerCache[name]){
+    try{var r=localStorage.getItem(cacheKey(name));if(r)_playerCache[name]=JSON.parse(r);}catch(e){}
+  }
+  return _playerCache[name]||[];
+}
+function savePlayerCache(name,rows){
+  try{localStorage.setItem(cacheKey(name),JSON.stringify(rows));}catch(e){}
+  _playerCache[name]=rows;
+}
+
+var _leagueCacheKey="kresto_league_v4";
+var _leagueCache={rows:[],players:[]};
+function loadLeagueCache(){try{var r=localStorage.getItem(_leagueCacheKey);if(r)_leagueCache=JSON.parse(r);}catch(e){}}
+function saveLeagueCache(d){try{localStorage.setItem(_leagueCacheKey,JSON.stringify(d));}catch(e){}_leagueCache=d;}
 </script>
 
-<!-- ══════════════════════════════════════════════
-     LOG PAGE — inline input cards
-══════════════════════════════════════════════ -->
-<script>
-function renderLog(){
-  const date=document.getElementById('log-date')?.value||getTodayStr();
-  const cats=Object.values(CATEGORIES);
-  if(!cats.length){
-    document.getElementById('log-sections').innerHTML=`
-      <div style="text-align:center;padding:60px 20px;color:var(--dim)">
-        <div style="font-size:36px;margin-bottom:14px">📋</div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:6px">No categories yet</div>
-        <div style="font-size:13px">Go to ⚙️ Control Panel to add categories and skills</div>
-      </div>`;
-    return;
-  }
+<!-- ══════════════════════════════════════════
+     SHARED NAV & UTILITY CSS
+══════════════════════════════════════════ -->
+<style>
+nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 26px;height:54px;background:rgba(10,30,46,0.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.nav-logo{font-family:var(--f-brand);font-size:17px;font-weight:900;letter-spacing:3px;text-transform:uppercase;background:linear-gradient(90deg,#F2F3F4,#c490ae,#A77693);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 8px rgba(167,118,147,0.5))}
+.nav-right{display:flex;gap:5px;align-items:center}
+.nav-link{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);background:none;border:none;padding:5px 11px;border-radius:7px;transition:all .2s}
+.nav-link:hover,.nav-link.active{color:#fff;background:rgba(167,118,147,0.15)}
+.nav-btn{padding:5px 13px;border:1px solid var(--border2);border-radius:7px;background:transparent;color:var(--mauve-hi);font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;transition:all .2s}
+.nav-btn:hover{background:rgba(167,118,147,0.12)}
+.btn-icon{background:none;border:1px solid var(--border);border-radius:7px;color:var(--dim);padding:5px 8px;display:flex;align-items:center;transition:all .2s}
+.btn-icon:hover{border-color:var(--border2);color:#fff}
+.btn-icon.spinning svg{animation:spin .7s linear infinite}
+.loading-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,30,46,0.9);backdrop-filter:blur(10px);flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.loading-overlay.show{display:flex}
+.spin-ring{width:38px;height:38px;border-radius:50%;border:2px solid rgba(167,118,147,0.2);border-top-color:var(--mauve-hi);animation:spin .8s linear infinite}
+.spin-lbl{font-size:11px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim)}
+.sec-label{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--beige);margin-bottom:12px;margin-top:24px;display:flex;align-items:center;gap:8px}
+.sec-label:first-child{margin-top:0}
+.sec-label::after{content:'';flex:1;height:1px;background:rgba(222,209,198,0.18)}
+.info-btn{background:none;border:1px solid rgba(222,209,198,0.3);border-radius:50%;width:18px;height:18px;color:var(--beige);font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;line-height:1}
+.info-btn:hover{background:rgba(222,209,198,0.1);border-color:var(--beige);color:#fff}
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(10,30,46,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:22px 24px;max-width:300px;width:90%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);font-size:18px;line-height:1;transition:color .2s}
+.modal-close:hover{color:#fff}
+.modal-title{font-family:var(--f-title);font-size:14px;font-weight:700;color:var(--mauve-hi);letter-spacing:1px;margin-bottom:14px}
+.modal-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text3)}
+.modal-row:last-of-type{border:none}
+.modal-xp{color:#fff;font-weight:800;font-size:14px;font-family:var(--f-title)}
+.modal-note{margin-top:12px;font-size:11px;color:var(--dim);line-height:1.8;border-top:1px solid var(--border);padding-top:12px}
+.rank-modal-box{background:#142840;border:1px solid var(--border2);border-radius:18px;padding:20px 18px;max-width:440px;width:95%;position:relative;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.rm-row{display:flex;align-items:center;gap:10px;padding:5px 7px;border-radius:7px}
+.rm-row:hover{background:rgba(167,118,147,0.08)}
+.rm-name{font-size:12px;font-weight:700;flex:1}
+.rm-xp{font-size:10px;color:var(--dim)}
+.rm-pts{font-size:11px;font-weight:700;color:var(--mauve-hi);white-space:nowrap}
+@media(max-width:750px){nav{padding:0 12px}.sec-label{margin-top:18px}}
+</style>
 
-  let html='';
-  cats.forEach(cat=>{
-    const catSkills=SKILLS.filter(s=>s.cat===cat.id);
-    if(!catSkills.length) return;
-
-    html+=`<div class="sec-label">${cat.icon} ${cat.name}</div>`;
-    html+=`<div class="log-skill-grid">`;
-    catSkills.forEach(skill=>{
-      const done=getDayTotal(date, skill.key);
-      const pct=Math.min(Math.round(done/skill.goal*100),100);
-      const met=done>=skill.goal;
-      html+=`
-        <div class="log-skill-card ${met?'met':''}" id="card-${skill.key}">
-          <div class="log-skill-card-name">
-            <span style="color:${met?'var(--col-gold)':'rgba(237,216,223,0.45)'}">${skillSVG(skill.key,14)}</span>
-            ${skill.name}
-          </div>
-          <div class="log-skill-card-goal ${met?'met':''}">
-            ${done} / ${skill.goal} ${skill.unit}
-            ${met?'✓':''}
-          </div>
-          <div class="log-skill-input-wrap">
-            <input type="number" id="inp-${skill.key}"
-              class="log-skill-input"
-              placeholder="${done>0?done:'0'}"
-              value="${done>0?done:''}"
-              min="0" step="1"
-              onkeydown="if(event.key==='Enter')saveLog('${date}','${skill.key}','${skill.goal}')">
-          </div>
-          <div class="log-progress-bar">
-            <div class="log-progress-fill" id="bar-${skill.key}"
-              style="width:${pct}%;background:${met?'var(--grad-bar)':'rgba(235,163,40,0.35)'}"></div>
-          </div>
-          <button class="log-save-btn" onclick="saveLog('${date}','${skill.key}','${skill.goal}')">
-            Save
-          </button>
-        </div>`;
-    });
-    html+=`</div>`;
-  });
-  document.getElementById('log-sections').innerHTML=html;
+<!-- ══════════════════════════════════════════
+     PAGE: LOG
+══════════════════════════════════════════ -->
+<style>
+.log-hero{padding:38px 26px 22px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 115%,rgba(167,118,147,0.16),transparent 65%)}
+.log-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.log-title{font-family:var(--f-title);font-size:clamp(26px,5vw,50px);font-weight:700;text-transform:uppercase;line-height:.92;margin-bottom:10px;color:#fff}
+.log-title em{font-style:normal;color:var(--mauve-hi)}
+.log-sub{font-size:13px;color:var(--text3);max-width:360px;margin:0 auto;line-height:1.8}
+.log-body{max-width:520px;margin:0 auto;padding:22px 20px 80px}
+.lfield{display:flex;flex-direction:column;gap:5px}
+.lfield label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.log-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:15px;font-weight:500;color:#fff;outline:none;transition:all .2s}
+.log-input:focus{border-color:var(--mauve-hi);background:var(--surface2)}
+.log-input::placeholder{color:rgba(222,209,198,0.2);font-size:14px}
+input[type="number"].log-input{font-size:22px;font-weight:700;-moz-appearance:textfield}
+input[type="number"].log-input::-webkit-inner-spin-button{-webkit-appearance:none}
+input[type="date"].log-input{color-scheme:dark}
+select.log-input{appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23A77693' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;background-color:var(--surface)}
+select.log-input option{background:#0F2D4D;color:#fff}
+select.log-input:focus{border-color:var(--mauve-hi);background-color:var(--surface2)}
+.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.log-footer{margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn-clear{background:none;border:1px solid var(--border);border-radius:8px;padding:9px 13px;color:var(--dim);font-size:12px;letter-spacing:1px;transition:all .2s}
+.btn-clear:hover{border-color:var(--border2);color:#fff}
+#log-status{flex:1;min-height:40px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;display:flex;align-items:center;transition:all .3s}
+#log-status.ok{background:rgba(167,118,147,0.15);color:var(--mauve-hi);border:1px solid var(--border2)}
+#log-status.err{background:rgba(200,60,60,0.12);color:#ff9090;border:1px solid rgba(200,60,60,0.3)}
+#log-status.busy{background:rgba(222,209,198,0.08);color:var(--beige);border:1px solid rgba(222,209,198,0.22)}
+.btn-save{padding:9px 22px;background:var(--grad-mauve);border:1px solid var(--border2);border-radius:8px;color:#fff;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;transition:all .2s;box-shadow:0 4px 16px rgba(167,118,147,0.22)}
+.btn-save:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 24px rgba(167,118,147,0.38)}
+.btn-save:disabled{opacity:.4;cursor:not-allowed}
+.unit-hint{text-align:center;font-size:10px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+.log-copyright{margin-top:18px;text-align:center;font-size:11px;color:var(--very-dim);line-height:1.8}
+.log-copyright .brand{color:var(--mauve-hi);font-weight:600}
+@media(max-width:750px){
+  .log-body{padding:18px 14px 80px;text-align:center}
+  .fields-grid{grid-template-columns:1fr}
+  .log-footer{flex-direction:column;align-items:stretch}
+  .btn-save,.btn-clear{width:100%}
 }
+</style>
 
-async function saveLog(date, skillKey, goal){
-  const inp=document.getElementById('inp-'+skillKey);
-  if(!inp) return;
-  let rawVal=inp.value.trim();
-  if(rawVal==='') return;
+<div id="page-log" class="page">
+  <nav>
+    <div class="nav-logo">KRESTO</div>
+    <div class="nav-right">
+      <button class="nav-link active">Log</button>
+      <button class="nav-btn" onclick="goTo('dash')">Dashboard</button>
+      <button class="nav-btn" onclick="goTo('league')" style="border-color:rgba(232,193,64,0.35);color:#e8c840">League</button>
+    </div>
+  </nav>
 
-  const skill=SKILLS.find(s=>s.key===skillKey);
-  const skillName=skill?skill.name:skillKey;
+  <div class="log-hero">
+    <div class="log-tag">Now Recording</div>
+    <h1 class="log-title">DAILY<br><em>ENTRY</em></h1>
+    <p class="log-sub">Select your name and skill, enter your amount</p>
+  </div>
 
-  /* Support negative: subtract from current total */
-  const parsed=parseFloat(rawVal);
-  if(isNaN(parsed)){
-    showToast('Invalid number','error'); return;
-  }
+  <div class="log-body">
+    <div class="sec-label">Player</div>
+    <div class="lfield">
+      <label>Name</label>
+      <select class="log-input" id="l-name" onchange="SESSION.set(this.value)"></select>
+    </div>
 
-  let newTotal;
-  if(rawVal.startsWith('-')){
-    /* Subtract mode */
-    const cur=getDayTotal(date,skillKey);
-    newTotal=cur+parsed; // parsed is negative
-    if(newTotal<0){ showToast('Cannot go below zero — set to 0','warn'); newTotal=0; }
-  } else {
-    /* Absolute set */
-    newTotal=parsed;
-  }
+    <div class="sec-label" style="margin-top:18px">Date</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="date" id="l-date" class="log-input" style="flex:1">
+      <button class="btn-clear" onclick="setToday()">Today</button>
+    </div>
 
-  await dbSetEntry(date, skillKey, newTotal);
-
-  /* Quick card update without full re-render */
-  const done=newTotal; const met=done>=Number(goal);
-  const card=document.getElementById('card-'+skillKey);
-  if(card){
-    card.className='log-skill-card '+(met?'met':'');
-    const goalEl=card.querySelector('.log-skill-card-goal');
-    if(goalEl){ goalEl.className='log-skill-card-goal '+(met?'met':''); goalEl.textContent=`${done} / ${goal} ${skill?.unit||''} ${met?'✓':''}`; }
-    const barEl=document.getElementById('bar-'+skillKey);
-    if(barEl){ const pct=Math.min(Math.round(done/Number(goal)*100),100); barEl.style.width=pct+'%'; barEl.style.background=met?'var(--grad-bar)':'rgba(235,163,40,0.35)'; }
-    inp.value=done>0?done:'';
-    inp.placeholder=String(done);
-  }
-
-  showToast(met?`✓ ${skillName} — goal met! 🎯`:`Saved ${done} ${skill?.unit||''}`, met?'success':'info', 1800);
-}
-</script>
-
-<!-- ══════════════════════════════════════════════
-     DASHBOARD
-══════════════════════════════════════════════ -->
-<script>
-function renderDashboard(){
-  const totalXP=calcTotalXP();
-  const info=getLevelInfo(totalXP,XP_PER_OVERALL_LEVEL);
-  const {level,rank,levelPct,xpToNext,nextRank}=info;
-  const parts=rank.label.split(' '); const tier=parts[0]; const sub=parts.slice(1).join(' ')||'';
-
-  if(overallView==='badge'){
-    document.getElementById('overall-level').innerHTML=`
-      <div class="overall-card">
-        <div class="overall-badge-wrap">${rankBadgeSVG(tier,sub,46)}</div>
-        <div class="overall-info">
-          <div style="font-family:var(--f-title);font-size:21px;font-weight:700;line-height:1">Level ${level}</div>
-        <div style="font-size:12px;color:var(--dim);margin-top:3px">${Math.round(totalXP).toLocaleString()} XP &nbsp;·&nbsp; <span style="color:${rank.col};font-weight:700">${rank.label}</span></div>
-        </div>
-        <div class="overall-bar-wrap">
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:5px">
-            <span style="color:${rank.col};font-weight:700">${rank.label}</span>
-            ${nextRank?`<span><strong style="color:#fff">${xpToNext.toLocaleString()}</strong> XP → ${nextRank.label}</span>`:'<span style="color:var(--col-gold)">✨ MAX</span>'}
-          </div>
-          <div class="progress-bar" style="height:9px">
-            <div class="progress-fill" style="width:${levelPct}%;background:linear-gradient(90deg,${rank.col}88,${rank.col})"></div>
-          </div>
-          <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:4px">${levelPct}% · Lv${Math.min(level+1,LEVEL_MAX)}</div>
-        </div>
-        <div style="font-size:11px;color:var(--very-dim);width:100%;text-align:center">Tap to view rank road →</div>
-      </div>`;
-  } else {
-    document.getElementById('overall-level').innerHTML=`
-      <div class="card" style="max-width:820px;margin:0 auto">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px">
-          <div style="font-family:var(--f-title);font-size:15px;color:var(--col-gold-lt)">
-            Rank Road &nbsp;·&nbsp; Level <strong style="color:#fff">${level}</strong>
-            <span style="font-size:11px;color:${rank.col};font-weight:700;margin-left:6px">${rank.label}</span>
-          </div>
-          <div style="font-size:10px;color:var(--very-dim)">Tap to collapse</div>
-        </div>
-        <div class="rank-road-wrap hidden-scroll">${buildRankRoad(level)}</div>
-      </div>`;
-  }
-
-  const cats=Object.values(CATEGORIES);
-  if(!cats.length){
-    document.getElementById('dashboard-categories').innerHTML=`<div style="text-align:center;padding:40px 20px;color:var(--dim)"><div style="font-size:14px">No categories yet — go to ⚙️ Control Panel</div></div>`;
-    return;
-  }
-
-  let catHTML='';
-  cats.forEach(cat=>{
-    const skills=SKILLS.filter(s=>s.cat===cat.id);
-    if(!skills.length) return;
-    const catXP=calcCategoryXP(cat.id); const catInfo=getLevelInfo(catXP,XP_PER_CAT_LEVEL);
-    let cards=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px">`;
-    skills.forEach(s=>{
-      const total=calcTotal(s.key); const sxp=calcSkillXP(s.key);
-      const si=getLevelInfo(sxp,XP_PER_SKILL_LEVEL); const streak=calcStreak(s.key);
-      const sp=si.rank.label.split(' ');
-      cards+=`<div class="dash-skill-card" onclick="navigate('skill','${s.key}')">
-        <div style="display:flex;align-items:center;gap:5px;margin-bottom:7px">
-          <span style="color:rgba(255,248,240,0.40)">${skillSVG(s.key,16)}</span>
-          <span style="flex:1;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,248,240,0.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</span>
-          <span>${rankBadgeSVG(sp[0],sp.slice(1).join(' ')||'',18)}</span>
-        </div>
-        <div style="font-size:22px;font-weight:800;color:#fff;line-height:1">${total}</div>
-        <div style="font-size:10px;color:var(--dim);margin-bottom:6px">${s.unit}${streak?' 🔥'+streak+'d':''}</div>
-        <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:4px">
-          <span style="color:${si.rank.col}">Lv${si.level} · ${si.rank.label}</span>
-          <span style="color:var(--dim)">${si.levelPct}%</span>
-        </div>
-        <div class="rank-pts-bar"><div class="rank-pts-fill" style="width:${si.levelPct}%;background:linear-gradient(90deg,${si.rank.col}70,${si.rank.col})"></div></div>
-        ${si.nextRank?`<div style="font-size:9px;color:var(--dim);margin-top:4px"><strong style="color:var(--col-gold-lt)">${si.xpToNext}</strong> XP → Lv${si.level+1}</div>`:`<div style="font-size:9px;color:var(--col-gold);margin-top:4px">✨ Max Level</div>`}
-      </div>`;
-    });
-    cards+='</div>';
-    catHTML+=`
-      <div class="sec-label">${cat.icon} ${cat.name}
-        <button class="info-btn" onclick="event.stopPropagation();navigate('analytics','${cat.id}')" title="Analytics">i</button>
+    <div class="sec-label" style="margin-top:18px">Skill &amp; Amount</div>
+    <div class="fields-grid">
+      <div class="lfield">
+        <label>Skill</label>
+        <select class="log-input" id="l-skill" onchange="updateUnit()">
+          <option value="new_words">📘  New Words</option>
+          <option value="review_words">🔁  Review Words</option>
+          <option value="speaking_min">🗣️  Speaking</option>
+          <option value="listening_min">🎧  Listening</option>
+          <option value="pages_read">📖  Pages Read</option>
+          <option value="typing_score">⌨️  Touch Typing</option>
+        </select>
       </div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:6px">
-        Level <strong style="color:#fff">${catInfo.level}</strong>
-        &nbsp;·&nbsp; <span style="color:${catInfo.rank.col};font-weight:700">${catInfo.rank.label}</span>
-        &nbsp;·&nbsp; ${Math.round(catXP).toLocaleString()} XP
+      <div class="lfield">
+        <label>Amount</label>
+        <input type="number" id="l-amount" class="log-input" placeholder="0" min="0">
       </div>
-      ${cards}`;
+    </div>
+    <div class="unit-hint" id="unit-hint">words</div>
+
+    <div class="log-footer">
+      <button class="btn-clear" onclick="logClear()">✕ Clear</button>
+      <div id="log-status"></div>
+      <button class="btn-save" id="log-save-btn" onclick="logSave()">⬇ Save Entry</button>
+    </div>
+
+    <div class="log-copyright">
+      <div class="brand">Made by 𝐾𝐴𝑅𝐸𝐸𝑀ッ</div>
+      <div>© 2026 Kareem Mohamed &nbsp;·&nbsp; All rights reserved.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── LOG JS ──────────────────────────────────────────────────── */
+function buildNameDropdown() {
+  var sel = document.getElementById("l-name");
+  sel.innerHTML = "";
+  PLAYERS.forEach(function(p) {
+    var o = document.createElement("option");
+    o.value = p; o.textContent = p;
+    sel.appendChild(o);
   });
-  document.getElementById('dashboard-categories').innerHTML=catHTML;
+  sel.value = SESSION.name;
 }
 
-function toggleOverallView(){ overallView=overallView==='badge'?'road':'badge'; renderDashboard(); }
+function setToday() { document.getElementById("l-date").value = cairoToday(); }
+function updateUnit() { document.getElementById("unit-hint").textContent = UNIT_HINTS[document.getElementById("l-skill").value] || ""; }
+function setStatus(msg, type) {
+  var el = document.getElementById("log-status");
+  el.textContent = msg;
+  el.className = type || "";
+  el.style.border = msg ? "" : "none";
+}
+
+async function logSave() {
+  var name   = SESSION.name;                                       // ← من SESSION فقط
+  var date   = document.getElementById("l-date").value;
+  var skill  = document.getElementById("l-skill").value;
+  var amount = parseInt(document.getElementById("l-amount").value) || 0;
+
+  // validation
+  if (!name)       { setStatus("No player selected.", "err"); return; }
+  if (!date)       { setStatus("Please pick a date.", "err"); return; }
+  if (amount <= 0) { setStatus("Amount must be > 0.", "err"); return; }
+
+  var btn = document.getElementById("log-save-btn");
+  btn.disabled = true;
+  setStatus("Saving…", "busy");
+
+  // debug — مرئي في Console
+  console.log("► SAVE | name:", name, "| date:", date, "| skill:", skill, "| amount:", amount);
+
+  try {
+    // ← JSONP يرسل الـ 4 قيم بشكل صحيح لصفحة Log في الـ Sheet
+    var data = await apiSave(name, date, skill, amount);
+    console.log("◄ RESPONSE:", data);
+
+    if (data && data.ok) {
+      setStatus("✅  " + skill.replace(/_/g, " ") + " — " + amount + " saved", "ok");
+      document.getElementById("l-amount").value = "";
+      document.getElementById("l-amount").focus();
+    } else {
+      setStatus("❌  " + (data && data.error ? data.error : "Save failed"), "err");
+    }
+  } catch(e) {
+    console.error("logSave error:", e);
+    setStatus("❌  Connection error. Try again.", "err");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function logClear() {
+  document.getElementById("l-amount").value = "";
+  setStatus("", "");
+  document.getElementById("l-amount").focus();
+}
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && currentPage === "log") logSave();
+});
 </script>
 
-<!-- ══════════════════════════════════════════════
-     SKILL DETAIL
-══════════════════════════════════════════════ -->
-<script>
-function renderSkillDetail(){
-  if(!detailKey) return;
-  const skill=SKILLS.find(s=>s.key===detailKey); if(!skill) return;
-  const total=calcTotal(detailKey); const sxp=calcSkillXP(detailKey);
-  const info=getLevelInfo(sxp,XP_PER_SKILL_LEVEL);
-  const {level,rank,levelPct,xpToNext,nextRank}=info;
-  const parts=rank.label.split(' '); const lt=parts[0]; const ls=parts.slice(1).join(' ')||'';
+<!-- ══════════════════════════════════════════
+     PAGE: DASHBOARD
+══════════════════════════════════════════ -->
+<style>
+.dash-hero{padding:32px 24px 18px;text-align:center;background:radial-gradient(ellipse 60% 45% at 50% 120%,rgba(167,118,147,0.18),transparent 60%)}
+.dash-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.dash-title{font-family:var(--f-title);font-size:clamp(20px,4vw,44px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff}
+.dash-title em{font-style:normal;color:var(--mauve-hi)}
+.rank-block{max-width:800px;margin:16px auto 0;padding:0 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.rank-badge-wrap{width:54px;height:54px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rank-info{flex:1}
+.rank-name{font-family:var(--f-title);font-size:20px;font-weight:700;line-height:1;color:#fff}
+.rank-xp{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:3px}
+.rank-bar-wrap{min-width:190px;flex:1;max-width:320px}
+.rank-bar-labels{display:flex;justify-content:space-between;font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-bottom:4px}
+.rank-track{height:6px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.rank-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width 1.2s cubic-bezier(.16,1,.3,1);box-shadow:0 0 10px rgba(167,118,147,0.5)}
+.rank-remain{font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);margin-top:4px;text-align:right}
+.rank-remain strong{color:#fff}
+.dash-body{max-width:900px;margin:0 auto;padding:20px 22px 90px}
+.quest-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:24px}
+.quest-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 9px;transition:border-color .2s}
+.quest-card.done{border-color:var(--border2);background:rgba(167,118,147,0.1)}
+.q-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.q-icon{display:flex;align-items:center;color:rgba(222,209,198,0.35)}
+.quest-card.done .q-icon{color:var(--mauve-hi)}
+.q-name{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.45);margin-bottom:3px}
+.quest-card.done .q-name{color:var(--mauve-hi)}
+.q-nums{font-size:11px;font-weight:500;color:var(--text3);margin-bottom:5px;line-height:1.4}
+.q-bar{height:3px;background:rgba(167,118,147,0.1);border-radius:100px;overflow:hidden}
+.q-fill{height:100%;background:var(--grad-bar);border-radius:100px;transition:width .9s}
+.quest-card.done .q-fill{box-shadow:0 0 5px rgba(167,118,147,0.4)}
+.skill-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:24px}
+.skill-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px;transition:all .22s;cursor:pointer;position:relative}
+.skill-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:0 10px 28px rgba(167,118,147,0.14)}
+.skill-card::after{content:'›';position:absolute;top:11px;right:11px;font-size:14px;color:rgba(167,118,147,0.3);transition:color .2s}
+.skill-card:hover::after{color:var(--mauve-hi)}
+.sk-top{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.sk-svg{display:flex;align-items:center;color:rgba(222,209,198,0.4);flex-shrink:0;transition:color .2s}
+.skill-card:hover .sk-svg{color:var(--mauve-hi)}
+.sk-name{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(222,209,198,0.65);flex:1;line-height:1.3}
+.sk-badge{display:flex;align-items:center;flex-shrink:0}
+.sk-total{font-size:20px;font-weight:800;color:#fff;margin-bottom:1px;line-height:1}
+.sk-unit{font-size:9px;color:var(--dim);letter-spacing:.5px;margin-bottom:8px}
+.sk-streak-big{font-size:22px;font-weight:800;color:#fff;line-height:1;margin-bottom:2px}
+.sk-streak-lbl{font-size:9px;color:var(--dim);margin-bottom:7px}
+.sk-done-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 7px;border-radius:5px;margin-bottom:7px}
+.sk-done-yes{background:rgba(167,118,147,0.2);color:var(--mauve-hi);border:1px solid var(--border2)}
+.sk-done-no{background:rgba(255,255,255,0.04);color:var(--dim);border:1px solid var(--border)}
+.sk-bar-lbl{display:flex;justify-content:space-between;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
+.sk-track{height:4px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.sk-fill{height:100%;border-radius:100px;transition:width 1s}
+.sk-next{font-size:9px;color:var(--dim);margin-top:5px}
+.sk-next strong{color:var(--beige)}
+.rank-road{display:flex;gap:3px;overflow-x:auto;padding-bottom:7px;margin-bottom:24px}
+.rank-road::-webkit-scrollbar{height:3px}
+.tier-col{display:flex;flex-direction:column;min-width:84px;flex:1}
+.tier-head{padding:5px 3px 4px;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-align:center;border-radius:5px 5px 0 0;border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:3px}
+.tier-subs{display:flex;flex-direction:column-reverse;gap:2px;padding:2px}
+.tier-sub{padding:4px 3px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:.5px;text-align:center;color:rgba(222,209,198,0.4);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s}
+.tier-sub.current{border-color:var(--border2);animation:tierPulse 2.5s ease infinite}
+.tier-sub.passed{opacity:.6}
+@keyframes tierPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px currentColor}}
+.dash-error{text-align:center;padding:44px 22px;color:var(--dim);font-size:14px;line-height:2;display:none}
+.dash-error.show{display:block}
+.dash-error strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
+@media(max-width:750px){.quest-grid{grid-template-columns:repeat(3,1fr)}.skill-grid{grid-template-columns:repeat(2,1fr)}.rank-block{padding:0 14px}.dash-body{padding:18px 14px 90px}}
+@media(max-width:480px){.quest-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
 
-  document.getElementById('sd-hero').innerHTML=`
+<div id="page-dash" class="page hidden">
+  <nav>
+    <div class="nav-logo">KRESTO</div>
+    <div class="nav-right">
+      <button class="nav-link" onclick="goTo('log')">Log</button>
+      <button class="nav-link active">Dashboard</button>
+      <button class="nav-link" onclick="goTo('league')">League</button>
+      <button class="btn-icon" id="btn-refresh" onclick="fetchPlayerData()" title="Refresh">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </nav>
+  <div class="loading-overlay" id="dash-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching data…</div></div>
+  <div class="dash-hero">
+    <div class="dash-tag">Language Conqueror System</div>
+    <h1 class="dash-title">YOUR PROGRESS,<br><em id="dash-player-label">—</em></h1>
+  </div>
+  <div class="rank-block">
+    <div class="rank-badge-wrap" id="rank-badge-svg"></div>
+    <div class="rank-info"><div class="rank-name" id="rank-name">—</div><div class="rank-xp" id="rank-xp">0 XP Total</div></div>
+    <div class="rank-bar-wrap">
+      <div class="rank-bar-labels"><span id="rb-from">—</span><span id="rb-to">—</span></div>
+      <div class="rank-track"><div class="rank-fill" id="rank-fill" style="width:0%"></div></div>
+      <div class="rank-remain" id="rank-remain"><strong>—</strong> xp to next</div>
+    </div>
+  </div>
+  <div class="dash-body">
+    <div class="dash-error" id="dash-error"><strong>Could not load data</strong>Press ↺ to retry.</div>
+    <div id="dash-content" style="display:none">
+      <div class="sec-label">Today's Quests</div>
+      <div class="quest-grid" id="quest-grid"></div>
+      <div class="sec-label">Skill Overview <button class="info-btn" onclick="openInfoModal()">i</button></div>
+      <div class="skill-grid" id="skill-grid"></div>
+      <div class="sec-label">Rank Progression <button class="info-btn" onclick="openRankModal()">i</button></div>
+      <div class="rank-road" id="rank-road"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── DASHBOARD JS ────────────────────────────────────────────── */
+async function fetchPlayerData() {
+  var name = SESSION.name;
+  if (!name) return;
+  var btn = document.getElementById("btn-refresh");
+  var loading = document.getElementById("dash-loading");
+  btn.classList.add("spinning"); loading.classList.add("show");
+  try {
+    var data = await apiFetch(name);   // ← JSONP
+    if (Array.isArray(data)) {
+      // normalize dates so computeTotals/streak/calendar all work correctly
+      var normalized = data.map(function(r){
+        return {date:normDate(String(r.date||"").trim()), name:String(r.name||"").trim(), skill:String(r.skill||"").trim(), amount:Number(r.amount)||0};
+      });
+      savePlayerCache(name, normalized);
+      renderDashboard(normalized);
+    } else throw new Error("bad response");
+  } catch(e) {
+    var cached = loadPlayerCache(name);
+    if (cached.length > 0) renderDashboard(cached);
+    else {
+      document.getElementById("dash-error").classList.add("show");
+      document.getElementById("dash-content").style.display = "none";
+    }
+  } finally {
+    btn.classList.remove("spinning"); loading.classList.remove("show");
+  }
+}
+
+function renderDashboard(rows) {
+  var name = SESSION.name;
+  document.getElementById("dash-player-label").textContent = name;
+  var totals = computeTotals(rows), xp = getTotalXP(totals), todS = cairoToday();
+
+  // Rank hero
+  var i = getOverallRankIdx(xp), cur = OVERALL_LEVELS[i], nxt = OVERALL_LEVELS[i+1];
+  var pct = nxt ? Math.min(Math.round((xp-cur.startXP)/(nxt.startXP-cur.startXP)*100),100) : 100;
+  var pts = cur.label.split(" "), tier = pts[0], sub = pts.slice(1).join(" ")||"";
+  document.getElementById("rank-badge-svg").innerHTML = rankBadgeSVG(tier, sub, 46);
+  document.getElementById("rank-name").textContent = cur.label;
+  document.getElementById("rank-xp").textContent = xp.toLocaleString() + " XP Total";
+  document.getElementById("rb-from").textContent = cur.label;
+  document.getElementById("rb-to").textContent = nxt ? nxt.label : "MAX";
+  setTimeout(function(){ document.getElementById("rank-fill").style.width = pct + "%"; }, 80);
+  document.getElementById("rank-remain").innerHTML = nxt
+    ? "<strong>" + (nxt.startXP-xp).toLocaleString() + "</strong> xp to next"
+    : "<strong>⚔️ Conqueror</strong>";
+
+  // Quests
+  var qg = document.getElementById("quest-grid"); qg.innerHTML = "";
+  SKILLS.forEach(function(s) {
+    var t = totals[s.key]||{today:0,byDay:{}}; var done,pct2,nums;
+    if (s.key==="typing_score") { done=t.today>0; pct2=done?100:0; var stk=calcStreak(t.byDay,1,todS); nums=(done?"Done":"—")+(stk>0?" 🔥"+stk+"d":""); }
+    else { done=t.today>=s.goal; pct2=Math.min(Math.round(t.today/s.goal*100),100); nums=s.unit==="min"?fmtMin(t.today)+" / "+fmtMin(s.goal):t.today+" / "+s.goal+" "+s.unit; }
+    var d = document.createElement("div"); d.className = "quest-card"+(done?" done":"");
+    d.innerHTML = "<div class='q-top'><span class='q-icon'>"+skillSVG(s.key,14)+"</span><span style='font-size:11px'>"+(done?"✅":"○")+"</span></div><div class='q-name'>"+s.name+"</div><div class='q-nums'>"+nums+"</div><div class='q-bar'><div class='q-fill' style='width:"+pct2+"%'></div></div>";
+    qg.appendChild(d);
+  });
+
+  // Skill cards
+  var sg = document.getElementById("skill-grid"); sg.innerHTML = "";
+  SKILLS.forEach(function(s) {
+    var t = totals[s.key]||{all:0,today:0,byDay:{}};
+    var d = document.createElement("div"); d.className = "skill-card";
+    d.onclick = (function(k){ return function(){ openSkillDetail(k); }; })(s.key);
+    if (s.key==="typing_score") {
+      var stk=calcStreak(t.byDay,1,todS), doneT=t.today>0;
+      d.innerHTML = "<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,17)+"</span><span class='sk-name'>"+s.name+"</span></div><div class='sk-streak-big'>"+stk+"</div><div class='sk-streak-lbl'>day streak</div><div class='sk-done-badge "+(doneT?"sk-done-yes":"sk-done-no")+"'>"+(doneT?"Done":"Not Yet")+"</div><div class='sk-bar-lbl'><span>Consistency</span><span>"+Math.min(stk,30)+" / 30d</span></div><div class='sk-track'><div class='sk-fill' style='width:"+Math.min(Math.round(stk/30*100),100)+"%;background:var(--mauve-hi)'></div></div><div class='sk-next'>Practice every day</div>";
+    } else {
+      var norm=t.all/s.goal, si=getSkillRankIdx(norm), sr=SKILL_LEVELS[si], snxt=SKILL_LEVELS[Math.min(si+1,SKILL_LEVELS.length-1)];
+      var skPct=(snxt&&snxt!==sr)?Math.min(Math.round((norm-sr.d)/(snxt.d-sr.d)*100),100):100;
+      var rem=(snxt&&snxt!==sr)?Math.max(0,Math.round((snxt.d-norm)*s.goal)).toLocaleString():0;
+      var stk=calcStreak(t.byDay,s.goal,todS), stkT=stk>=3?"🔥"+stk+"d":stk>0?stk+"d":"";
+      var tot=s.unit==="min"?fmtMin(t.all):t.all.toLocaleString();
+      var lp=sr.label.split(" "), lt=lp[0], ls=lp.slice(1).join(" ")||"";
+      d.innerHTML = "<div class='sk-top'><span class='sk-svg'>"+skillSVG(s.key,17)+"</span><span class='sk-name'>"+s.name+"</span><span class='sk-badge'>"+rankBadgeSVG(lt,ls,19)+"</span></div><div class='sk-total'>"+tot+"</div><div class='sk-unit'>"+s.unit+" total "+(stkT?"&nbsp;"+stkT:"")+"</div><div class='sk-bar-lbl'><span>"+sr.label+"</span><span>"+skPct+"%</span></div><div class='sk-track'><div class='sk-fill' style='width:"+skPct+"%;background:linear-gradient(90deg,"+sr.col+"88,"+sr.col+")'></div></div>"+((snxt&&snxt!==sr)?"<div class='sk-next'><strong>"+rem+"</strong> pts → "+snxt.label+"</div>":"<div class='sk-next'>✨ Max Rank</div>");
+    }
+    sg.appendChild(d);
+  });
+
+  // Rank road
+  var rr = document.getElementById("rank-road"); rr.innerHTML = "";
+  var ci = getOverallRankIdx(xp);
+  RANK_TIERS.forEach(function(r) {
+    var col = document.createElement("div"); col.className = "tier-col";
+    var h = document.createElement("div"); h.className = "tier-head";
+    h.style.cssText = "color:"+r.col+";border-bottom-color:"+r.col+"66;background:"+r.col+"18";
+    h.innerHTML = rankBadgeSVG(r.tier,"V",11)+"<span>"+r.tier+"</span>"; col.appendChild(h);
+    var subs = document.createElement("div"); subs.className = "tier-subs";
+    r.subs.forEach(function(s) {
+      var label = s ? r.tier+" "+s : r.tier;
+      var li = OVERALL_LEVELS.findIndex(function(l){ return l.label===label; });
+      var sub = document.createElement("div"); sub.className = "tier-sub"+(li===ci?" current":li<ci?" passed":"");
+      sub.textContent = label;
+      if (li===ci){ sub.style.color=r.col; sub.style.borderColor=r.col+"88"; sub.style.background=r.col+"22"; }
+      if (li<ci){ sub.style.color=r.col+"88"; }
+      subs.appendChild(sub);
+    });
+    col.appendChild(subs); rr.appendChild(col);
+  });
+
+  document.getElementById("dash-content").style.display = "block";
+  document.getElementById("dash-error").classList.remove("show");
+}
+</script>
+
+<!-- ══════════════════════════════════════════
+     PAGE: SKILL DETAIL
+══════════════════════════════════════════ -->
+<style>
+#page-skill{background:var(--bg)}
+.sd-hero{padding:26px 22px;background:var(--grad-hero);border-bottom:1px solid var(--border)}
+.sd-hero-inner{max-width:660px;margin:0 auto;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.sd-rank-big{flex-shrink:0;width:82px;height:82px;border-radius:16px;border:1px solid var(--border2);background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center}
+.sd-right{flex:1;display:flex;flex-direction:column;gap:5px}
+.sd-icon-name{display:flex;align-items:center;gap:9px}
+.sd-skill-icon{display:flex;align-items:center;color:var(--mauve-hi)}
+.sd-skill-name{font-family:var(--f-title);font-size:24px;font-weight:700;color:#fff}
+.sd-rank-label{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
+.sd-total-row{font-size:13px;color:var(--text3)}
+.sd-total-row strong{color:#fff;font-size:19px;font-weight:800}
+.sd-body{max-width:660px;margin:0 auto;padding:22px 20px 90px}
+.streak-box{margin-bottom:18px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.streak-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.streak-lbl{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
+.streak-count{display:flex;align-items:baseline;gap:4px}
+.streak-num{font-family:var(--f-title);font-size:24px;font-weight:700;color:#fff}
+.streak-unit{font-size:11px;font-weight:600;color:var(--dim)}
+.streak-track{position:relative;height:11px;background:rgba(255,255,255,0.05);border-radius:100px;overflow:visible}
+.streak-fill{height:11px;border-radius:100px;background:var(--grad-bar);transition:width 1.2s cubic-bezier(.16,1,.3,1);position:relative;min-width:5px;box-shadow:0 0 12px rgba(167,118,147,0.6)}
+.streak-flame{position:absolute;right:-10px;top:-13px;font-size:20px;filter:drop-shadow(0 0 7px rgba(255,140,50,.7))}
+.streak-miles{display:flex;justify-content:space-between;margin-top:8px;font-size:9px;font-weight:600;letter-spacing:1px;color:var(--dim)}
+.chart-box{margin-bottom:18px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.chart-title{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3)}
+.chart-tabs{display:flex;gap:4px}
+.chart-tab{background:none;border:1px solid var(--border);border-radius:5px;padding:4px 9px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);transition:all .2s}
+.chart-tab.active{background:rgba(167,118,147,0.18);border-color:var(--border2);color:#fff}
+.chart-tab:hover:not(.active){border-color:var(--border2);color:var(--text3)}
+.chart-wrap{position:relative;height:175px;overflow:hidden}
+.chart-scroll{overflow-x:auto;height:100%;scrollbar-width:thin;scrollbar-color:rgba(167,118,147,0.3) transparent}
+.chart-scroll::-webkit-scrollbar{height:3px}
+.bar-group{display:inline-flex;gap:5px;align-items:flex-end;height:100%;padding:20px 6px 26px;position:relative;min-width:100%}
+.bar-item{display:flex;flex-direction:column;align-items:center;min-width:25px;height:100%;justify-content:flex-end}
+.bar-val{font-size:8px;font-weight:700;color:var(--text3);margin-bottom:3px;white-space:nowrap;text-align:center}
+.bar-col{width:15px;border-radius:4px 4px 0 0;min-height:3px;transition:height .5s cubic-bezier(.16,1,.3,1)}
+.bar-lbl{font-size:8px;font-weight:600;color:var(--dim);letter-spacing:.5px;margin-top:5px;white-space:nowrap}
+.goal-line{position:absolute;left:0;right:0;border-top:1.5px dashed rgba(196,144,174,0.5);pointer-events:none;z-index:2}
+.goal-lbl{position:absolute;right:4px;top:-15px;font-size:8px;font-weight:700;color:var(--mauve-hi)}
+.chart-empty{display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:var(--dim)}
+.cal-box{padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.cal-title{font-family:var(--f-title);font-size:15px;font-weight:700;color:#fff}
+.cal-nav-btns{display:flex;gap:5px}
+.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 11px;color:var(--text3);font-size:14px;line-height:1;transition:all .2s}
+.cal-nav-btn:hover{border-color:var(--border2);color:#fff}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-head{text-align:center;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);padding-bottom:7px}
+.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;font-size:10px;font-weight:600;color:rgba(222,209,198,0.35);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .2s;gap:1px;padding:2px 1px}
+.cal-cell.empty{background:none;border:none}
+.cal-cell.cal-today{border-color:rgba(167,118,147,0.5);color:var(--beige)}
+.cal-cell.cal-met{background:rgba(167,118,147,0.5);border-color:var(--mauve-hi);color:#fff;font-weight:800;box-shadow:0 0 9px rgba(167,118,147,0.4)}
+.cal-cell.cal-partial{background:rgba(167,118,147,0.15);border-color:rgba(167,118,147,0.35);color:var(--mauve-hi)}
+.cal-day-num{font-size:10px;font-weight:700;line-height:1}
+.cal-day-val{font-size:7px;font-weight:600;line-height:1;opacity:.85}
+.cal-cell.cal-met .cal-day-val{color:rgba(255,255,255,0.9)}
+.cal-legend{display:flex;gap:13px;margin-top:9px;justify-content:flex-end}
+.cal-legend-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--dim)}
+.cal-legend-dot{width:8px;height:8px;border-radius:3px}
+@media(max-width:750px){.sd-hero-inner{flex-direction:column;text-align:center}.sd-rank-big{margin:0 auto}.sd-body{padding:18px 14px 90px}}
+</style>
+
+<div id="page-skill" class="page hidden">
+  <nav>
+    <div class="nav-logo">KRESTO</div>
+    <div class="nav-right"><button class="nav-link" onclick="goTo('dash')">← Dashboard</button></div>
+  </nav>
+  <div class="sd-hero">
     <div class="sd-hero-inner">
-      <div class="sd-rank-big">${rankBadgeSVG(lt,ls,62)}</div>
+      <div class="sd-rank-big" id="sd-rank-big"></div>
       <div class="sd-right">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="color:var(--col-gold)">${skillSVG(detailKey,22)}</span>
-          <span class="sd-skill-name">${skill.name}</span>
-        </div>
-        <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:${rank.col}">${rank.label}</div>
-        <div style="font-size:14px;color:var(--text3)">Level <strong style="color:#fff;font-size:22px;font-family:var(--f-title)">${level}</strong><span style="font-size:11px;color:var(--dim)"> / ${LEVEL_MAX}</span></div>
-        <div style="font-size:14px;color:var(--text3)">Total: <strong style="color:#fff">${total} ${skill.unit}</strong> &nbsp;·&nbsp; <span style="color:var(--col-gold)">${Math.round(sxp).toLocaleString()} XP</span></div>
+        <div class="sd-icon-name"><div class="sd-skill-icon" id="sd-icon"></div><div class="sd-skill-name" id="sd-name">—</div></div>
+        <div class="sd-rank-label" id="sd-rank-label">—</div>
+        <div class="sd-total-row" id="sd-total-row">—</div>
       </div>
-    </div>`;
-
-  const stk=calcStreak(detailKey);
-  const maxS=stk>0?Math.ceil(stk/15)*15:15;
-  const sPct=Math.min(stk/maxS*100,100);
-
-  const tabs=['day','week','month','year'].map(r=>`<button class="chart-tab ${detailRange===r?'active':''}" onclick="setChartRange('${r}')">${r}</button>`).join('');
-
-  document.getElementById('sd-body').innerHTML=`
+    </div>
+  </div>
+  <div class="sd-body">
     <div class="streak-box">
-      <div class="streak-meta">
-        <div class="streak-lbl">🔥 Streak</div>
-        <div style="display:flex;align-items:baseline;gap:4px"><span class="streak-num">${stk}</span><span class="streak-unit">days</span></div>
-      </div>
-      <div class="streak-track">
-        <div class="streak-fill" style="width:${sPct}%"><span class="streak-flame">🔥</span></div>
-      </div>
-      <div class="streak-miles"><span>0</span><span>${Math.round(maxS/4)}d</span><span>${Math.round(maxS/2)}d</span><span>${Math.round(maxS*3/4)}d</span><span>${maxS}d</span></div>
+      <div class="streak-meta"><div class="streak-lbl">🔥 Streak</div><div class="streak-count"><span class="streak-num" id="sd-streak-n">0</span><span class="streak-unit">days</span></div></div>
+      <div class="streak-track"><div class="streak-fill" id="sd-streak-fill" style="width:0%"><span class="streak-flame">🔥</span></div></div>
+      <div class="streak-miles" id="sd-streak-miles"></div>
     </div>
-
-    <div class="sd-rank-bar-box">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:4px">
-        <div style="font-size:14px;font-weight:700;color:${rank.col}">${rank.label}</div>
-        <div style="font-size:12px;color:var(--dim)">Level ${level} / ${LEVEL_MAX}</div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-bottom:6px">
-        <span style="color:var(--dim)">${Math.round(sxp%XP_PER_SKILL_LEVEL)} / ${XP_PER_SKILL_LEVEL} XP</span>
-        ${nextRank?`<span style="color:var(--dim)">Next: <span style="color:${nextRank.col};font-weight:700">${nextRank.label}</span></span>`:`<span style="color:var(--col-gold)">✨ MAX</span>`}
-      </div>
-      <div class="sd-rank-bar-track"><div class="sd-rank-bar-fill" style="width:${levelPct}%;background:linear-gradient(90deg,${rank.col}55,${rank.col})"></div></div>
-      ${nextRank?`<div style="font-size:11px;color:var(--dim);margin-top:7px"><strong style="color:var(--col-gold-lt)">${xpToNext.toLocaleString()} XP</strong> to Level ${level+1}${level%3===0?` · Next rank: <span style="color:${nextRank.col};font-weight:700">${nextRank.label}</span>`:''}</div>`:''}
-    </div>
-
     <div class="chart-box">
-      <div class="chart-header"><div class="chart-title">History</div><div class="chart-tabs">${tabs}</div></div>
-      <div class="chart-wrap" id="chart-wrap"><div class="chart-scroll" id="chart-scroll"><div class="chart-empty">Loading…</div></div></div>
-    </div>
-
-    <div class="cal-box">
-      <div class="cal-header">
-        <div class="cal-title" id="cal-month-lbl">—</div>
-        <div class="cal-nav-btns">
-          <button class="cal-nav-btn" onclick="shiftCal(-1)">‹</button>
-          <button class="cal-nav-btn" onclick="shiftCal(1)">›</button>
+      <div class="chart-header">
+        <div class="chart-title">History</div>
+        <div class="chart-tabs">
+          <button class="chart-tab active" onclick="setChartRange('day')">Day</button>
+          <button class="chart-tab" onclick="setChartRange('week')">Week</button>
+          <button class="chart-tab" onclick="setChartRange('month')">Month</button>
+          <button class="chart-tab" onclick="setChartRange('year')">Year</button>
         </div>
       </div>
+      <div class="chart-wrap" id="chart-wrap"><div class="chart-scroll" id="chart-scroll"><div class="chart-empty">No data yet</div></div></div>
+    </div>
+    <div class="cal-box">
+      <div class="cal-header"><div class="cal-title" id="cal-month-lbl">—</div><div class="cal-nav-btns"><button class="cal-nav-btn" onclick="shiftCal(-1)">‹</button><button class="cal-nav-btn" onclick="shiftCal(1)">›</button></div></div>
       <div class="cal-grid" id="cal-grid"></div>
       <div class="cal-legend">
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(235,163,40,.4);border:1px solid var(--col-gold)"></div>Goal met</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(235,163,40,.1);border:1px solid rgba(235,163,40,.3)"></div>Partial</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(167,118,147,.5);border:1px solid var(--mauve-hi)"></div>Goal met</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(167,118,147,.15);border:1px solid rgba(167,118,147,.35)"></div>Partial</div>
       </div>
-    </div>`;
-  renderChart(); renderCalendar();
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── SKILL DETAIL JS ─────────────────────────────────────────── */
+var detailKey=null, detailRange="day", detailCalY, detailCalM;
+
+function openSkillDetail(key) {
+  detailKey=key; var now=getCairoNow(); detailCalY=now.getFullYear(); detailCalM=now.getMonth();
+  detailRange="day"; renderSkillDetail(); goTo("skill");
 }
 
-function setChartRange(r){ detailRange=r; renderSkillDetail(); }
-
-function renderChart(){
-  if(!detailKey) return;
-  const skill=SKILLS.find(s=>s.key===detailKey); if(!skill) return;
-  const entries=ENTRIES.filter(e=>e.skill===detailKey);
-  const now=new Date(); let data=[];
-  if(detailRange==='day'){
-    const ty=now.getFullYear();
-    for(let i=89;i>=0;i--){ const d=new Date(now); d.setDate(d.getDate()-i); const ds=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; const v=entries.filter(e=>e.date===ds).reduce((s,e)=>s+e.value,0); data.push({label:`${d.getMonth()+1}/${d.getDate()}`,year:d.getFullYear()!==ty?String(d.getFullYear()):'',value:v}); }
-  } else if(detailRange==='week'){
-    for(let i=51;i>=0;i--){ const ws=new Date(now); ws.setDate(ws.getDate()-ws.getDay()-i*7); const we=new Date(ws); we.setDate(we.getDate()+6); const v=entries.reduce((sum,e)=>{ const ed=new Date(e.date+'T12:00:00'); return (ed>=ws&&ed<=we)?sum+e.value:sum; },0); const wn=Math.ceil((ws-new Date(ws.getFullYear(),0,1))/604800000)+1; data.push({label:`W${wn}`,year:String(ws.getFullYear()),value:v}); }
-  } else if(detailRange==='month'){
-    const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    for(let i=23;i>=0;i--){ const ms=new Date(now.getFullYear(),now.getMonth()-i,1); const me=new Date(now.getFullYear(),now.getMonth()-i+1,0); const v=entries.reduce((sum,e)=>{ const ed=new Date(e.date+'T12:00:00'); return (ed>=ms&&ed<=me)?sum+e.value:sum; },0); data.push({label:mn[ms.getMonth()],year:String(ms.getFullYear()),value:v}); }
+function renderSkillDetail() {
+  if (!detailKey) return;
+  var skill = SKILLS.find(function(s){ return s.key===detailKey; });
+  var rows = loadPlayerCache(SESSION.name);
+  var totals = computeTotals(rows), t = totals[detailKey]||{all:0,today:0,byDay:{}};
+  var todS = cairoToday(), isTyping = detailKey==="typing_score";
+  if (isTyping) {
+    document.getElementById("sd-rank-big").innerHTML = rankBadgeSVG("Bronze","V",65);
+    document.getElementById("sd-icon").innerHTML = skillSVG(detailKey,24);
+    document.getElementById("sd-name").textContent = skill.name;
+    document.getElementById("sd-rank-label").textContent = "Consistency Tracker";
+    document.getElementById("sd-rank-label").style.color = "var(--beige)";
+    document.getElementById("sd-total-row").innerHTML = 'Sessions: <strong>'+t.all+'</strong>';
   } else {
-    const map={}; entries.forEach(e=>{ const y=e.date.split('-')[0]; if(y) map[y]=(map[y]||0)+e.value; });
-    data=Object.keys(map).sort().map(y=>({label:y,year:'',value:map[y]}));
+    var norm=t.all/skill.goal, si=getSkillRankIdx(norm), sr=SKILL_LEVELS[si];
+    var lp=sr.label.split(" "), lt=lp[0], ls=lp.slice(1).join(" ")||"";
+    document.getElementById("sd-rank-big").innerHTML = rankBadgeSVG(lt,ls,65);
+    document.getElementById("sd-icon").innerHTML = skillSVG(detailKey,24);
+    document.getElementById("sd-name").textContent = skill.name;
+    document.getElementById("sd-rank-label").textContent = sr.label;
+    document.getElementById("sd-rank-label").style.color = sr.col;
+    var tot=skill.unit==="min"?fmtMin(t.all):t.all.toLocaleString()+" "+skill.unit;
+    document.getElementById("sd-total-row").innerHTML = 'Total: <strong>'+tot+'</strong>';
   }
-  const scroll=document.getElementById('chart-scroll'); const wrap=document.getElementById('chart-wrap');
-  if(!scroll||!wrap) return;
-  wrap.querySelectorAll('.goal-line').forEach(el=>el.remove());
-  if(!data.length||data.every(d=>d.value===0)){ scroll.innerHTML='<div class="chart-empty">No data yet</div>'; return; }
-  const goal=skill.goal||0; const maxV=Math.max(...data.map(d=>d.value),goal||1,1);
-  const IH=140; const PB=32;
-  let bars='<div class="bar-group">';
-  data.forEach(d=>{ const h=d.value>0?Math.max(Math.round(d.value/maxV*IH),3):0; const met=goal>0&&d.value>=goal; const bg=met?'linear-gradient(0deg,#AB6937,#EBA328)':d.value>0?'linear-gradient(0deg,#1E4445,#2a6060)':'rgba(255,255,255,0.03)'; bars+=`<div class="bar-col-wrap"><div class="bar-val">${d.value>0?d.value:''}</div><div class="bar-col" style="height:${h}px;background:${bg}"></div><div class="bar-lbl-wrap"><span class="bar-lbl">${d.label}</span>${d.year?`<span class="bar-lbl-yr">${d.year}</span>`:''}</div></div>`; });
-  bars+='</div>'; scroll.innerHTML=bars;
-  if(goal>0&&goal<=maxV){ const gPx=Math.round(goal/maxV*IH)+PB; const gl=document.createElement('div'); gl.className='goal-line'; gl.style.bottom=gPx+'px'; const glbl=document.createElement('div'); glbl.className='goal-lbl'; glbl.textContent='goal '+goal; gl.appendChild(glbl); wrap.appendChild(gl); }
-  requestAnimationFrame(()=>{ scroll.scrollLeft=scroll.scrollWidth; });
+  var sg=isTyping?1:skill.goal, stk=calcStreak(t.byDay,sg,todS);
+  var maxS=Math.max(30,Math.ceil((stk+1)/30)*30), pct=Math.min(stk/maxS*100,100);
+  document.getElementById("sd-streak-n").textContent = stk;
+  document.getElementById("sd-streak-miles").innerHTML = "<span>0</span><span>"+Math.round(maxS/4)+"d</span><span>"+Math.round(maxS/2)+"d</span><span>"+Math.round(maxS*3/4)+"d</span><span>"+maxS+"d</span>";
+  setTimeout(function(){ document.getElementById("sd-streak-fill").style.width = pct+"%"; }, 80);
+  document.querySelectorAll(".chart-tab").forEach(function(b,i){ b.classList.toggle("active",["day","week","month","year"][i]===detailRange); });
+  renderChart(detailKey, detailRange);
+  renderCalendar(detailKey, detailCalY, detailCalM, t.byDay, sg, skill.unit);
 }
 
-function renderCalendar(){
-  if(!detailKey) return;
-  const skill=SKILLS.find(s=>s.key===detailKey); if(!skill) return;
-  const daily=buildDailyMap(detailKey); const todS=getTodayStr();
-  const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  document.getElementById('cal-month-lbl').textContent=`${MN[detailCalM]} ${detailCalY}`;
-  const firstDay=new Date(detailCalY,detailCalM,1).getDay();
-  const firstOffset=(firstDay+1)%7; // Saturday=0
-  const daysN=new Date(detailCalY,detailCalM+1,0).getDate();
-  let html='';
-  ['Sat','Sun','Mon','Tue','Wed','Thu','Fri'].forEach(d=>{ html+=`<div class="cal-head">${d}</div>`; });
-  for(let i=0;i<firstOffset;i++) html+='<div class="cal-cell empty"></div>';
-  for(let day=1;day<=daysN;day++){
-    const ds=`${detailCalY}-${pad(detailCalM+1)}-${pad(day)}`; const v=daily[ds]||0; const isT=ds===todS;
-    let cls='cal-cell'; if(isT) cls+=' cal-today'; if(skill.goal>0&&v>=skill.goal) cls+=' cal-met'; else if(v>0) cls+=' cal-partial';
-    html+=`<div class="${cls}"><span class="cal-day-num">${day}</span>${v>0?`<span class="cal-day-val">${v}</span>`:''}</div>`;
-  }
-  document.getElementById('cal-grid').innerHTML=html;
+function setChartRange(range) {
+  detailRange=range;
+  document.querySelectorAll(".chart-tab").forEach(function(b,i){ b.classList.toggle("active",["day","week","month","year"][i]===range); });
+  if (detailKey) renderChart(detailKey, range);
 }
 
-function shiftCal(dir){ detailCalM+=dir; if(detailCalM>11){ detailCalM=0; detailCalY++; } if(detailCalM<0){ detailCalM=11; detailCalY--; } if(detailKey) renderCalendar(); }
-</script>
+function groupData(key, range) {
+  var rows = loadPlayerCache(SESSION.name);
+  var filt = rows.filter(function(r){ return r.skill===key; }), now=getCairoNow();
+  if (range==="day") {
+    var out=[]; for(var i=59;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);var ds=dateKey(d),v=0;filt.forEach(function(r){if(normDate(r.date)===ds)v+=Number(r.amount)||0;});out.push({label:(d.getMonth()+1)+"/"+d.getDate(),value:v});}return out;
+  }
+  if (range==="week") {
+    var out=[]; for(var i=25;i>=0;i--){var ws=weekStartDate(new Date(weekStartDate().getTime()-i*7*86400000));var we=new Date(ws);we.setDate(we.getDate()+6);we.setHours(23,59,59);var v=0;filt.forEach(function(r){var ms=new Date(normDate(r.date)+"T12:00:00").getTime();if(ms>=ws.getTime()&&ms<=we.getTime())v+=Number(r.amount)||0;});var wn=Math.ceil((ws.getTime()-new Date(ws.getFullYear(),0,1).getTime())/604800000)+1;out.push({label:"W"+wn,value:v});}return out;
+  }
+  if (range==="month") {
+    var out=[],mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; for(var i=17;i>=0;i--){var ms=new Date(now.getFullYear(),now.getMonth()-i,1).getTime(),me=new Date(now.getFullYear(),now.getMonth()-i+1,0,23,59,59).getTime(),v=0;filt.forEach(function(r){var t2=new Date(normDate(r.date)+"T12:00:00").getTime();if(t2>=ms&&t2<=me)v+=Number(r.amount)||0;});var dm=new Date(ms);out.push({label:mn[dm.getMonth()],value:v});}return out;
+  }
+  if (range==="year") {
+    var map={}; filt.forEach(function(r){var y=(normDate(r.date)||"").split("-")[0];if(y)map[y]=(map[y]||0)+(Number(r.amount)||0);}); return Object.keys(map).sort().map(function(y){return{label:y,value:map[y]};});
+  }
+  return [];
+}
 
-<!-- ══════════════════════════════════════════════
-     ANALYTICS
-══════════════════════════════════════════════ -->
-<script>
-function _showTip(ev,html){ const t=document.getElementById('trend-tooltip'); t.innerHTML=html; t.style.display='block'; t.style.left=(ev.clientX+12)+'px'; t.style.top=(ev.clientY-32)+'px'; }
-function _hideTip(){ document.getElementById('trend-tooltip').style.display='none'; }
+function renderChart(key, range) {
+  var data=groupData(key,range), scroll=document.getElementById("chart-scroll"), wrap=document.getElementById("chart-wrap");
+  Array.from(wrap.querySelectorAll(".goal-line")).forEach(function(e){e.remove();});
+  if (!data||data.every(function(d){return d.value===0;})){scroll.innerHTML='<div class="chart-empty">No data yet</div>';return;}
+  var skill=SKILLS.find(function(s){return s.key===key;}),goal=skill.goal||0,isMin=skill.unit==="min";
+  var maxV=Math.max.apply(null,data.map(function(d){return d.value;}).concat([goal||1,1])),chartH=118;
+  scroll.innerHTML='<div class="bar-group">'+data.map(function(d){var h=d.value>0?Math.max(Math.round(d.value/maxV*chartH),3):0;var met=goal>0&&d.value>=goal,has=d.value>0;var bg=met?"linear-gradient(0deg,#A77693,#c490ae)":has?"linear-gradient(0deg,#174871,#2260a0)":"rgba(255,255,255,0.04)";var vl=d.value>0?(isMin?fmtMin(d.value):d.value):"";return'<div class="bar-item"><div class="bar-val">'+vl+'</div><div class="bar-col" style="height:'+h+'px;background:'+bg+'"></div><div class="bar-lbl">'+d.label+'</div></div>';}).join('')+'</div>';
+  if(goal>0){var goalH=Math.round(goal/maxV*chartH)+26;var gl=document.createElement("div");gl.className="goal-line";gl.style.bottom=goalH+"px";var glbl=document.createElement("div");glbl.className="goal-lbl";glbl.textContent="goal";gl.appendChild(glbl);wrap.appendChild(gl);}
+  setTimeout(function(){scroll.scrollLeft=scroll.scrollWidth;},80);
+}
 
-function renderAnalytics(catId){
-  const cat=CATEGORIES[catId]; if(!cat) return;
-  const skills=SKILLS.filter(s=>s.cat===catId);
-  if(!skills.length){ document.getElementById('analytics-grid').innerHTML='<p style="color:var(--dim)">No skills in this category.</p>'; document.getElementById('analytics-cat-level').innerHTML=''; return; }
-  const skillKeys=skills.map(s=>s.key);
-  const catEntries=ENTRIES.filter(e=>skillKeys.includes(e.skill));
-  const last30=getLast30();
+function renderCalendar(key, year, month, byDay, goal, unit) {
+  var MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  document.getElementById("cal-month-lbl").textContent=MN[month]+" "+year;
+  var todS=cairoToday(), first=new Date(year,month,1).getDay(), offset=(first+1)%7;
+  var days=new Date(year,month+1,0).getDate(), isMin=unit==="min";
+  var html="";
+  ["S","S","M","T","W","T","F"].forEach(function(d){html+="<div class='cal-head'>"+d+"</div>";});
+  for(var i=0;i<offset;i++) html+="<div class='cal-cell empty'></div>";
+  for(var day=1;day<=days;day++){var ds=year+"-"+p2(month+1)+"-"+p2(day),v=byDay[ds]||0,isToday=ds===todS;var cls="cal-cell";if(isToday)cls+=" cal-today";if(goal>0&&v>=goal)cls+=" cal-met";else if(v>0)cls+=" cal-partial";var valStr=v>0?(isMin?fmtMin(v):v):"";html+="<div class='"+cls+"'><span class='cal-day-num'>"+day+"</span>"+(valStr?"<span class='cal-day-val'>"+valStr+"</span>":"")+"</div>";}
+  document.getElementById("cal-grid").innerHTML=html;
+}
 
-  document.getElementById('analytics-hero').innerHTML=`
-    <div style="display:flex;align-items:center;gap:12px">
-      <span style="font-size:26px">${cat.icon}</span>
-      <div><h2 style="font-family:var(--f-title);font-size:20px;color:#fff;line-height:1">${cat.name}</h2>
-      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)">Category Analytics</div></div>
-    </div>`;
-
-  const catXP=calcCategoryXP(catId); const ci=getLevelInfo(catXP,XP_PER_CAT_LEVEL);
-  const cP=ci.rank.label.split(' ');
-
-  document.getElementById('analytics-cat-level').innerHTML=`
-    <div class="cat-level-hero" style="border-color:${ci.rank.col}44">
-      <div>${rankBadgeSVG(cP[0],cP.slice(1).join(' ')||'',52)}</div>
-      <div style="min-width:0">
-        <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:5px">Category Level</div>
-        <div class="cat-level-big">${ci.level}</div>
-      </div>
-      <div class="cat-level-details">
-        <div class="cat-level-rank" style="color:${ci.rank.col}">${ci.rank.label}</div>
-        <div class="cat-level-xp">${Math.round(catXP).toLocaleString()} XP &nbsp;·&nbsp; ${ci.xpToNext.toLocaleString()} XP to Lv${Math.min(ci.level+1,LEVEL_MAX)}</div>
-        <div class="cat-level-bar-track"><div class="cat-level-bar-fill" style="width:${ci.levelPct}%;background:linear-gradient(90deg,${ci.rank.col}66,${ci.rank.col})"></div></div>
-        <div style="font-size:10px;color:var(--very-dim);margin-top:6px">${ci.levelPct}% through this level</div>
-      </div>
-    </div>`;
-
-  const skillXP={}; skills.forEach(s=>{ skillXP[s.key]=calcSkillXP(s.key); });
-  const totalXPCat=Object.values(skillXP).reduce((a,b)=>a+b,0);
-
-  let contribHTML='';
-  skills.forEach(s=>{ const xp=skillXP[s.key]||0; const pct=totalXPCat>0?Math.round(xp/totalXPCat*100):0; const si=getLevelInfo(xp,XP_PER_SKILL_LEVEL); contribHTML+=`<div class="analytics-bar-item"><span class="analytics-bar-label">${s.name} <span style="color:${si.rank.col};font-size:9px">Lv${si.level}</span></span><div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${pct}%;background:${cat.color}"></div></div><span class="analytics-bar-value">${pct}%</span></div>`; });
-
-  let achieveHTML='';
-  skills.forEach(s=>{ const daily={}; catEntries.filter(e=>e.skill===s.key).forEach(e=>{ daily[e.date]=(daily[e.date]||0)+e.value; }); const totalAch=last30.reduce((sum,ds)=>sum+(daily[ds]||0),0); const avg=totalAch/30; const pct=s.goal>0?Math.round(avg/s.goal*100):0; const disp=Math.min(pct,100); achieveHTML+=`<div class="analytics-bar-item"><span class="analytics-bar-label">${s.name}</span><div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${disp}%;background:#4ECDC4"></div></div><span class="analytics-bar-value" style="color:${pct>100?'#4ECDC4':'var(--text)'}">${pct}%${pct>100?' 🔥':''}</span></div>`; });
-
-  /* Trend */
-  const dXP={}; catEntries.forEach(e=>{ const s=skills.find(s=>s.key===e.skill); if(s) dXP[e.date]=(dXP[e.date]||0)+e.value*(s.xpW||1); });
-  const allD=Object.keys(dXP).sort(); const today=getTodayStr(); const rS=allD.length?allD[0]:today;
-  const dR=[]; const c2=new Date(rS+'T12:00:00'); const en=new Date(today+'T12:00:00');
-  while(c2<=en){ dR.push(`${c2.getFullYear()}-${pad(c2.getMonth()+1)}-${pad(c2.getDate())}`); c2.setDate(c2.getDate()+1); }
-  if(!dR.length) dR.push(today);
-  const lV=dR.map(ds=>dXP[ds]||0); const mLV=Math.max(...lV,1);
-  const svgW=Math.max(480,dR.length*7); const svgH=160; const pL=26,pR=8,pT=8,pB=24;
-  const iW=svgW-pL-pR; const iH=svgH-pT-pB;
-  let aP=`${pL},${svgH-pB} `,lP=''; const circles=[];
-  dR.forEach((ds,i)=>{ const x=pL+i*iW/Math.max(dR.length-1,1); const y=svgH-pB-(lV[i]/mLV*iH); lP+=`${x.toFixed(1)},${y.toFixed(1)} `; aP+=`${x.toFixed(1)},${y.toFixed(1)} `; if(lV[i]>0) circles.push({x,y,ds,v:Math.round(lV[i])}); });
-  const lX=pL+(dR.length-1)*iW/Math.max(dR.length-1,1); aP+=`${lX.toFixed(1)},${svgH-pB}`;
-  let yM='',lYr='';
-  dR.forEach((ds,i)=>{ const yr=ds.split('-')[0]; if(yr!==lYr){ const x=pL+i*iW/Math.max(dR.length-1,1); yM+=`<text x="${x.toFixed(1)}" y="${svgH-2}" font-size="6" fill="rgba(235,163,40,0.5)" font-family="Inter,sans-serif">${yr}</text>`; lYr=yr; } });
-  let lSVG=`<svg viewBox="0 0 ${svgW} ${svgH}" style="min-width:${svgW}px;width:100%;height:${svgH}px"><polygon points="${aP}" fill="${cat.color}" opacity="0.1"/><polyline fill="none" stroke="${cat.color}" stroke-width="1.8" stroke-linejoin="round" points="${lP}"/>${yM}`;
-  circles.forEach(c=>{ lSVG+=`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="${cat.color}" opacity="0.9" style="cursor:pointer" onmouseover="_showTip(event,'<strong>${c.ds}</strong><br>${c.v} XP')" onmouseout="_hideTip()"/>`; });
-  lSVG+='</svg>';
-
-  /* Donut */
-  const dc=['#EBA328','#4ECDC4','#E8C283','#AB6937','#ff9040','#80d8ff','#EDD8DF','#e8c840','#cd7f32','#b090ff'];
-  const circ=2*Math.PI*62; let dH=`<svg class="donut-svg" viewBox="0 0 160 160">`; let cum=0;
-  skills.forEach((s,i)=>{ const xp=skillXP[s.key]||0; const pct=totalXPCat>0?xp/totalXPCat:0; if(pct<0.005) return; const da=pct*circ; const col=dc[i%dc.length]; dH+=`<circle cx="80" cy="80" r="62" fill="none" stroke="${col}" stroke-width="20" stroke-dasharray="${da.toFixed(2)} ${(circ-da).toFixed(2)}" stroke-dashoffset="${(-cum).toFixed(2)}" transform="rotate(-90 80 80)" style="cursor:pointer" onmouseover="_showTip(event,'<strong>${s.name}</strong><br>${Math.round(pct*100)}% of XP')" onmouseout="_hideTip()"/>`; cum+=da; });
-  dH+=`<text x="80" y="76" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="Cinzel,serif">${Math.round(totalXPCat).toLocaleString()}</text><text x="80" y="92" text-anchor="middle" fill="rgba(237,216,223,0.5)" font-size="9" font-family="Inter,sans-serif">Total XP</text></svg>`;
-  let dL='<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;justify-content:center">';
-  skills.forEach((s,i)=>{ const pct=totalXPCat>0?Math.round((skillXP[s.key]||0)/totalXPCat*100):0; if(!pct) return; dL+=`<span style="font-size:9px;color:var(--dim);display:flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:2px;background:${dc[i%dc.length]};display:inline-block"></span>${s.name} ${pct}%</span>`; });
-  dL+='</div>';
-
-  document.getElementById('analytics-grid').innerHTML=`
-    <div class="analytics-card"><h4>📊 XP Contribution</h4>${contribHTML}</div>
-    <div class="analytics-card"><h4>🎯 Daily Achievement (30d avg)</h4>${achieveHTML}</div>
-    <div class="analytics-card" style="grid-column:1/-1;overflow:hidden"><h4>📈 XP Trend</h4><div class="line-chart-container hidden-scroll">${lSVG}</div></div>
-    <div class="analytics-card"><h4>🍩 XP Distribution</h4>${dH}${dL}</div>`;
+function shiftCal(dir) {
+  detailCalM+=dir; if(detailCalM>11){detailCalM=0;detailCalY++;} if(detailCalM<0){detailCalM=11;detailCalY--;}
+  if(detailKey){var rows=loadPlayerCache(SESSION.name);var totals=computeTotals(rows);var t=totals[detailKey]||{byDay:{}};var skill=SKILLS.find(function(s){return s.key===detailKey;});renderCalendar(detailKey,detailCalY,detailCalM,t.byDay,detailKey==="typing_score"?1:skill.goal,skill.unit);}
 }
 </script>
 
-<!-- ══════════════════════════════════════════════
-     CONTROL PAGE
-══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     PAGE: LEAGUE
+══════════════════════════════════════════ -->
+<style>
+#page-league{background:var(--bg)}
+.league-hero{padding:28px 22px 16px;text-align:center;background:radial-gradient(ellipse 60% 50% at 50% 120%,rgba(232,193,64,0.14),transparent 60%)}
+.league-tag{font-size:11px;font-weight:600;letter-spacing:3.5px;text-transform:uppercase;color:rgba(232,193,64,0.6);margin-bottom:8px}
+.league-title{font-family:var(--f-title);font-size:clamp(20px,4vw,44px);font-weight:700;text-transform:uppercase;line-height:.92;color:#fff;margin-bottom:12px}
+.league-title em{font-style:normal;color:#e8c840}
+.timer-wrap{display:inline-flex;align-items:center;gap:14px;background:rgba(23,72,113,0.5);border:1px solid rgba(232,193,64,0.25);border-radius:13px;padding:12px 20px}
+.timer-block{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px}
+.timer-num{font-family:var(--f-brand);font-size:22px;font-weight:700;color:#e8c840;line-height:1}
+.timer-lbl{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.timer-sep{font-family:var(--f-brand);font-size:20px;font-weight:700;color:rgba(232,193,64,0.4);margin-bottom:12px}
+.league-body{max-width:900px;margin:0 auto;padding:18px 22px 90px}
+.standings-list{display:flex;flex-direction:column;gap:7px;margin-bottom:24px}
+.st-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
+.st-row.gold{border-color:rgba(232,193,64,0.4);background:rgba(232,193,64,0.06)}
+.st-row.silver{border-color:rgba(192,192,200,0.35);background:rgba(192,192,200,0.04)}
+.st-row.bronze{border-color:rgba(205,127,50,0.35);background:rgba(205,127,50,0.04)}
+.st-pos{font-family:var(--f-title);font-size:17px;font-weight:700;width:26px;text-align:center;flex-shrink:0;color:var(--dim)}
+.st-pos.p1{color:#e8c840}.st-pos.p2{color:#c0c0d0}.st-pos.p3{color:#cd7f32}
+.st-medal{font-size:18px;flex-shrink:0;width:20px}
+.st-name{font-size:14px;font-weight:700;color:#fff;flex:1;min-width:60px}
+.st-xp{font-size:12px;font-weight:700;color:var(--mauve-hi);white-space:nowrap;margin-left:8px;flex-shrink:0}
+.st-bar-wrap{flex:2;min-width:70px;max-width:260px}
+.st-bar-track{height:5px;background:rgba(255,255,255,0.06);border-radius:100px;overflow:hidden}
+.st-bar-fill{height:100%;border-radius:100px;transition:width .9s}
+.skill-leaders-list{display:flex;flex-direction:column;gap:7px;margin-bottom:24px}
+.lcard-v{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:14px}
+.lcard-v-left{display:flex;align-items:center;gap:8px;min-width:130px;flex-shrink:0}
+.lcard-v-icon{display:flex;align-items:center;color:var(--dim);flex-shrink:0}
+.lcard-v-skill{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim)}
+.lcard-v-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+.lcard-v-right{flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lcard-v-name{font-size:14px;font-weight:800;color:#fff}
+.lcard-v-amount{font-size:16px;font-weight:800;color:var(--mauve-hi)}
+.lcard-v-none{font-size:11px;color:var(--very-dim)}
+.history-list{display:flex;flex-direction:column;gap:7px}
+.hist-row{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
+.hist-week{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);min-width:70px;flex-shrink:0}
+.hist-trophy{font-size:20px;flex-shrink:0}
+.hist-name{font-size:14px;font-weight:700;color:#fff;flex:1}
+.hist-xp{font-size:12px;font-weight:700;color:#e8c840;white-space:nowrap}
+.hist-empty{text-align:center;color:var(--very-dim);font-size:12px;padding:18px 0}
+.league-err{text-align:center;padding:44px 22px;color:var(--dim);font-size:14px;line-height:2;display:none}
+.league-err.show{display:block}
+.league-err strong{color:var(--beige);display:block;font-size:16px;margin-bottom:8px}
+@media(max-width:750px){.league-body{padding:16px 14px 90px}.timer-wrap{gap:10px;padding:10px 14px}.timer-num{font-size:18px}.lcard-v-left{min-width:100px}}
+@media(max-width:480px){.lcard-v{flex-wrap:wrap}.lcard-v-sep{display:none}}
+</style>
+
+<div id="page-league" class="page hidden">
+  <nav>
+    <div class="nav-logo">KRESTO</div>
+    <div class="nav-right">
+      <button class="nav-link" onclick="goTo('log')">Log</button>
+      <button class="nav-link" onclick="goTo('dash')">Dashboard</button>
+      <button class="nav-link active">League</button>
+      <button class="btn-icon" id="btn-league-refresh" onclick="fetchLeagueData()" title="Refresh">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 11-1.07-3.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 2.5V6H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </nav>
+  <div class="loading-overlay" id="league-loading"><div class="spin-ring"></div><div class="spin-lbl">Fetching league…</div></div>
+  <div class="league-hero">
+    <div class="league-tag">⚔ Weekly Competition</div>
+    <h1 class="league-title">WEEKLY<br><em>LEAGUE</em></h1>
+    <div class="timer-wrap">
+      <div class="timer-block"><div class="timer-num" id="t-d">00</div><div class="timer-lbl">Days</div></div>
+      <div class="timer-sep">:</div>
+      <div class="timer-block"><div class="timer-num" id="t-h">00</div><div class="timer-lbl">Hrs</div></div>
+      <div class="timer-sep">:</div>
+      <div class="timer-block"><div class="timer-num" id="t-m">00</div><div class="timer-lbl">Min</div></div>
+      <div class="timer-sep">:</div>
+      <div class="timer-block"><div class="timer-num" id="t-s">00</div><div class="timer-lbl">Sec</div></div>
+    </div>
+  </div>
+  <div class="league-body">
+    <div class="league-err" id="league-err"><strong>Could not load data</strong>Press ↺ to retry.</div>
+    <div id="league-content" style="display:none">
+      <div class="sec-label">⚔ Weekly Standings</div>
+      <div class="standings-list" id="standings-list"></div>
+      <div class="sec-label">🏅 Skill Leaders This Week</div>
+      <div class="skill-leaders-list" id="skill-leaders-list"></div>
+      <div class="sec-label">👑 Past Week Champions</div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </div>
+</div>
+
 <script>
-function renderControl(){
-  let html=`
-    <div class="card" style="margin-bottom:16px">
-      <h3 style="font-family:var(--f-title);color:var(--col-gold-lt);margin-bottom:4px">➕ Add Category</h3>
-      <div style="font-size:11px;color:var(--dim);margin-bottom:12px">Categories group your skills</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input id="ctrl-cat-name" class="control-input" placeholder="Category name" style="flex:1;min-width:130px">
-        <input id="ctrl-cat-icon" class="control-input emoji-input" placeholder="😀" style="font-size:20px;width:56px;text-align:center;padding:6px">
-        <input type="color" id="ctrl-cat-color" value="#EBA328" style="width:42px;height:38px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer">
-        <button class="btn-primary" onclick="uiAddCategory()">Add Category</button>
-      </div>
-    </div>`;
+/* ── LEAGUE JS ───────────────────────────────────────────────── */
+var _leagueTimerIv = null;
 
-  const cats=Object.values(CATEGORIES);
-  if(!cats.length) html+=`<div style="text-align:center;padding:40px;color:var(--dim);border:1px dashed var(--border);border-radius:var(--radius-card)"><div style="font-size:15px;margin-bottom:6px">No categories yet</div><div style="font-size:12px">Add your first category above to get started</div></div>`;
+function startLeagueTimer() {
+  function tick() {
+    var now=getCairoNow(), end=leagueEndDate(), diff=Math.max(0,end.getTime()-now.getTime());
+    var d=Math.floor(diff/86400000), h=Math.floor((diff%86400000)/3600000);
+    var m=Math.floor((diff%3600000)/60000), s=Math.floor((diff%60000)/1000);
+    document.getElementById("t-d").textContent=p2(d);
+    document.getElementById("t-h").textContent=p2(h);
+    document.getElementById("t-m").textContent=p2(m);
+    document.getElementById("t-s").textContent=p2(s);
+  }
+  if (_leagueTimerIv) clearInterval(_leagueTimerIv);
+  tick(); _leagueTimerIv = setInterval(tick, 1000);
+}
 
-  cats.forEach(cat=>{
-    const catSkills=SKILLS.filter(s=>s.cat===cat.id);
-    html+=`<div class="card" style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
-        <h3 style="font-family:var(--f-title);color:${cat.color};font-size:16px">${cat.icon} ${cat.name}</h3>
-        <button class="btn-danger" onclick="uiDeleteCategory('${cat.id}')">🗑️ Delete</button>
-      </div>`;
-    if(!catSkills.length) html+=`<div style="font-size:11px;color:var(--very-dim);margin-bottom:10px;padding:8px;border:1px dashed var(--border);border-radius:7px;text-align:center">No skills yet — add one below</div>`;
-    catSkills.forEach(skill=>{
-      html+=`<div style="display:flex;align-items:center;gap:7px;padding:9px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:6px;flex-wrap:wrap">
-        <span style="flex:1;min-width:100px;font-size:12px;font-weight:600">${skill.name}</span>
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          <label style="font-size:9px;color:var(--dim)">Goal</label>
-          <input type="number" value="${skill.goal}" min="1" style="width:62px" class="control-input" onchange="dbUpdateSkill('${skill.key}','goal',Math.max(1,parseInt(this.value)||${skill.goal}))">
-          <span style="font-size:9px;color:var(--dim)">${skill.unit}</span>
-          <label style="font-size:9px;color:var(--dim)">XP/unit</label>
-          <input type="number" value="${skill.xpW||1}" min="1" style="width:52px" class="control-input" onchange="dbUpdateSkill('${skill.key}','xpW',Math.max(1,parseInt(this.value)||${skill.xpW||1}))">
-          <button class="btn-danger" style="padding:4px 8px;font-size:12px" onclick="uiDeleteSkill('${skill.key}','${skill.name}')">🗑️</button>
-        </div>
-      </div>`;
-    });
-    html+=`<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:8px">+ Add Skill</div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap">
-        <input id="ctrl-skill-name-${cat.id}" class="control-input" placeholder="Skill name" style="flex:1;min-width:110px">
-        <input id="ctrl-skill-goal-${cat.id}" type="number" class="control-input" placeholder="Daily goal" style="width:78px">
-        <input id="ctrl-skill-unit-${cat.id}" class="control-input" placeholder="Unit" style="width:70px">
-        <input id="ctrl-skill-xpw-${cat.id}" type="number" class="control-input" placeholder="XP/u" value="1" style="width:54px">
-        <button class="btn-primary" onclick="uiAddSkill('${cat.id}')">+ Add</button>
-      </div>
-    </div></div>`;
+async function fetchLeagueData() {
+  var btn=document.getElementById("btn-league-refresh"), loading=document.getElementById("league-loading");
+  btn.classList.add("spinning"); loading.classList.add("show");
+  try {
+    var data = await apiFetchLeague();  // ← JSONP
+    if (data && data.rows) {
+      // normalize dates in all rows
+      data.rows = data.rows.map(function(r){
+        return {date:normDate(String(r.date||"").trim()), name:String(r.name||"").trim(), skill:String(r.skill||"").trim(), amount:Number(r.amount)||0};
+      });
+      saveLeagueCache(data); renderLeague(data);
+    } else throw new Error("bad response");
+  } catch(e) {
+    if (_leagueCache.rows && _leagueCache.rows.length) renderLeague(_leagueCache);
+    else { document.getElementById("league-err").classList.add("show"); document.getElementById("league-content").style.display="none"; }
+  } finally {
+    btn.classList.remove("spinning"); loading.classList.remove("show");
+  }
+}
+
+function renderLeague(data) {
+  var allRows=data.rows||[], wkMs=weekStartDate().getTime();
+
+  // ── Build per-player weekly totals for CURRENT week ──────────
+  var playerWeek={};
+  PLAYERS.forEach(function(p){
+    playerWeek[p]={xp:0};
+    SKILLS.forEach(function(s){ playerWeek[p][s.key]=0; });
   });
-  document.getElementById('control-content').innerHTML=html;
-}
+  allRows.forEach(function(r){
+    var ds=normDate(String(r.date||"").trim());
+    if(!ds)return;
+    var ms=new Date(ds+"T12:00:00").getTime();
+    if(isNaN(ms)||ms<wkMs)return;
+    var p=r.name, sk=r.skill, v=Number(r.amount)||0;
+    if(!playerWeek[p])return;
+    playerWeek[p].xp+=(XP_WEIGHTS[sk]||0)*v;
+    if(playerWeek[p][sk]!==undefined) playerWeek[p][sk]+=v;
+  });
 
-async function uiAddCategory(){
-  const name=(document.getElementById('ctrl-cat-name')?.value||'').trim();
-  /* Accept the full emoji value — no maxlength restriction in JS */
-  const rawIcon=(document.getElementById('ctrl-cat-icon')?.value||'').trim();
-  const icon=rawIcon||'📌';
-  const color=document.getElementById('ctrl-cat-color')?.value||'#EBA328';
-  if(!name){ showToast('Please enter a category name','warn'); return; }
-  /* Generate a safe ID from name + timestamp suffix to avoid collisions */
-  const base=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-  const id=base||('cat_'+Date.now());
-  /* Check by name (not ID) to allow similar names */
-  const exists=Object.values(CATEGORIES).find(c=>c.name.toLowerCase()===name.toLowerCase());
-  if(exists){ showToast('A category with this name already exists','warn'); return; }
-  await dbAddCategory({id,name,icon,color});
-  showToast(`✓ Category "${name}" added`,'success');
-  document.getElementById('ctrl-cat-name').value='';
-  document.getElementById('ctrl-cat-icon').value='';
-  renderControl();
-}
+  // ── SECTION 1: Weekly Standings — only players with XP > 0 ───
+  var active=PLAYERS.filter(function(p){ return playerWeek[p].xp>0; });
+  active.sort(function(a,b){ return playerWeek[b].xp-playerWeek[a].xp; });
+  var maxXP=active.length>0?playerWeek[active[0]].xp:1;
 
-async function uiDeleteCategory(catId){
-  const catName=CATEGORIES[catId]?.name||catId;
-  const ok=await showConfirm('Delete Category',`Delete "${catName}" and ALL its skills & logged entries? This cannot be undone.`,'Delete All');
-  if(!ok) return;
-  await dbDeleteCategory(catId);
-  showToast(`Deleted category "${catName}"`,'info');
-  renderControl();
-}
+  var sl=document.getElementById("standings-list"); sl.innerHTML="";
+  if(active.length===0){
+    sl.innerHTML='<div class="hist-empty">No activity this week yet.</div>';
+  } else {
+    active.forEach(function(p,i){
+      var xp=playerWeek[p].xp, pct=Math.min(Math.round(xp/maxXP*100),100);
+      var medals=["🥇","🥈","🥉"]; var medal=medals[i]||"";
+      var rc="st-row"+(i===0?" gold":i===1?" silver":i===2?" bronze":"");
+      var pc="st-pos"+(i===0?" p1":i===1?" p2":i===2?" p3":"");
+      var bc=i===0?"linear-gradient(90deg,#e8c840aa,#e8c840)":
+             i===1?"linear-gradient(90deg,#c0c0d088,#c0c0d0)":
+             i===2?"linear-gradient(90deg,#cd7f3288,#cd7f32)":"var(--grad-bar)";
+      var row=document.createElement("div"); row.className=rc;
+      row.innerHTML="<div class='"+pc+"'>"+(i+1)+"</div>"
+        +"<div class='st-medal'>"+medal+"</div>"
+        +"<div class='st-name'>"+p+"</div>"
+        +"<div class='st-bar-wrap'><div class='st-bar-track'><div class='st-bar-fill' style='width:"+pct+"%;background:"+bc+"'></div></div></div>"
+        +"<div class='st-xp'>"+xp.toLocaleString()+" XP</div>";
+      sl.appendChild(row);
+    });
+  }
 
-async function uiAddSkill(catId){
-  const name=(document.getElementById(`ctrl-skill-name-${catId}`)?.value||'').trim();
-  const goal=parseInt(document.getElementById(`ctrl-skill-goal-${catId}`)?.value)||10;
-  const unit=(document.getElementById(`ctrl-skill-unit-${catId}`)?.value||'').trim()||'units';
-  const xpW=parseInt(document.getElementById(`ctrl-skill-xpw-${catId}`)?.value)||1;
-  if(!name){ showToast('Please enter a skill name','warn'); return; }
-  /* Key: catId + sanitized name + short hash to avoid duplicates */
-  const sanitized=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-  const key=catId+'_'+sanitized+'_'+Date.now().toString(36).slice(-4);
-  await dbAddSkill({key,cat:catId,name,goal,unit,xpW});
-  showToast(`✓ Skill "${name}" added`,'success');
-  /* Clear fields */
-  ['ctrl-skill-name-','ctrl-skill-goal-','ctrl-skill-unit-'].forEach(p=>{ const el=document.getElementById(p+catId); if(el) el.value=''; });
-  renderControl();
-}
+  // ── SECTION 2: Skill Leaders — vertical list ─────────────────
+  var leagueSkills=SKILLS.filter(function(s){ return s.key!=="typing_score"; });
+  var ll=document.getElementById("skill-leaders-list"); ll.innerHTML="";
+  leagueSkills.forEach(function(s){
+    var bestP="", bestV=0;
+    PLAYERS.forEach(function(p){
+      if(playerWeek[p][s.key]>bestV){ bestV=playerWeek[p][s.key]; bestP=p; }
+    });
+    var dispV=bestP?(s.unit==="min"?fmtMin(bestV):bestV.toLocaleString()+" "+s.unit):"";
+    var card=document.createElement("div"); card.className="lcard-v";
+    card.innerHTML="<div class='lcard-v-left'>"
+      +"<span class='lcard-v-icon'>"+skillSVG(s.key,16)+"</span>"
+      +"<span class='lcard-v-skill'>"+s.name+"</span>"
+      +"</div>"
+      +"<div class='lcard-v-sep'></div>"
+      +"<div class='lcard-v-right'>"
+      +(bestP
+        ?"<span class='lcard-v-name'>"+bestP+"</span><span class='lcard-v-amount'>"+dispV+" 🏆</span>"
+        :"<span class='lcard-v-none'>No data yet</span>")
+      +"</div>";
+    ll.appendChild(card);
+  });
 
-async function uiDeleteSkill(skillKey, skillName){
-  const ok=await showConfirm('Delete Skill',`Delete "${skillName||skillKey}" and all its logged entries? This cannot be undone.`,'Delete');
-  if(!ok) return;
-  await dbDeleteSkill(skillKey);
-  showToast(`Deleted skill "${skillName||skillKey}"`,'info');
-  renderControl();
+  // ── SECTION 3: Past Week Champions — data-driven, strict per-week ──
+  var hl=document.getElementById("history-list"); hl.innerHTML="";
+
+  // Collect all unique week-start dates from data (excluding current week)
+  var weekSet={};
+  allRows.forEach(function(r){
+    var ds=normDate(String(r.date||"").trim());
+    if(!ds)return;
+    var ms=new Date(ds+"T12:00:00").getTime();
+    if(isNaN(ms)||ms>=wkMs)return; // skip current week
+    var ws=weekStartDate(new Date(ms));
+    weekSet[ws.getTime()]=ws;
+  });
+
+  // Sort weeks newest first
+  var weekTimes=Object.keys(weekSet).map(Number).sort(function(a,b){return b-a;});
+
+  if(weekTimes.length===0){
+    hl.innerHTML='<div class="hist-empty">No completed weeks yet.</div>';
+  } else {
+    weekTimes.forEach(function(wt){
+      var wsDate=weekSet[wt];
+      var ws=wsDate.getTime();
+      var weDate=new Date(wsDate); weDate.setDate(weDate.getDate()+6); weDate.setHours(23,59,59,999);
+      var weMs=weDate.getTime();
+
+      // XP strictly within THIS week only
+      var wkXP={};
+      allRows.forEach(function(r){
+        var ds=normDate(String(r.date||"").trim());
+        if(!ds)return;
+        var ms=new Date(ds+"T12:00:00").getTime();
+        if(isNaN(ms)||ms<ws||ms>weMs)return;
+        var p=r.name, sk=r.skill, v=Number(r.amount)||0;
+        wkXP[p]=(wkXP[p]||0)+(XP_WEIGHTS[sk]||0)*v;
+      });
+
+      var ps=Object.keys(wkXP).filter(function(p){ return wkXP[p]>0; });
+      if(ps.length===0)return;
+      ps.sort(function(a,b){ return wkXP[b]-wkXP[a]; });
+      var champ=ps[0];
+
+      var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][wsDate.getMonth()];
+      var endDate=new Date(wsDate); endDate.setDate(endDate.getDate()+6);
+      var label=mn+" "+wsDate.getDate()+"–"+endDate.getDate();
+
+      var row=document.createElement("div"); row.className="hist-row";
+      row.innerHTML="<div class='hist-week'>"+label+"</div>"
+        +"<div class='hist-trophy'>👑</div>"
+        +"<div class='hist-name'>"+champ+"</div>"
+        +"<div class='hist-xp'>"+wkXP[champ].toLocaleString()+" XP</div>";
+      hl.appendChild(row);
+    });
+    if(hl.children.length===0){
+      hl.innerHTML='<div class="hist-empty">No completed weeks yet.</div>';
+    }
+  }
+
+  document.getElementById("league-content").style.display="block";
+  document.getElementById("league-err").classList.remove("show");
 }
 </script>
 
-<!-- ══════════════════════════════════════════════
-     INIT
-══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="info-modal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('info-modal').classList.remove('show')">✕</button>
+    <div class="modal-title">Point System</div>
+    <div class="modal-row"><span>📘 New Word</span><span class="modal-xp">3 XP</span></div>
+    <div class="modal-row"><span>🔁 Review Word</span><span class="modal-xp">1 XP</span></div>
+    <div class="modal-row"><span>🗣️ Speaking / min</span><span class="modal-xp">3 XP</span></div>
+    <div class="modal-row"><span>🎧 Listening / min</span><span class="modal-xp">1 XP</span></div>
+    <div class="modal-row"><span>📖 Page read</span><span class="modal-xp">15 XP</span></div>
+    <div class="modal-row"><span>⌨️ Touch Typing</span><span class="modal-xp">streak only</span></div>
+    <div class="modal-note">Daily ideal ≈ <strong style="color:var(--mauve-hi)">318 XP</strong> · Conqueror ≈ 150 days.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rank-modal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="rank-modal-box">
+    <button class="modal-close" onclick="document.getElementById('rank-modal').classList.remove('show')">✕</button>
+    <div class="modal-title">Rank Progression — XP Required</div>
+    <div id="rank-modal-list" style="display:flex;flex-direction:column;gap:3px;margin-top:12px"></div>
+  </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', async ()=>{
-  const inp=document.getElementById('log-date');
-  if(inp) inp.value=getTodayStr();
+function openInfoModal(){ document.getElementById("info-modal").classList.add("show"); }
+function openRankModal(){
+  var list=document.getElementById("rank-modal-list"); list.innerHTML="";
+  OVERALL_LEVELS.forEach(function(lv,i){
+    var nxt=OVERALL_LEVELS[i+1], needed=nxt?nxt.startXP-lv.startXP:0;
+    var pts=lv.label.split(" "), tier=pts[0], sub=pts.slice(1).join(" ")||"";
+    var row=document.createElement("div"); row.className="rm-row";
+    row.innerHTML="<div>"+rankBadgeSVG(tier,sub,30)+"</div><div style='flex:1'><div class='rm-name' style='color:"+lv.col+"'>"+lv.label+"</div><div class='rm-xp'>"+lv.startXP.toLocaleString()+" XP"+(nxt?" → "+nxt.startXP.toLocaleString():"+")+"</div></div><div class='rm-pts'>"+(needed?"+"+needed.toLocaleString()+" XP":"MAX")+"</div>";
+    list.appendChild(row);
+  });
+  document.getElementById("rank-modal").classList.add("show");
+}
+document.addEventListener("keydown",function(e){ if(e.key==="Escape"){["info-modal","rank-modal"].forEach(function(id){document.getElementById(id).classList.remove("show");});} });
+</script>
 
-  if(SUPABASE_URL!=='YOUR_PROJECT_URL'&&window.supabase){
-    document.getElementById('loading-sub').textContent='Connecting to database…';
-    try{
-      _sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-      document.getElementById('loading-sub').textContent='Loading your data…';
-      await fetchAllFromSupabase();
-    } catch(err){
-      console.error('Init error:',err);
-      _loadFromLocalStorage();
-      setSyncStatus('error');
-    }
-  } else {
-    document.getElementById('loading-sub').textContent='Offline mode (no database configured)';
-    _loadFromLocalStorage();
-    setSyncStatus('error');
+<!-- ══════════════════════════════════════════
+     PAGE NAVIGATION & INIT
+══════════════════════════════════════════ -->
+<script>
+var currentPage = "log";
+var PAGES = ["log","dash","skill","league"];
+
+function goTo(page) {
+  if (page === currentPage) return;
+  currentPage = page;
+  PAGES.forEach(function(p){
+    var el = document.getElementById("page-"+p);
+    if (el) el.classList.toggle("hidden", p !== page);
+  });
+  if (page === "dash") {
+    document.getElementById("dash-player-label").textContent = SESSION.name;
+    var cached = loadPlayerCache(SESSION.name);
+    if (cached.length > 0) renderDashboard(cached);
+    else fetchPlayerData();
   }
+  if (page === "skill") renderSkillDetail();
+  if (page === "league") {
+    startLeagueTimer();
+    if (_leagueCache.rows && _leagueCache.rows.length > 0) renderLeague(_leagueCache);
+    else fetchLeagueData();
+  }
+}
 
-  const overlay=document.getElementById('loading-overlay');
-  overlay.classList.add('done');
-  setTimeout(()=>{ overlay.style.display='none'; },450);
-  renderLog();
+document.addEventListener("DOMContentLoaded", function() {
+  SESSION.init();        // استعادة آخر لاعب من localStorage
+  loadLeagueCache();
+  buildNameDropdown();   // ملء dropdown بالأسماء مع تحديد SESSION.name
+  setToday();
+  updateUnit();
 });
 </script>
 </body>
